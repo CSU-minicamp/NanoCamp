@@ -1,0 +1,12 @@
+import { site } from '../content/site.mjs';
+import { faqs } from '../content/community.mjs';
+const html = value => String(value ?? '').replace(/[&<>"']/g, char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+export const canonicalUrl = route => new URL(route, site.url).href;
+export function metadata({ title, description, route, noindex = false }) {
+  const canonical = route ? canonicalUrl(route) : null;
+  const article = route?.startsWith('/resources/') && route !== '/resources/';
+  const image = canonicalUrl('/images/nanocamp-social.png');
+  const structured = route === '/' ? { '@context':'https://schema.org', '@type':'Organization', name:site.name, url:site.url, logo:canonicalUrl(site.symbol), description:site.description } : route === '/faq/' ? { '@context':'https://schema.org', '@type':'FAQPage', mainEntity:faqs.map(faq=>({'@type':'Question',name:faq.question,acceptedAnswer:{'@type':'Answer',text:faq.answer}})) } : article ? { '@context':'https://schema.org', '@type':'Article', headline:title.replace(/ · NanoCamp.*$/,''), description, mainEntityOfPage:canonical, image, author:{'@type':'Organization',name:'NanoCamp'}, publisher:{'@type':'Organization',name:'NanoCamp',logo:{'@type':'ImageObject',url:canonicalUrl(site.symbol)}} } : null;
+  const structuredJSON = structured ? JSON.stringify(structured).replace(/</g, '\\u003c') : '';
+  return `${canonical ? `<link rel="canonical" href="${html(canonical)}"><meta property="og:url" content="${html(canonical)}">` : ''}<meta property="og:site_name" content="NanoCamp"><meta property="og:locale" content="zh_CN"><meta property="og:type" content="${article ? 'article' : 'website'}"><meta property="og:image" content="${html(image)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="NanoCamp，让有趣的人相遇，让相遇的人一起创造。"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${html(title)}"><meta name="twitter:description" content="${html(description)}"><meta name="twitter:image" content="${html(image)}">${noindex ? '<meta name="robots" content="noindex, follow">' : ''}${structuredJSON ? `<script type="application/ld+json">${structuredJSON}</script>` : ''}`;
+}

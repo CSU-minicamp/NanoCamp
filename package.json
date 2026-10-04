@@ -1,0 +1,14 @@
+{
+  "name": "nanocamp-community",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NanoCamp 学生创造者社区官网",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs && node scripts/serve.mjs",
+    "start": "node scripts/serve.mjs",
+    "check": "node --check public/app.js && node --check public/details.js && node --check public/hero.js && node --check src/components.mjs && node --check src/hero.mjs && node --check src/pages.mjs && node --check src/community.mjs && node --check public/community.js && node --check public/workshop.js && node --check src/learning.mjs && node --check src/partners.mjs && node --check src/search.mjs && node --check src/metadata.mjs && node --check public/search.js && node --check public/search-core.js && node --check public/discovery.js && node --check src/recap.mjs && node --check public/gallery.js && node --check public/recap.js && node scripts/check.mjs"
+  }
+}
