@@ -81,3 +81,11 @@ body[data-page="activities"] .ticket-main::before{content:"";position:absolute;t
 @media(prefers-reduced-motion:no-preference){body[data-page="activities"]:not(.motion-stopped) :is(.program-card,.record-ticket){animation:sticker-in .6s var(--detail-ease) backwards;animation-timeline:view();animation-range:entry 10% entry 55%}}
 @keyframes sticker-in{from{opacity:0;transform:rotate(calc(var(--tilt,0deg) - 2.5deg)) translateY(18px)}to{opacity:1;transform:rotate(var(--tilt,0deg)) translateY(0)}}
 @media print{body[data-page="activities"] :is(.program-card,.record-ticket){animation:none}.doodle-arrow,.doodle-ring{display:none}}
+
+/* Activities page only: poster-style program cards (ghost numeral, sticker icon, tilted tags) */
+.program-ghost-num{position:absolute;top:-26px;right:2px;z-index:-1;font-family:var(--mono);font-size:118px;line-height:1;font-weight:700;letter-spacing:-6px;color:transparent;-webkit-text-stroke:1.5px var(--program-color);opacity:.2;transform:rotate(7deg);pointer-events:none}
+body[data-page="activities"] .program-icon{background:var(--program-color);border-color:var(--program-color);color:#fff;box-shadow:3px 3px 0 #45647522;transform:rotate(-6deg)}
+body[data-page="activities"] .program-card .tag-list li{background:#fff;border-color:var(--program-color);color:var(--program-color)}
+body[data-page="activities"] .program-card .tag-list li:nth-child(odd){transform:rotate(-1.6deg)}
+body[data-page="activities"] .program-card .tag-list li:nth-child(even){transform:rotate(1.1deg)}
+@media(max-width:640px){.program-ghost-num{font-size:84px;top:-18px;letter-spacing:-4px}}

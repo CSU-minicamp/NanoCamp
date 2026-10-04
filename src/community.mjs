@@ -14,7 +14,7 @@ export function programIcon(kind) {
 
 function programCard(program, index, compact = false) {
   return `<article class="program-card program-${program.tone} ${compact ? 'program-compact' : ''}" data-category="${program.category}" data-filter-item data-detail-surface>
-    <div class="program-top"><span class="program-icon">${programIcon(program.icon)}</span><span class="mono">0${index + 1} / ${esc(program.en)}</span></div>
+    <span class="program-ghost-num" aria-hidden="true">0${index + 1}</span><div class="program-top"><span class="program-icon">${programIcon(program.icon)}</span><span class="mono">0${index + 1} / ${esc(program.en)}</span></div>
     <div class="program-label">${esc(program.label)}<span>${esc(program.status)}</span></div>
     <h3><a href="${program.href}">${esc(program.name)}${arrows}</a></h3><p>${esc(program.description)}</p>
 ${compact ? '' : `<ul class="tag-list" aria-label="活动关键词">${program.tags.map(tag => `<li>${esc(tag)}</li>`).join('')}</ul>`}
