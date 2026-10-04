@@ -48,23 +48,43 @@ npm run dev
 
 - `src/components.mjs`：导航、卡片、媒体、弹窗、页脚与文档外壳。
 - `src/pages.mjs`：页面路由与首页、活动回顾、作品、关于页面的内容结构。
-- `src/hero.mjs`：首页品牌舞台与动画控件。
-- `public/hero.css`、`public/hero.js`：B 版首屏海报、入场动效、悬浮与视差，仅在首页加载。
+- `src/hero.mjs`：首页品牌舞台，以及首页专属的加入区 `homeJoinSection()`。
+- `public/hero.css`、`public/hero.js`：B 版首屏海报与入场动效，仅在首页加载。
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。
-- `public/details.css`、`public/details.js`：全站共享的按钮、导航、卡片、照片框、弹窗、阅读进度、滚动入场及动效偏好。
+- `public/interactions.css`：**首页专属**的鼠标交互层（导航下划线、按钮柔光、卡片抬起、封面推近等 15 项）。所有规则都限定在 `body[data-page="home"]`，其他页面不受影响。由 `documentPage()` 用 `<link>` 引入，**不要改成 `collage.css` 里的 `@import`**：该文件开头已有 `@font-face`，而 CSS 规定 `@import` 必须位于所有规则之前，否则整条被浏览器丢弃，交互会静默失效。规则包在 `@media(hover:hover) and (pointer:fine)` 内，只用 transform / 颜色 / 阴影 / 伪元素，不改变布局。
+- `public/details.css`、`public/details.js`：全站共享的按钮、导航、卡片、照片框、弹窗、阅读进度、滚动入场、全站动效开关，以及右下角的回到顶部浮窗。
 - `public/styles.css`：颜色、排版、组件与响应式样式。
 - `public/app.js`：菜单、弹窗、图片查看、复制及图片失败处理。
 - `scripts/build.mjs`：生成 `dist` 中的静态网站。
 - `scripts/serve.mjs`：仅绑定本机地址的预览服务。
 - `scripts/check.mjs`：验证生成的页面与资源链接。
+- `scripts/inspect.mjs`：页面几何自检（`npm run inspect`，可带路由参数）。让页面自行测量关键元素的坐标并渲染成文本，再用 headless 截图取回，输出到 `verify/`。这台机器上 Chrome 的主进程 IPC 走命名管道，受限令牌沙箱禁止跨进程打开命名管道，因此无法用 DevTools 协议驱动真实滚动；这个脚本是那类测量的替代办法。
+- `scripts/verify-home-scope.mjs`：首页隔离自检（`npm run verify:scope`）。逐页比对，确认交互层与文案改动只落在首页、其他页面的共享行为与还原前一致。`verify/` 只是本地排查产物，不要提交。
+
+### 改动范围约定（多人协作）
+
+`src/` 里只有 `hero.mjs`、`pages.mjs` 属于首页；`components.mjs` 的导航与页脚、`details.*`、`collage.css`、`community.*`、`workshop.*`、`learning.mjs` 等被多个页面共用，改动前请与对应负责人确认。本次首页改动的落点：
+
+| 内容 | 位置 | 是否影响其他页 |
+| --- | --- | --- |
+| 首屏浮动动效 | `public/hero.css` | 否（仅首页加载） |
+| 鼠标交互 15 项 | `public/interactions.css`（新文件）+ `body[data-page="home"]` | 否 |
+| 首页加入区文案 | `src/hero.mjs` 的 `homeJoinSection()` | 否 |
+| 引入 `interactions.css` | `src/components.mjs` 的 `documentPage()` 一行 `<link>` | 是（所有页面都会加载该文件，但规则被首页选择器挡掉） |
 
 `npm run build` 后执行 `npm run check` 进行基础检查。活动日期、地点、照片、项目资料和入群方式仍为明确占位。
 
-首屏动画在 Logo 加载完成后播放一次（等待上限 2 秒），可手动重播或暂停。系统开启“减少动态效果”时展示静态完整版，禁用视差和入场动画；页面隐藏或首屏离开视口时暂停持续动画。触摸设备不启用指针视差。关闭 JavaScript 后品牌与内容仍可见。
+首屏动画在素材就绪后播放一次（等待上限 1.8 秒），不提供重播或暂停控件。入场落座后，三张纸转入幅度 7px 的极轻浮沉（`float-soft`，与各自终态旋转对齐，衔接不跳变）。系统开启“减少动态效果”时展示静态完整版，并同样关闭滚动入场与其他装饰动效。关闭 JavaScript 后品牌与内容仍可见。
 
-页脚提供全站动效开关，与首屏暂停、重播保持同步。偏好使用本地 `nanocamp-motion-paused` 设置跨页保存；浏览器禁止存储时，当页操作仍可用。系统的减少动态效果设置优先。`details.js` 在 `hero.js` 之前加载，通过 `window.NanoCampMotion` 共享状态。
+页脚的全站动效开关、`window.NanoCampMotion` 与「复制页面链接」按钮**保持原状**，属共享件，本次未改动。
 
-所有新增反馈均为渐进增强：按钮按压波纹会自动清理，卡片光泽只在精确指针移动时刷新，阅读进度随滚动更新，屏幕下方内容进入视口后仅显露一次。占位内容维持不可点击；只有已填写的照片和链接提供查看、跳转等操作。项目封面、活动照片补齐后，会自动使用新的照片缩放与查看提示。
+`body` 上的 `id="top"` 已移除，回到顶部改为右下角的圆形浮窗（`data-back-to-top`，`details.css` + `details.js`）。无 hash 时 `details.js` 会把 `history.scrollRestoration` 设为 `manual`，避免加载期间浏览器恢复到一个对不上的滚动位置；带 hash 的直达仍走原生锚点。首页按钮里的「+」保持静止，不随悬停旋转。
+
+所有新增反馈均为渐进增强：按钮按压波纹会自动清理，卡片光泽只在精确指针移动时刷新，阅读进度随滚动更新，屏幕下方内容进入视口后仅显露一次。下滑超过一屏后，右下角出现圆形的回到顶部浮窗，用原生平滑滚动返回顶部，并尊重“减少动态效果”。占位内容维持不可点击；只有已填写的照片和链接提供查看、跳转等操作。项目封面、活动照片补齐后，会自动使用新的照片缩放与查看提示。
+
+「加入方式」按钮在未配置二维码或联系方式时仍然打开弹窗，弹窗内是二维码预留卡与「加入渠道尚未公布」的说明；填入 `site.join.qrCode` 或 `contact` 后自动转为可用状态。
+
+带 hash 的直达沿用浏览器原生锚点跳转；无 hash 时由页面把 `history.scrollRestoration` 设为 `manual`，避免加载期间浏览器自行恢复到一个对不上的滚动位置。修改 `public/hero.js` 或 `public/details.js` 时请保留这一行。
 
 ## 全年社区
 
@@ -85,15 +105,16 @@ npm run dev
 - 准备清单按指南存储在 `nanocamp-checklist-<slug>-v1` 本地键中。仅存勾选项标识；浏览器不允许存储时，本页仍可使用并显示说明。
 - 合作工具只在当前页面生成文本，没有网络提交、数据库写入或自动保存。生成后可复制或下载；输入修改后需要重新生成；清空后可撤销。不要把此工具的文案改成「提交成功」或「申请已收到」，除非另外接入并验证真实接收流程。
 - 官方学习链接核实于 2026-10-02。社区指南为通用准备建议，不代表某一届 minicamp 的实际规则。
-## 站内发现与分享
+## 站内发现
 
 - 站内搜索 `/search/` 从公开页面、活动形式、指南正文与模板、FAQ 自动生成索引。填写真实作品标题后，该作品自动加入索引；`项目名称` 占位项不加入。作品 `id` 应保持唯一且稳定。
 - `src/search.mjs` 生成索引和无脚本目录；`public/search-core.js` 提供规范化、多词共同匹配、排序及摘要；`public/search.js` 渐进增强查询、分类、分页及安全高亮。所有结果文本使用 DOM 文本节点。
 - 搜索使用 `?q=关键词&type=guide`；空格分隔的词共同匹配，支持全角字符。无 JavaScript 或索引无法读取时回退为公开页面目录。
 - 主导航搜索入口支持 Ctrl / Command + K，输入控件或打开的弹窗内不会触发。不会绑定纯字符快捷键。
-- 复制页面链接使用公开 canonical 地址，仅保留 `q`、`topic`、`type` 和当前锚点。浏览器不允许复制时显示可选中的手动链接；指南内的反馈显示在侧栏按钮旁。
+- 导航的「更多」面板使用 `::details-content` 配合 `@starting-style` 与 `transition-behavior: allow-discrete` 实现缓入缓出；不支持这些特性的浏览器直接显示/隐藏面板，功能不受影响。精确指针设备上悬停即展开，键盘仍通过点击或 Enter 切换。
 - `site.url` 是网站的正式公开地址，更换域名后需修改并重新构建。`src/metadata.mjs` 生成 canonical、Open Graph、社交卡片和基于真实页面内容的结构化数据。
 - `design/social-card.html` 是分享预览图的原始排版，`public/images/nanocamp-social.png` 为 1200 × 630 输出。原始两张 Logo 不修改。
+- `design/animation-lab.html` 是首页动效选型页（16 个纯 CSS 候选，按板块分组，右上角可重播或定格）。它不是站点页面，`npm run build` 不会生成；本地查看时执行 `Copy-Item design\animation-lab.html dist\`，再打开 `/animation-lab.html`。选定动效后，把对应 CSS 与标记并入正式样式与 `src/`。
 - `npm test` 运行搜索核心、真实内容索引和内联 JSON 安全回归。
 - 构建生成 `sitemap.xml` 与 `robots.txt`。搜索页和 404 标记为 noindex；站点地图只列入普通公开页面，不捏造最后更新时间。
 - `scripts/check.mjs` 检查页面标题/描述、元素 ID、站内文件与锚点、搜索记录、内联 JSON、canonical 与社交元信息、站点地图和分享图尺寸。上线后仍需确认托管平台对未知地址返回 HTTP 404。

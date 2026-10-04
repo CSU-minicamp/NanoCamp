@@ -1,0 +1,143 @@
+/* ============================================================================
+   NanoCamp 首页鼠标交互层（仅首页生效）
+   作用域全部限定在 body[data-page="home"]，因此不会影响其他页面；其他页面由
+   各自的负责人维护。全站唯一的共享改动是 documentPage() 里增加的一行
+   <link rel="stylesheet" href="/interactions.css">（在 collage.css 之后加载即可）。
+
+   为什么不用 collage.css 里的 @import：该文件开头已有 @font-face，而 CSS 规定
+   @import 必须位于所有规则之前，否则整条被浏览器丢弃。
+
+   全部包在 (hover:hover) and (pointer:fine) 内：触摸设备不生效，也不会"悬停粘住"。
+   只改 transform / 颜色 / 阴影 / 伪元素，不改变布局，因此不影响 scripts/check.mjs
+   的锚点与尺寸校验。
+   ============================================================================ */
+
+@media (hover: hover) and (pointer: fine) {
+
+  /* --- 1. 导航项：下划线从中心向两侧展开 --------------------------------- */
+  /* 导航链接是 padding:10px 0 的块级元素（实测高 46px，文字底距其底边 14px）。
+     下划线贴链接底边，即文字下方 14px；此前 bottom:22px 会落在 y=44，正好穿过文字。 */
+  body[data-page="home"] .desktop-nav > a:not(.nav-search) { position: relative; }
+  body[data-page="home"] .desktop-nav > a:not(.nav-search)::after {
+    content: ""; position: absolute; left: 50%; right: 50%; bottom: 0; height: 1.5px;
+    background: var(--blue); transition: left .34s var(--ease), right .34s var(--ease);
+  }
+  body[data-page="home"] .desktop-nav > a:not(.nav-search):is(:hover, :focus-visible)::after { left: 0; right: 0; }
+
+  /* --- 2. 导航「更多」：箭头轻移一格 ------------------------------------ */
+  body[data-page="home"] .nav-more:hover summary svg { transform: translateY(2px); }
+  body[data-page="home"] .nav-more[open]:hover summary svg { transform: rotate(180deg) translateY(-2px); }
+
+  /* --- 3. 主按钮：上浮 + 柔光斜扫 --------------------------------------- */
+  body[data-page="home"] .button { position: relative; overflow: hidden; }
+  body[data-page="home"] .button::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 36%; pointer-events: none;
+    /* collage.css 有 .button::before,.button::after{display:none}，同特异性靠后加载取胜，
+       这里必须显式恢复，否则扫光层被整条隐藏。 */
+    display: block;
+    background: linear-gradient(100deg, #ffffff00, #ffffff5e, #ffffff00);
+    transform: translateX(-180%) skewX(-18deg);
+  }
+  body[data-page="home"] .button:is(:hover, :focus-visible) { transform: translateY(-2px); box-shadow: 0 12px 24px -14px #222d3e59; }
+  body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: nc-sheen .85s var(--ease); }
+
+  /* --- 4. 文字链接：下划线长展开 + 箭头位移 ----------------------------- */
+  body[data-page="home"] .text-link { position: relative; }
+  body[data-page="home"] .text-link:is(:hover, :focus-visible) .link-arrow { transform: translate(3px, -3px); }
+  body[data-page="home"] .link-arrow { transition: transform .3s var(--ease); }
+
+  /* --- 5. 首屏回顾链接 / 活动条：底部实线展开 + 背景泛色 ----------------- */
+  body[data-page="home"] .b-recap { position: relative; }
+  body[data-page="home"] .b-recap::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1.5px;
+    background: #4944a1; transform: scaleX(0); transform-origin: left;
+    transition: transform .36s var(--ease);
+  }
+  body[data-page="home"] .b-recap:is(:hover, :focus-visible)::after { transform: scaleX(1); }
+  body[data-page="home"] .b-event { transition: background-color .3s var(--ease), padding-inline .3s var(--ease); }
+  body[data-page="home"] .b-event:is(:hover, :focus-visible) { background: #efeafb; padding-inline: 14px; }
+  body[data-page="home"] .b-event .b-event-open svg { transition: transform .3s var(--ease); }
+  body[data-page="home"] .b-event:is(:hover, :focus-visible) .b-event-open svg { transform: translate(3px, -3px); }
+
+  /* --- 6. 朋友便签：轻微转正 + 抬起 ------------------------------------- */
+  body[data-page="home"] .b-note { transition: transform .4s var(--ease), box-shadow .4s var(--ease); }
+  body[data-page="home"] .b-note:is(:hover, :focus-within) { transform: rotate(-1deg) translateY(-5px); box-shadow: 0 18px 26px -16px #30291c7a; }
+
+  /* --- 7. 绿色卡片：印章标志轻微放大 ------------------------------------ */
+  body[data-page="home"] .b-sheet-mint .brand-asset { transition: transform .5s var(--ease); }
+  body[data-page="home"] .b-sheet-mint:is(:hover, :focus-within) .brand-asset { transform: scale(1.05); }
+
+  /* --- 8. 社区行：左侧色条滑入 + 浅色泛底 -------------------------------- */
+  body[data-page="home"] .community-row { position: relative; }
+  body[data-page="home"] .community-row::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    /* 行的左内边距是 20px，色条左移 12px 正好落在间隙中央（留 10px，距文字 10px），
+       否则它会和 .row-label 贴着同一条竖线，看起来像压住了文字。 */
+    transform: translateX(-12px) scaleY(0); transform-origin: top;
+    background: #2f7d5d; transition: transform .38s var(--ease);
+  }
+  body[data-page="home"] .community-row:hover { background: #d5eade; }
+  body[data-page="home"] .community-row:hover::before { transform: translateX(-12px) scaleY(1); }
+
+  /* --- 9. 作品卡：封面缓推近 + 卡片抬起 ---------------------------------- */
+  body[data-page="home"] .project-card { transition: transform .4s var(--ease), box-shadow .4s var(--ease); }
+  body[data-page="home"] .media-open img { transition: transform .85s var(--ease); }
+  body[data-page="home"] .project-card:is(:hover, :focus-within) { transform: translateY(-5px); box-shadow: 0 20px 36px -22px #2c234052; }
+  body[data-page="home"] .project-card:is(:hover, :focus-within) .media-open img { transform: scale(1.07); }
+
+  /* --- 10. 引导卡：纸角翘起（左下角裁切）-------------------------------- */
+  body[data-page="home"] .archive-links > a { transition: transform .4s var(--ease), clip-path .4s var(--ease), box-shadow .4s var(--ease); }
+  body[data-page="home"] .archive-links > a:hover {
+    transform: translateY(-5px);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+    box-shadow: 0 18px 32px -20px #2c23405e;
+  }
+
+  /* --- 11. 活动面板：轻微抬起 ------------------------------------------- */
+  body[data-page="home"] .event-panel { transition: transform .42s var(--ease), box-shadow .42s var(--ease); }
+  body[data-page="home"] .event-panel:hover { transform: translateY(-4px); box-shadow: 0 22px 40px -26px #2c23404d; }
+
+  /* --- 12. 加入区卡片：抬起 + 微转 -------------------------------------- */
+  body[data-page="home"] .join-paper { transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
+  body[data-page="home"] .join-paper:hover { transform: rotate(-1.2deg) translateY(-5px); box-shadow: 0 20px 34px -20px #30291c66; }
+
+  /* --- 13. 页脚导航：下划线从中心展开 ----------------------------------- */
+  body[data-page="home"] .footer-top nav a { position: relative; }
+  body[data-page="home"] .footer-top nav a::after {
+    left: 50%; right: 50%; transform: none;
+    transition: left .34s var(--ease), right .34s var(--ease);
+  }
+  body[data-page="home"] .footer-top nav a:is(:hover, :focus-visible)::after { left: 0; right: 0; }
+
+  /* --- 14. 回到顶部浮窗：抬起并加深阴影 --------------------------------- */
+  body[data-page="home"] .back-to-top:hover { box-shadow: 0 18px 32px -14px #30203e80; }
+
+  /* --- 15. 图片框：查看提示浮现 ----------------------------------------- */
+  body[data-page="home"] .media-zoom { transition: opacity .3s var(--ease), transform .3s var(--ease); }
+  body[data-page="home"] .media-open:hover .media-zoom { opacity: 1; transform: translateY(0); }
+
+}
+
+@keyframes nc-sheen { from { transform: translateX(-180%) skewX(-18deg); } to { transform: translateX(340%) skewX(-18deg); } }
+
+/* 减少动态效果：保留颜色/阴影反馈，去掉位移与扫光 */
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: none; }
+  body[data-page="home"] .button:is(:hover, :focus-visible),
+  body[data-page="home"] .project-card:is(:hover, :focus-within),
+  body[data-page="home"] .event-panel:hover,
+  body[data-page="home"] .join-paper:hover,
+  body[data-page="home"] .archive-links > a:hover,
+  body[data-page="home"] .b-note:is(:hover, :focus-within),
+  body[data-page="home"] .b-sheet-mint:is(:hover, :focus-within) .brand-asset,
+  body[data-page="home"] .media-open:hover img { transform: none; }
+  body[data-page="home"] .community-row::before,
+  body[data-page="home"] .b-recap::after { transition: none; }
+  body[data-page="home"] .archive-links > a:hover { clip-path: none; }
+}
+
+/* 无脚本回退链接的默认隐藏。原本靠 collage.css 末尾的同名规则压制 .button 的
+   display:inline-flex；为了不动共享文件，这里改用更高特异性并限定首页。
+   .no-js .join-fallback{display:inline-flex}（community.css）特异性更高，
+   因此关闭 JavaScript 时回退链接仍会显示。 */
+body[data-page="home"] .join-fallback { display: none; }
