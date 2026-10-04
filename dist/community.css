@@ -68,3 +68,16 @@ body.motion-stopped .activity-orbit{animation:none}body.motion-stopped :is(.prog
 /* Activities page only: paper grain + torn-edge join banner */
 body[data-page="activities"]{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0,0 0 0 0 0,0 0 0 0 0,0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E")}
 body[data-page="activities"] .join-section{clip-path:polygon(0 14px,2% 5px,4% 13px,7% 4px,10% 15px,13% 6px,16% 12px,19% 4px,23% 14px,26% 6px,30% 12px,34% 4px,38% 15px,42% 6px,46% 12px,50% 4px,54% 14px,58% 6px,62% 13px,66% 5px,70% 14px,74% 6px,78% 12px,82% 4px,86% 15px,90% 7px,94% 13px,98% 5px,100% 14px,100% calc(100% - 14px),98% calc(100% - 5px),94% calc(100% - 13px),90% calc(100% - 4px),86% calc(100% - 15px),82% calc(100% - 7px),78% calc(100% - 12px),74% calc(100% - 4px),70% calc(100% - 14px),66% calc(100% - 6px),62% calc(100% - 13px),58% calc(100% - 5px),54% calc(100% - 14px),50% calc(100% - 6px),46% calc(100% - 12px),42% calc(100% - 4px),38% calc(100% - 15px),34% calc(100% - 6px),30% calc(100% - 12px),26% calc(100% - 4px),23% calc(100% - 14px),19% calc(100% - 6px),16% calc(100% - 12px),13% calc(100% - 4px),10% calc(100% - 15px),7% calc(100% - 6px),4% calc(100% - 13px),2% calc(100% - 5px),0 calc(100% - 14px))}
+
+/* Activities page only: hand-drawn doodles (ring, arrows, washi tape) */
+body[data-page="activities"] .blue-text{position:relative}
+.doodle-ring{position:absolute;left:-6%;bottom:-.18em;width:112%;height:auto;color:#e2a63d;opacity:.85;pointer-events:none}
+.doodle-arrow{position:absolute;pointer-events:none}.arrow-meet{left:32%;top:19%;width:64px;color:#7b9be1}.arrow-share{left:59%;top:40%;width:70px;color:#72bfa2}
+body[data-page="activities"] .ticket-main{position:relative}
+body[data-page="activities"] .ticket-main::before{content:"";position:absolute;top:-11px;left:38%;width:92px;height:22px;background:#e9b55466;transform:rotate(-3deg)}
+@media(max-width:860px){.doodle-arrow{display:none}}
+
+/* Activities page only: scroll-in entrance, CSS scroll-driven with graceful fallback */
+@media(prefers-reduced-motion:no-preference){body[data-page="activities"]:not(.motion-stopped) :is(.program-card,.record-ticket){animation:sticker-in .6s var(--detail-ease) backwards;animation-timeline:view();animation-range:entry 10% entry 55%}}
+@keyframes sticker-in{from{opacity:0;transform:rotate(calc(var(--tilt,0deg) - 2.5deg)) translateY(18px)}to{opacity:1;transform:rotate(var(--tilt,0deg)) translateY(0)}}
+@media print{body[data-page="activities"] :is(.program-card,.record-ticket){animation:none}.doodle-arrow,.doodle-ring{display:none}}
