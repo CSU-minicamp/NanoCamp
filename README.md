@@ -44,6 +44,16 @@ npm run dev
 
 外部项目链接使用完整的 http 或 https 地址。未提供的地址保持 `null`，页面会显示待补充状态。
 
+## 合作页面
+
+合作页按「三个合作案例 → 接受的合作类型 → 我们能提供什么 → 希望合作方提供什么 → 合作邮箱」排列，主要内容集中在 `content/partners.mjs`：
+
+- `cases`：去探索、bonjour 交友卡片、opendev。编辑 `summary` 填写合作介绍，`url` 填写真实的合作记录地址；空链接不会生成按钮。`id` 用于页面锚点和站内搜索，请保持唯一且稳定。
+- `formats`、`offers`、`requests`：合作方向与双方支持的初稿，可直接改标题和说明；实际合作安排由双方另行确认。
+- `email`：目前为 `null`。填入真实邮箱后，会自动显示邮件链接；没有邮箱时明确显示「合作邮箱待补充」。
+
+`src/partners.mjs` 负责页面，`public/partners.css` 是仅在合作页加载的样式。原来的本地草稿工具保留在联系区的折叠项中，标记移至 `src/partner-draft.mjs`，交互继续由 `public/workshop.js` 提供。网站不会代发邮件或提交申请。修改后运行 `npm run build`、`npm run check` 和 `npm test`。
+
 ## 文件说明
 
 - `src/components.mjs`：导航、卡片、媒体、弹窗、页脚与文档外壳。
