@@ -42,19 +42,45 @@ export const eyebrow = () => '';
 export function header(active) {
   return `<a class="skip-link" href="#main">跳到主要内容</a><header class="site-header"><div class="container header-inner">
     <a class="brand" href="/" aria-label="NanoCamp 首页">${wordmark()}</a>
-    <nav class="desktop-nav" aria-label="主导航">${navLinks(active, true)}${moreNavigation(active)}</nav>
+    <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">${desktopNavigation(active)}</nav>
     <div class="header-actions">${active === 'community' ? '<a class="button button-primary button-small" href="#contact">联系我们</a>' : joinButton(site.join.qrCode || site.join.contact ? '加入社区' : '加入方式', 'button-small')}<button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="打开导航菜单"><span></span><span></span></button></div>
-    <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" hidden>${navLinks(active)}</nav>
+    <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>${mobileNavigation(active)}</nav>
   </div><div class="reading-progress" data-reading-progress hidden aria-hidden="true"><span></span></div></header>`;
 }
 
-function navLinks(active, compact = false) {
-  return [['minicamp', '/minicamp/', 'minicamp'], ['activities', '/activities/', '活动'], ['projects', '/projects/', '作品'], ['resources', '/resources/', '资源'], ['community', '/community/', '社区'], ['partners', '/partners/', '合作'], ['about', '/about/', '关于'], ['search', '/search/', '搜索']].filter(([key]) => !compact || ['minicamp', 'projects', 'activities', 'community'].includes(key)).map(([key, href, name]) => `<a href="${href}" ${key === 'search' ? 'class="nav-search" aria-label="站内搜索" data-search-shortcut' : ''} ${active === key ? 'aria-current="page"' : ''}>${key === 'search' ? '<svg class="nav-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="nav-search-label">搜索</span>' : name}</a>`).join('');
+// 站内导航的数据源是 public/base.js：客户端由它统一渲染，
+// 这里按同一份定义做一份构建期输出，作为首屏内容与无 JS 兜底。
+// 两边由 tests/nav.test.mjs 比对，改动时请同时更新 public/base.js。
+const navLinks = [
+  { key: 'minicamp', href: '/minicamp/', label: 'minicamp', compact: true, more: false },
+  { key: 'activities', href: '/activities/', label: '活动', compact: true, more: false },
+  { key: 'projects', href: '/projects/', label: '作品', compact: true, more: false },
+  { key: 'resources', href: '/resources/', label: '资源', compact: false, more: true, moreLabel: '共创资源' },
+  { key: 'community', href: '/community/', label: '社区', compact: true, more: false },
+  { key: 'partners', href: '/partners/', label: '合作', compact: false, more: true, moreLabel: '交流合作' },
+  { key: 'about', href: '/about/', label: '关于', compact: false, more: true, moreLabel: '关于社区' },
+  { key: 'search', href: '/search/', label: '搜索', compact: false, more: true, moreLabel: '站内搜索', search: true }
+];
+
+// 属性顺序与 public/base.js 的 DOM 输出保持一致，替换时不会产生无谓的结构差异。
+function navLink(link, active, label = link.label) {
+  const current = active === link.key ? ' aria-current="page"' : '';
+  if (link.search) {
+    return `<a href="${link.href}" class="nav-search" aria-label="站内搜索"${current} data-search-shortcut><svg class="nav-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="nav-search-label">${label}</span></a>`;
+  }
+  return `<a href="${link.href}"${current}>${label}</a>`;
+}
+
+function desktopNavigation(active) {
+  return navLinks.filter(link => link.compact).map(link => navLink(link, active)).join('') + moreNavigation(active);
+}
+
+function mobileNavigation(active) {
+  return navLinks.map(link => navLink(link, active)).join('');
 }
 
 function moreNavigation(active) {
-  const links=[['resources','/resources/','共创资源'],['partners','/partners/','交流合作'],['about','/about/','关于社区'],['search','/search/','站内搜索']];
-  return `<details class="nav-more"><summary>更多<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="nav-more-panel">${links.map(([key,href,name])=>`<a href="${href}" ${active===key?'aria-current="page"':''}>${name}</a>`).join('')}</div></details>`;
+  return `<details class="nav-more"><summary>更多<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="nav-more-panel">${navLinks.filter(link => link.more).map(link => navLink(link, active, link.moreLabel)).join('')}</div></details>`;
 }
 
 export function media({ src, alt = '活动照片', label = '现场照片', id = '01', theme = 'blue', classes = '', kind = 'moment', fullSrc = null, caption = alt, album = 'moments', albumLabel = 'minicamp 现场相册' } = {}) {
@@ -106,5 +132,5 @@ export function documentPage({ title, description, active, body, route, noindex 
   const favicon = safeUrl(site.symbol === '/images/nanocamp-symbol.png' ? '/images/nanocamp-favicon.png' : site.symbol, true);
   const workshop = ['resources', 'partners'].includes(active);
   const album = !active || ['minicamp','projects'].includes(active);
-  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'partners' ? '<link rel="stylesheet" href="/partners.css">' : ''}${heroAssets}<link rel="stylesheet" href="/interactions.css"><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
+  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'partners' ? '<link rel="stylesheet" href="/partners.css">' : ''}${heroAssets}<link rel="stylesheet" href="/interactions.css"><script defer src="/base.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
 }

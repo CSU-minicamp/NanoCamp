@@ -58,7 +58,8 @@ npm run dev
 
 ## 文件说明
 
-- `src/components.mjs`：导航、卡片、媒体、弹窗、页脚与文档外壳。
+- `src/components.mjs`：卡片、媒体、弹窗、页脚与文档外壳；头部导航按 `public/base.js` 的数据源做一份构建期输出。
+- `public/base.js`：**站点框架（header 导航，未来含页脚）的唯一数据源与客户端渲染入口**。导航项定义在 `NAV_LINKS`：`compact` 决定是否常显在桌面端、`more` 决定是否进入桌面「更多」下拉、`footer`/`footerOnly` 供页脚使用。构建期把同一份定义渲染进 HTML 作为首屏内容与无 JS 兜底，`base.js` 载入后用 `data-nav` 槽位原地替换，并接管手机菜单开合与「更多」下拉的收尾。改导航只需改 `NAV_LINKS`，再同步 `src/components.mjs` 里的 `navLinks`——`tests/nav.test.mjs` 会逐节点比对两边，不一致就会失败，`tests/nav-build.test.mjs` 还会拿真实 `dist` 产物验证替换前后结构完全一致。
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
 - `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
 - `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
@@ -69,7 +70,7 @@ npm run dev
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。
 - `public/details.css`、`public/details.js`：全站共享的按钮、导航、卡片、照片框、弹窗、阅读进度、滚动入场、全站动效开关，以及右下角的回到顶部浮窗。
 - `public/styles.css`：颜色、排版、组件与响应式样式。
-- `public/app.js`：菜单、弹窗、图片查看、复制及图片失败处理。
+- `public/app.js`：弹窗、图片查看、复制及图片失败处理（导航交互已移至 `public/base.js`）。
 - `scripts/build.mjs`：生成 `dist` 中的静态网站。
 - `scripts/serve.mjs`：仅绑定本机地址的预览服务。
 - `scripts/check.mjs`：验证生成的页面与资源链接。
