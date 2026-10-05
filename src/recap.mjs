@@ -1,6 +1,6 @@
 export function recapNavigation() {
-  const chapters=[['recap','01','活动回顾'],['moments','02','现场瞬间'],['camp-projects','03','共创作品'],['keep-building','04','继续共创']];
-  return `<nav class="recap-nav" data-recap-nav aria-label="minicamp 回顾章节"><div class="container recap-nav-inner"><span class="recap-nav-note mono"><i aria-hidden="true"></i>CHAPTER 01</span><div class="recap-nav-links">${chapters.map(([id,number,label])=>`<a href="#${id}"><span class="mono" aria-hidden="true">${number}</span><span>${label}</span><i aria-hidden="true"></i></a>`).join('')}</div><a class="recap-nav-end" href="#keep-building" aria-label="跳到继续共创">↗</a></div></nav>`;
+  const chapters=[['recap','01','活动回顾'],['camp-projects','02','共创作品'],['keep-building','03','继续共创']];
+  return `<nav class="recap-nav" data-recap-nav aria-label="minicamp 回顾章节"><div class="container recap-nav-inner"><span class="recap-nav-note mono"><i aria-hidden="true"></i>CHAPTER 01</span><div class="recap-nav-links">${chapters.map(([id,number,label])=>`<a href="#${id}"><span class="mono" aria-hidden="true">${number}</span><span>${label}</span><i aria-hidden="true"></i></a>`).join('')}</div></div></nav>`;
 }
 export function galleryDialog() {
   const arrow=direction=>`<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="${direction==='prev'?'M19 12H5m6-6-6 6 6 6':'M5 12h14m-6-6 6 6-6 6'}"/></svg>`;
