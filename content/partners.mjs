@@ -1,11 +1,32 @@
-// 合作页内容入口。案例名称已确认；介绍、链接与邮箱留空，补齐后重新构建即可。
+// 合作页内容入口。赞助资料来自合作方记录；具体日期、风采照片与邮箱待补充。
 // formats / offers / requests 是可编辑的合作方向草稿，不代表已签订的合作承诺。
 export const partnership = {
   email: null,
   cases: [
-    { id: 'qu-tansuo', name: '去探索', summary: null, url: null, theme: 'mint' },
-    { id: 'bonjour', name: 'bonjour 交友卡片', summary: null, url: null, theme: 'lilac' },
-    { id: 'opendev', name: 'opendev', summary: null, url: null, theme: 'yellow' },
+    {
+      id: 'subway', name: '赛百味', theme: 'mint', logo: '/images/partners/subway.jpg',
+      summary: '工作人员工作餐、选手小吃券与现场试吃。',
+      period: '首届 minicamp · 具体日期待补充',
+      sponsorship: ['为工作人员提供工作餐', '为选手提供小吃券', '开展现场试吃活动'],
+      promotion: ['活动现场易拉宝展示', '海报等宣传物料展示'],
+      photos: [],
+    },
+    {
+      id: 'bonjour', name: 'bonjour！', tagline: '交友卡片', theme: 'lilac', logo: '/images/partners/bonjour.png',
+      summary: '为选手提供 NFC 交友卡片。',
+      period: '首届 minicamp · 具体日期待补充',
+      sponsorship: ['为选手提供 NFC 交友卡片'],
+      promotion: ['活动现场易拉宝展示', '海报等宣传物料展示'],
+      photos: [],
+    },
+    {
+      id: 'opendev', name: 'OpenDev', theme: 'yellow', logo: '/images/partners/opendev.png',
+      summary: '为选手提供 Token 额度赞助。',
+      period: '首届 minicamp · 具体日期待补充',
+      sponsorship: ['为选手提供 Token 额度赞助'],
+      promotion: ['活动现场易拉宝展示', '海报等宣传物料展示', '活动现场宣讲机会'],
+      photos: [],
+    },
   ],
   formats: [
     { name: 'minicamp 年度黑客松', description: '围绕一年一度的 minicamp，一起支持学生把想法做成作品。从活动筹备到现场交流，找到适合彼此参与的方式。', examples: '活动赞助、技术支持、导师交流、场地与物料', featured: true },

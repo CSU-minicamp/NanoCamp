@@ -26,3 +26,17 @@ test('editable case copy stays literal and unsafe destinations stay inactive', (
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
   assert.doesNotMatch(html, /href="javascript:|<img src=x/);
 });
+
+test('sponsor details escape editable copy and reject unsafe brand images', () => {
+  const item = {
+    id: 'test-sponsor', name: 'Test sponsor', summary: 'A partnership', theme: 'mint',
+    logo: 'javascript:alert(1)', period: '<script>alert(1)</script>',
+    sponsorship: ['<img src=x onerror=alert(1)>'],
+    promotion: ['<b>Event posters</b>'],
+  };
+  const html = partnersPage({ ...fixture, cases: [item] });
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(html, /&lt;b&gt;Event posters&lt;\/b&gt;/);
+  assert.doesNotMatch(html, /src="javascript:|<script>alert|<img src=x|<b>Event posters/);
+});

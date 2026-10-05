@@ -4,14 +4,35 @@ import { partnerDraft } from './partner-draft.mjs';
 
 const arrow = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg>';
 const plus = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14"/><path class="collab-plus-vertical" d="M12 5v14"/></svg>';
+const photoIcon = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="4" y="6" width="24" height="20" rx="2"/><circle cx="11" cy="12" r="2"/><path d="m5 23 7-7 5 5 4-4 7 7"/></svg>';
+const caseTheme = item => ['mint', 'lilac', 'yellow'].includes(item.theme) ? item.theme : 'mint';
+
+function brandImage(item) {
+  const logo = safeUrl(item.logo, true);
+  return logo ? `<img class="collab-brand-image" src="${esc(logo)}" alt="" aria-hidden="true" decoding="async">` : '';
+}
 
 function caseStudy(item) {
-  const theme = ['mint', 'lilac', 'yellow'].includes(item.theme) ? item.theme : 'mint';
+  const theme = caseTheme(item);
   const url = safeUrl(item.url, true);
   return `<article class="collab-case collab-case--${theme}" id="partner-${esc(item.id)}" aria-labelledby="partner-${esc(item.id)}-name">
-    <div class="collab-case-sheet"><h3 id="partner-${esc(item.id)}-name">${esc(item.name)}</h3></div>
-    <div class="collab-case-caption"><p>${esc(item.summary?.trim() || '合作介绍与现场记录待补充。')}</p>${url ? `<a href="${esc(url)}" class="collab-case-link">阅读合作记录 ${arrow}</a>` : ''}</div>
+    <a class="collab-case-trigger" href="#partner-${esc(item.id)}-details" data-partner-open="partner-${esc(item.id)}-details" aria-haspopup="dialog">
+      <div class="collab-case-sheet">${brandImage(item)}<h3 id="partner-${esc(item.id)}-name">${esc(item.name)}${item.tagline ? `<span>${esc(item.tagline)}</span>` : ''}</h3><span class="collab-case-action">查看合作详情</span></div>
+      <div class="collab-case-caption"><p>${esc(item.summary?.trim() || '合作介绍与现场记录待补充。')}</p></div>
+    </a>${url ? `<a href="${esc(url)}" class="collab-case-link">阅读合作记录 ${arrow}</a>` : ''}
   </article>`;
+}
+
+function caseDetails(item) {
+  const list = values => Array.isArray(values) && values.length ? `<ul>${values.map(value => `<li>${esc(value)}</li>`).join('')}</ul>` : '<p>合作内容待补充。</p>';
+  const photos = (Array.isArray(item.photos) ? item.photos : []).filter(photo => safeUrl(photo.src, true));
+  return `<dialog class="collab-detail collab-case--${caseTheme(item)}" id="partner-${esc(item.id)}-details" aria-labelledby="partner-${esc(item.id)}-detail-title">
+    <button class="collab-detail-close" type="button" data-partner-close aria-label="关闭${esc(item.name)}合作详情" autofocus><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+    <header class="collab-detail-header">${brandImage(item)}<h2 id="partner-${esc(item.id)}-detail-title">${esc(item.name)}${item.tagline ? `<span>${esc(item.tagline)}</span>` : ''}</h2><dl class="collab-detail-time"><div><dt>合作时间</dt><dd>${esc(item.period?.trim() || '具体日期待补充')}</dd></div></dl></header>
+    <div class="collab-detail-body"><div class="collab-detail-exchange"><section aria-labelledby="partner-${esc(item.id)}-support"><h3 id="partner-${esc(item.id)}-support">赞助内容</h3>${list(item.sponsorship)}</section><section aria-labelledby="partner-${esc(item.id)}-promotion"><h3 id="partner-${esc(item.id)}-promotion">我们的宣传支持</h3>${list(item.promotion)}</section></div>
+      <section class="collab-detail-photos" aria-labelledby="partner-${esc(item.id)}-photos"><h3 id="partner-${esc(item.id)}-photos">风采照片</h3>${photos.length ? `<div class="collab-photo-grid">${photos.map(photo => `<figure><img src="${esc(safeUrl(photo.src, true))}" alt="${esc(photo.alt || item.name + '合作现场')}" loading="lazy" decoding="async">${photo.caption ? `<figcaption>${esc(photo.caption)}</figcaption>` : ''}</figure>`).join('')}</div>` : `<div class="collab-photo-placeholder">${photoIcon}<p>照片待补充</p></div>`}</section>
+    </div>
+  </dialog>`;
 }
 
 function exchangeList(items) {
@@ -28,9 +49,10 @@ function emailContact(value) {
 
 export function partnersPage(data = partnership) {
   return `<section class="container collab-opening" aria-labelledby="collab-title">
-    <div class="collab-intro"><h1 id="collab-title">把有趣的想法，<br><span>一起做成。</span></h1><div><p>从一年一度的 minicamp，到平日的技术分享与校园交流。<br>期待和你一起，创造更多相遇的机会。</p><a class="collab-intro-link" href="#possibilities">看看我们可以一起做什么 ${arrow}</a></div></div>
-    <div class="collab-cases-heading"><h2>这次，和他们一起。</h2><p>首届 minicamp 合作案例</p></div>
+    <div class="collab-intro"><h1 id="collab-title">期待与你<span>相遇</span></h1><div><p>从一年一度的 minicamp，到平日的技术分享与校园交流。<br>期待和你一起，创造更多相遇的机会。</p></div></div>
+    <div class="collab-cases-heading"><h2>合作样例</h2></div>
     <div class="collab-cases">${data.cases.map(caseStudy).join('')}</div>
+    <div class="collab-case-details">${data.cases.map(caseDetails).join('')}</div>
   </section>
   <section id="possibilities" class="container collab-section collab-formats" aria-labelledby="possibilities-title">
     <div class="collab-section-intro"><h2 id="possibilities-title">我们接受<br>哪些合作？</h2><p>一次分享，一场共创，<br>或者一年一度的重要相遇。</p><p class="collab-side-note">不必一开始就有完整方案。<br>从一个共同感兴趣的主题聊起。</p></div>
