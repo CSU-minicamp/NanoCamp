@@ -1,3 +1,15 @@
+export const communityFounders = [
+  { name: 'InnOSeed lab', image: '/images/community-founders/innoseed.png', mark: 'innoseed', width: 500, height: 500 },
+  { name: '小米实验室', image: '/images/community-founders/xiaomi-source.png', mark: 'xiaomi', width: 1000, height: 647 },
+  { name: '华为智能基座', image: '/images/community-founders/huawei.jpg', mark: 'huawei', width: 627, height: 589 },
+];
+export const communityChannels = [
+  { name: '抖音', account: 'mini', label: '抖音号', id: '58149936120', instruction: '在抖音中搜索此抖音号。' },
+  { name: '小红书', account: 'mini', label: '小红书号', id: '95929963754', instruction: '在小红书中搜索此小红书号。' },
+  { name: 'B站', account: 'minicamp', label: 'UID', id: '3632309624376033', href: 'https://space.bilibili.com/3632309624376033' },
+];
+export const communityContact = { name: 'mini', qq: '3675906985' };
+
 export const programs = [
   { id: 'minicamp', category: 'hackathon', label: '年度黑客松', name: 'minicamp', en: 'THE ANNUAL CAMP', tone: 'blue', icon: 'camp', status: '首届已结束', description: '一年一度，把好奇心带到同一个现场。组队、尝试、做出原型，让想法拥有第一次被看见的机会。', tags: ['跨专业组队', '动手创造', '作品展示'], href: '/minicamp/', action: '回看首届 minicamp' },
   { id: 'sharing', category: 'sharing', label: '技术交流', name: '分享一点新发现', en: 'PASS IT ON', tone: 'mint', icon: 'talk', status: '全年社区方向', description: '一个工具、一次踩坑、一段探索。把自己的发现讲给伙伴听，也从别人的经验里找到下一步。', tags: ['技术分享', '学习交流', '经验复盘'], href: '/community/#share', action: '了解如何发起分享' },
@@ -11,7 +23,7 @@ export const faqs = [
   { id: 'what-is-nanocamp', category: 'community', question: 'NanoCamp 和 minicamp 是什么关系？', answer: 'NanoCamp 是面向学生的创造者社区；minicamp 是社区一年一度的黑客松。我们从首届 minicamp 出发，希望把活动现场的相遇延续为全年的分享、共创和交流。', href: '/about/', link: '认识 NanoCamp' },
   { id: 'who-can-join', category: 'community', question: '只有计算机专业的学生才能参与吗？', answer: '不限专业。我们欢迎代码、设计、产品、艺术，以及各种不同的兴趣。你可以带着问题来，也可以带着一个还不完整的想法来。具体活动若有参与范围或准备要求，会在活动说明中单独写明。', href: '/community/', link: '看看适合你的参与方式' },
   { id: 'starting-from-zero', category: 'community', question: '没有经验、没有作品，可以从哪里开始？', answer: '先从一次交流、一个问题或一个小任务开始。介绍一下你正在好奇的事、愿意尝试的方向和可投入的时间；在共创中边做边学，也可以从记录、调研、设计或展示开始贡献。', href: '/community/#start', link: '查看第一次参与指南' },
-  { id: 'join-channel', category: 'community', question: '在哪里加入社区、获取后续消息？', answer: '点击页头「加入方式」查看官方联系渠道。当前联系方式与二维码尚待补充，公布后会统一更新；活动总览会整理已确认的活动信息。', href: '/activities/', link: '查看活动总览' },
+  { id: 'join-channel', category: 'community', question: '在哪里加入社区、获取后续消息？', answer: '社区页的「联系我们」提供 QQ 联系方式，搜索号码并添加好友即可发起交流。「关注社区动态」整理了抖音、小红书与 B站账号；活动总览会整理已确认的活动信息。', href: '/community/#contact', link: '查看联系方式' },
   { id: 'next-minicamp', category: 'events', question: '下一届 minicamp 什么时候开始？现在能报名吗？', answer: '首届 minicamp 已结束。下一届的时间、地点、参与规则与报名方式尚未公布，当前没有开放的报名入口。确认后会在官网活动页面更新。', href: '/minicamp/', link: '回看首届 minicamp' },
   { id: 'year-round', category: 'events', question: '除了年度黑客松，社区还会做什么？', answer: '技术交流分享、日常共创，以及与其他学校、企业的交流，是 NanoCamp 的全年社区方向。活动总览中的介绍说明这些形式；实际场次、时间与参与方式以之后的活动公告为准。', href: '/activities/#formats', link: '探索活动形式' },
   { id: 'team-and-preparation', category: 'events', question: '要先组好队伍、准备成熟的点子吗？', answer: '认识伙伴本身就是社区参与的一部分。可以先整理自己的兴趣、技能和一个想探索的问题，再寻找互补的伙伴。具体黑客松是否接受个人报名、组队规模及准备要求，以该届规则为准。' },

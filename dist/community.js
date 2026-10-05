@@ -1,5 +1,18 @@
 (() => {
   const normalize = value => String(value).normalize('NFKC').toLocaleLowerCase().trim();
+  const revealSections = [...document.querySelectorAll('[data-community-reveal]')];
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (revealSections.length && 'IntersectionObserver' in window && !reduceMotion) {
+    document.documentElement.classList.add('community-motion-ready');
+    const revealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        revealObserver.unobserve(entry.target);
+      });
+    }, { threshold: .12, rootMargin: '0px 0px -7% 0px' });
+    revealSections.forEach(section => revealObserver.observe(section));
+  }
   document.querySelectorAll('[data-directory]').forEach(directory => {
     const buttons = [...directory.querySelectorAll('[data-filter]')];
     const items = [...directory.querySelectorAll('[data-filter-item]')];
