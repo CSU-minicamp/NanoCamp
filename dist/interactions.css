@@ -68,11 +68,11 @@
   body[data-page="home"] .b-sheet-mint:is(:hover, :focus-within) .brand-asset { transform: scale(1.05); }
 
   /* --- 8. 社区行：左侧色条滑入 + 浅色泛底 -------------------------------- */
-  body[data-page="home"] .community-row { position: relative; }
+  body[data-page="home"] .community-row { position: relative; padding: 30px 10px; }
   body[data-page="home"] .community-row::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    /* 行的左内边距是 20px，色条左移 12px 正好落在间隙中央（留 10px，距文字 10px），
-       否则它会和 .row-label 贴着同一条竖线，看起来像压住了文字。 */
+    /* 色条左移 12px 落在行的左内边距（10px）外侧，与 .row-label 之间留出空隙，
+       否则它会和标签贴着同一条竖线，看起来像压住了文字。 */
     transform: translateX(-12px) scaleY(0); transform-origin: top;
     background: #2f7d5d; transition: transform .38s var(--ease);
   }
