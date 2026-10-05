@@ -57,7 +57,7 @@ a,button,input,select,textarea,summary { -webkit-tap-highlight-color:#dcd0f65c }
 .nav-more-panel {border-radius:4px;background:var(--paper-white)}
 .nav-more-panel a:hover {color:var(--blue)}
 .footer-top nav a {min-height:40px;display:flex;align-items:center}
-.footer-tools button,.footer-tools a,.page-share-button {font-size:12px;color:#57556c}
+.footer-bottom button,.page-share-button {font-size:12px;color:#57556c}
 .footer-top p,.footer-bottom {color:#5e5a70}
 .share-fallback {background:var(--paper-lilac);border-color:#b9aace;border-radius:5px}
 .share-fallback input {border-color:#998aaf;color:#3d3453;background:var(--paper-white)}
@@ -682,9 +682,7 @@ body.motion-stopped .formats-section .program-card:hover {transform:none}
 .footer-top nav {gap:5px 28px;padding-top:0}
 .footer-top nav a {min-height:44px;font-size:14px;line-height:1.5}
 .footer-top nav a:hover {text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:1px}
-.footer-tools {gap:18px}
-.footer-tools>button,.footer-tools>a {min-height:44px;line-height:1.5}
-.footer-tools .back-top-arrow {border-color:#c2b0d4;color:#684e82;border-radius:4px;background:var(--paper-white)}
+.footer-bottom>button {min-height:44px;line-height:1.5}
 .footer-signoff i {background:#81ad93}
 
 @media(hover:hover) and (prefers-reduced-motion:no-preference) {
@@ -710,7 +708,6 @@ body.motion-stopped .formats-section .program-card:hover {transform:none}
   .guide-toc>[data-share-page] {margin-top:11px}
   .guide-sidebar {margin-bottom:35px}
   .guide-body {max-width:none}
-  .footer-tools {gap:12px}
 }
 @media(max-width:640px) {
   .resource-hero {padding-top:33px;padding-bottom:23px;min-height:0}
@@ -782,9 +779,8 @@ body.motion-stopped .formats-section .program-card:hover {transform:none}
   .footer-top nav {margin:4px 0 0;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 14px}
   .footer-top nav a {font-size:13px;min-height:44px}
   .footer-bottom {padding-top:20px}
-  .footer-tools {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 12px;margin-top:15px}
-  .footer-tools>button,.footer-tools>a {font-size:12px;justify-content:flex-start;min-height:44px}
-  .footer-tools .back-to-top {grid-column:1/-1;justify-self:stretch;width:100%;margin-left:0;justify-content:space-between;border-top:1px solid #e1d8e9;padding-top:10px;margin-top:4px}
+  .footer-bottom>button {font-size:12px;min-height:44px}
+  .back-to-top {right:20px;bottom:calc(20px + env(safe-area-inset-bottom, 0px));width:46px;height:46px}
 }
 @media(max-width:370px) {
   .resource-hero h1 {font-size:30px}

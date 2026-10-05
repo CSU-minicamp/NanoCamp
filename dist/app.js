@@ -1,13 +1,17 @@
 (() => {
   const joinDialog = document.getElementById('join-dialog');
   const lightboxDialog = document.getElementById('lightbox-dialog');
-  const menuButton = document.querySelector('[data-menu-toggle]');
-  const menu = document.getElementById('mobile-nav');
   const returnFocus = new WeakMap();
 
-  function closeMenu() { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); menuButton.setAttribute('aria-label', '打开导航菜单'); }
   function openDialog(dialog, trigger) {
-    closeMenu();
+    // 手机导航若还开着，先收起（面板由 base.js 渲染）。
+    const menu = document.querySelector('[data-nav="mobile"]');
+    const menuButton = document.querySelector('[data-menu-toggle]');
+    if (menu && menuButton && !menu.hidden) {
+      menu.hidden = true;
+      menuButton.setAttribute('aria-expanded', 'false');
+      menuButton.setAttribute('aria-label', '打开导航菜单');
+    }
     returnFocus.set(dialog, trigger);
     document.body.classList.add('modal-open');
     dialog.showModal();
@@ -15,25 +19,12 @@
 
   window.NanoCampDialogs = Object.freeze({ open: openDialog });
 
-  menuButton.addEventListener('click', () => {
-    const open = menuButton.getAttribute('aria-expanded') !== 'true';
-    menuButton.setAttribute('aria-expanded', String(open));
-    menuButton.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
-    menu.hidden = !open;
-  });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !menu.hidden) { closeMenu(); menuButton.focus(); } });
-  document.addEventListener('focusin', event => {
-    if (!menu.hidden && !menu.contains(event.target) && !menuButton.contains(event.target)) closeMenu();
-  });
   document.addEventListener('click', event => {
-    if (!menu.hidden && !menu.contains(event.target) && !menuButton.contains(event.target)) closeMenu();
     const join = event.target.closest('[data-join]');
     if (join) openDialog(joinDialog, join);
     const close = event.target.closest('[data-close-dialog]');
     if (close) close.closest('dialog').close();
   });
-  const mobileQuery = window.matchMedia('(max-width: 860px)');
-  mobileQuery.addEventListener('change', () => { if (!mobileQuery.matches) closeMenu(); });
 
   document.documentElement.classList.remove('no-js');
 
@@ -93,11 +84,4 @@
     if (image.complete && image.naturalWidth === 0) imageFailed(image);
   });
 
-})();
-
-// Native details keeps the secondary navigation available without JavaScript.
-(() => { const menu=document.querySelector('.nav-more'); if(!menu)return;
- document.addEventListener('click',event=>{if(!menu.contains(event.target))menu.open=false;});
- document.addEventListener('focusin',event=>{if(menu.open&&!menu.contains(event.target))menu.open=false;});
- document.addEventListener('keydown',event=>{if(event.key==='Escape'&&menu.open){menu.open=false;menu.querySelector('summary').focus();}});
 })();

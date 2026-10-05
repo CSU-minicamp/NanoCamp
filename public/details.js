@@ -1,16 +1,14 @@
 (() => {
-  const preferenceKey = 'nanocamp-motion-paused';
+  // 「暂停全站动效」按钮已移除：现在只跟随系统的 prefers-reduced-motion。
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
   const listeners = new Set();
   const waves = new Map();
   const revealTimers = new Map();
-  let paused = false;
   let surfaceFrame = 0;
   let activeSurface;
   let pointerX = 0, pointerY = 0;
-  try { paused = localStorage.getItem(preferenceKey) === 'true'; } catch { /* Preferences still work for this page. */ }
-  const stopped = () => paused || reduced.matches;
+  const stopped = () => reduced.matches;
 
   function removeWave(wave) {
     clearTimeout(waves.get(wave));
@@ -32,12 +30,6 @@
   }
   function applyPreference() {
     document.body.classList.toggle('motion-stopped', stopped());
-    document.querySelectorAll('[data-site-motion-toggle]').forEach(button => {
-      button.hidden = false;
-      button.disabled = reduced.matches;
-      button.setAttribute('aria-pressed', String(stopped()));
-      button.querySelector('span:last-child').textContent = reduced.matches ? '已减少动态效果' : paused ? '开启全站动效' : '暂停全站动效';
-    });
     if (stopped()) {
       waves.forEach((_, wave) => removeWave(wave));
       document.querySelectorAll('.reveal-pending').forEach(finishReveal);
@@ -46,25 +38,12 @@
     listeners.forEach(listener => listener());
   }
   const motion = Object.freeze({
-    get paused() { return paused; },
     get reduced() { return reduced.matches; },
     get stopped() { return stopped(); },
-    setPaused(value) {
-      paused = Boolean(value);
-      try { localStorage.setItem(preferenceKey, String(paused)); } catch { /* Storage is optional. */ }
-      applyPreference();
-    },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
   });
   window.NanoCampMotion = motion;
-  document.querySelectorAll('[data-site-motion-toggle]').forEach(button => button.addEventListener('click', () => motion.setPaused(!paused)));
   reduced.addEventListener('change', applyPreference);
-  window.addEventListener('storage', event => {
-    if (event.key === preferenceKey || event.key === null) {
-      try { paused = localStorage.getItem(preferenceKey) === 'true'; } catch { return; }
-      applyPreference();
-    }
-  });
   applyPreference();
 
   // One bounded ripple per control. Keyboard activation starts at the center.
@@ -122,7 +101,6 @@
   let scrollFrame = 0;
   function paintProgress() {
     scrollFrame = 0;
-    if (document.hidden) return;
     const range = document.documentElement.scrollHeight - document.documentElement.clientHeight;
     const value = range > 0 ? Math.min(1, Math.max(0, scrollY / range)) : 0;
     progress.style.setProperty('--read-progress', value.toFixed(4));
