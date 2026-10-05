@@ -5,7 +5,7 @@ export const partnership = {
   cases: [
     {
       id: 'subway', name: '赛百味', theme: 'mint', logo: '/images/partners/subway.jpg',
-      summary: '工作人员工作餐、选手小吃券与现场试吃。',
+      summary: '活动餐食支持',
       period: '首届 minicamp · 具体日期待补充',
       sponsorship: ['为工作人员提供工作餐', '为选手提供小吃券', '开展现场试吃活动'],
       promotion: ['活动现场易拉宝展示', '海报等宣传物料展示'],
@@ -13,7 +13,7 @@ export const partnership = {
     },
     {
       id: 'bonjour', name: 'bonjour！', tagline: '交友卡片', theme: 'lilac', logo: '/images/partners/bonjour.png',
-      summary: '为选手提供 NFC 交友卡片。',
+      summary: '活动物料支持',
       period: '首届 minicamp · 具体日期待补充',
       sponsorship: ['为选手提供 NFC 交友卡片'],
       promotion: ['活动现场易拉宝展示', '海报等宣传物料展示'],
@@ -21,7 +21,7 @@ export const partnership = {
     },
     {
       id: 'opendev', name: 'OpenDev', theme: 'yellow', logo: '/images/partners/opendev.png',
-      summary: '为选手提供 Token 额度赞助。',
+      summary: '活动AI费用支持',
       period: '首届 minicamp · 具体日期待补充',
       sponsorship: ['为选手提供 Token 额度赞助'],
       promotion: ['活动现场易拉宝展示', '海报等宣传物料展示', '活动现场宣讲机会'],
