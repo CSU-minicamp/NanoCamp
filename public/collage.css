@@ -975,3 +975,13 @@ body.motion-stopped .archive-links b::after {transition:none;transform:none}
 .faq-item summary:focus-visible {outline:2px solid var(--focus-ring);outline-offset:-2px}
 @media(prefers-reduced-motion:reduce) {.nav-more-panel a {transition:none}}
 body.motion-stopped .nav-more-panel a {transition:none}
+
+/* Preserve the logo palette, with deeper lettering for readability on paper. */
+:root {--brand-logo-blue:#6995f5;--brand-logo-mint:#81d1b1;--brand-text-blue:#618ae3;--brand-text-mint:#5e9780}
+.brand-blue {color:var(--brand-text-blue)}
+.brand-mint {color:var(--brand-text-mint)}
+.footer-brand {display:grid;gap:18px;min-width:0}
+.footer-top .footer-brand .brand {margin:0}
+.footer-top .footer-slogan {margin:0;font-size:24px;font-weight:700;line-height:1.45;letter-spacing:-.02em;max-width:26ch}
+.footer-slogan>span {display:block}
+@media(max-width:860px) {.footer-top .footer-slogan {font-size:22px}}

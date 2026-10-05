@@ -1,4 +1,23 @@
 (() => {
+  document.querySelectorAll('[data-copy-email]').forEach(button => {
+    const status = button.closest('.collab-email').querySelector('[data-email-status]');
+    button.disabled = false;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await navigator.clipboard.writeText(button.dataset.copyEmail);
+        status.textContent = '邮箱已复制';
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(button.querySelector('[data-email-value]'));
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        status.textContent = '无法自动复制。邮箱已选中，可手动复制。';
+      } finally { button.disabled = false; }
+    });
+  });
+
   const dialogs = [...document.querySelectorAll('.collab-detail')];
   if (!dialogs.length || typeof HTMLDialogElement === 'undefined' || typeof HTMLDialogElement.prototype.showModal !== 'function') return;
 

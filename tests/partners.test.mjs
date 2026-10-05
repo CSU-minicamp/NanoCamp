@@ -4,18 +4,18 @@ import { partnersPage } from '../src/partners.mjs';
 
 const fixture = { cases: [], formats: [], offers: [], requests: [], email: null };
 
-test('a configured cooperation email becomes a usable mail link', () => {
+test('a configured cooperation email is available to the copy control', () => {
   const html = partnersPage({ ...fixture, email: 'team+hello@example.org' });
-  assert.match(html, /href="mailto:team\+hello@example\.org\?subject=/);
+  assert.match(html, /data-copy-email="team\+hello@example\.org"/);
   assert.match(html, />team\+hello@example\.org</);
   assert.doesNotMatch(html, /合作邮箱待补充/);
 });
 
-test('unfilled or malformed cooperation emails do not create misleading mail links', () => {
+test('unfilled or malformed cooperation emails do not create copy controls', () => {
   for (const email of [null, '', '待补充', 'hello@example.org?bcc=elsewhere@example.org', 'hello@example.org\nBcc:elsewhere@example.org']) {
     const html = partnersPage({ ...fixture, email });
     assert.match(html, /合作邮箱待补充/);
-    assert.doesNotMatch(html, /href="mailto:/);
+    assert.doesNotMatch(html, /data-copy-email=/);
   }
 });
 

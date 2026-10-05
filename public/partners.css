@@ -2,7 +2,8 @@
 .collab-opening {padding-top:56px;padding-bottom:74px}
 .collab-intro {display:grid;grid-template-columns:1.15fr 1fr;gap:60px;align-items:center;margin-bottom:56px}
 .collab-intro h1 {font-size:clamp(40px,4.2vw,64px);font-weight:800;line-height:1.35;letter-spacing:-.03em;margin:0}
-.collab-intro h1>span {color:var(--blue)}
+.collab-intro h1>.brand-blue {color:var(--brand-text-blue)}
+.collab-intro h1>.brand-mint {color:var(--brand-text-mint)}
 .collab-intro>div {padding-bottom:8px}
 .collab-intro p {font-size:17px;line-height:1.9;max-width:46ch;color:var(--muted)}
 .collab-intro-link {display:inline-flex;align-items:center;gap:15px;min-height:44px;margin-top:18px;color:var(--blue);font-size:15px;text-decoration:underline;text-underline-offset:7px;text-decoration-color:#b7acd1}
@@ -112,8 +113,11 @@
 .collab-email {margin-top:32px;background:#fff0ca;padding:28px 35px 30px;color:#604819}
 .collab-email-label {font-size:14px;font-weight:600;margin-bottom:9px}
 .collab-email-pending {font-size:26px;line-height:1.5;font-weight:600;margin-bottom:9px}
-.collab-email>p:last-child {font-size:14px;line-height:1.85;color:#705a2c}
-.collab-email-link {display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:56px;font-size:clamp(24px,3vw,38px);line-height:1.5;font-weight:600;margin-bottom:8px;text-decoration:underline;text-underline-offset:8px;text-decoration-thickness:1px}
+.collab-email>p:not(.collab-email-label):not(.collab-email-pending) {font-size:14px;line-height:1.85;color:#705a2c}
+.collab-email-link {display:flex;align-items:center;justify-content:space-between;gap:24px;width:100%;min-height:56px;border:0;padding:0;background:transparent;color:inherit;font-family:inherit;font-size:clamp(24px,3vw,38px);line-height:1.5;font-weight:600;text-align:left;cursor:pointer;user-select:text;margin-bottom:8px;text-decoration:underline;text-underline-offset:8px;text-decoration-thickness:1px}
+.collab-email-status {min-height:1.85em;margin-top:7px}
+.collab-email-link:disabled {cursor:wait}
+.no-js .collab-email-link {cursor:text}
 .collab-email-link>span {min-width:0;overflow-wrap:anywhere}
 .collab-email-link svg {width:28px;height:28px}
 @keyframes collab-place {from{transform:translateY(15px) rotate(0);box-shadow:0 22px 26px -23px #29394970}to{transform:translateY(0) rotate(var(--case-angle));box-shadow:0 14px 22px -20px #29394985}}

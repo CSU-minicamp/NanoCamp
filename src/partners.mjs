@@ -43,13 +43,13 @@ function emailContact(value) {
   const email = typeof value === 'string' ? value.trim() : '';
   const valid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
   return `<div class="collab-email"><p class="collab-email-label">合作邮箱</p>${valid
-    ? `<a class="collab-email-link" href="mailto:${esc(encodeURI(email))}?subject=${encodeURIComponent('与 NanoCamp 一起合作')}"><span>${esc(email)}</span>${arrow}</a><p>欢迎告诉我们你的团队、合作想法和大致时间。</p>`
+    ? `<button class="collab-email-link" type="button" data-copy-email="${esc(email)}" aria-label="复制合作邮箱 ${esc(email)}" disabled><span data-email-value>${esc(email)}</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button><p>欢迎告诉我们你的团队、合作想法和大致时间。</p><p class="collab-email-status" role="status" aria-live="polite" data-email-status></p>`
     : '<p class="collab-email-pending">合作邮箱待补充</p><p>邮箱公布后，欢迎带着你的合作想法来信。</p>'}</div>`;
 }
 
 export function partnersPage(data = partnership) {
   return `<section class="container collab-opening" aria-labelledby="collab-title">
-    <div class="collab-intro"><h1 id="collab-title">期待与你<span>相遇</span></h1><div><p>从一年一度的 minicamp，到平日的技术分享与校园交流。<br>期待和你一起，创造更多相遇的机会。</p></div></div>
+    <div class="collab-intro"><h1 id="collab-title"><span class="brand-blue">期待与你</span><span class="brand-mint">相遇</span></h1><div><p>从一年一度的 minicamp，到平日的技术分享与校园交流。<br>期待和你一起，创造更多相遇的机会。</p></div></div>
     <div class="collab-cases-heading"><h2>合作样例</h2></div>
     <div class="collab-cases">${data.cases.map(caseStudy).join('')}</div>
     <div class="collab-case-details">${data.cases.map(caseDetails).join('')}</div>
@@ -59,14 +59,14 @@ export function partnersPage(data = partnership) {
     <div class="collab-format-list">${data.formats.map(item => `<article${item.featured ? ' class="collab-format-featured"' : ''}><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><p class="collab-format-examples">${esc(item.examples)}</p></article>`).join('')}</div>
   </section>
   <section id="what-we-bring" class="collab-offers" aria-labelledby="collab-offers-title"><div class="container collab-section collab-exchange">
-    <div class="collab-section-intro"><h2 id="collab-offers-title">我们能带来什么。</h2><p>把社区的好奇心与行动力，<br>变成彼此都能有所收获的合作。</p><p class="collab-side-note">具体参与形式与传播安排，<br>会结合每次合作一起确认。</p></div>${exchangeList(data.offers)}
+    <div class="collab-section-intro"><h2 id="collab-offers-title">我们能带来什么。</h2></div>${exchangeList(data.offers)}
   </div></section>
   <section id="what-we-need" class="container collab-section collab-exchange collab-requests" aria-labelledby="collab-requests-title">
-    <div class="collab-section-intro"><h2 id="collab-requests-title">也期待，<br>你的一份支持。</h2><p>带来你擅长的部分，<br>让更多想法有机会走到现场。</p></div>${exchangeList(data.requests)}
+    <div class="collab-section-intro"><h2 id="collab-requests-title">我们期待什么</h2></div>${exchangeList(data.requests)}
   </section>
   <section id="contact" class="container collab-contact" aria-labelledby="collab-contact-title">
     <div class="collab-contact-intro"><h2 id="collab-contact-title">下一次相遇，<span>从一封信开始。</span></h2><p>你来自哪里，想一起做什么？<br>简单介绍一下，就可以开始对话。</p></div>
-    <details id="brief" class="collab-draft"><summary><span>把合作想法整理成一份草稿</span>${plus}</summary><div class="collab-draft-content"><p class="collab-draft-note">填写几个要点，生成可复制、可下载的草稿。内容只保留在当前页面，需要你自行发送。</p>${partnerDraft()}</div></details>
+    <details id="brief" class="collab-draft"><summary><span>把合作想法整理成一份草稿</span>${plus}</summary><div class="collab-draft-content"><p class="collab-draft-note">左侧填写要点，右侧实时预览。填写主题后即可复制或下载，内容只保留在当前页面，需要你自行发送。</p>${partnerDraft()}</div></details>
     ${emailContact(data.email)}
   </section>`;
 }
