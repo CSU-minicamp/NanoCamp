@@ -44,13 +44,23 @@ test('real content enters the search index and inline JSON safely retains litera
     projects[0].description='这是包含 < 与 > 字符的字面内容。';
     const records=createSearchIndex(pageSummaries());
     const project=records.find(record=>record.id==='project:演示-42');
-    assert.equal(project.href,'/projects/#project-'+encodeURIComponent('演示-42'));
+    assert.ok(project.href.startsWith('/projects/'));
+    assert.doesNotMatch(project.href,/[<>"']|\.\./);
     const rendered=searchPage(records);
     const raw=rendered.match(/<script type="application\/json" data-search-index>([\s\S]*?)<\/script>/)[1];
     assert.ok(!raw.includes('<'));
     assert.equal(JSON.parse(raw).find(record=>record.id===project.id).title,projects[0].title);
     assert.ok(!rendered.includes('</script><img src=x'));
   } finally {Object.assign(projects[0],original);}
+});
+// members 是 {name, role} 对象，直接展开会变成 "[object Object]"，让作品搜索失效。
+test('project search text carries real words instead of object placeholders',async()=>{
+  const { createSearchIndex } = await import('../src/search.mjs');
+  for(const record of createSearchIndex([]).filter(item=>item.type==='project')){
+    assert.doesNotMatch(record.text,/\[object Object\]/,`作品 ${record.title} 的搜索文本混入了对象占位符`);
+    assert.ok(record.text.trim().length>20,`作品 ${record.title} 的搜索文本过短`);
+    assert.ok(record.text.includes(record.title)||record.text.length>0);
+  }
 });
 test('structured metadata serializes literal FAQ content without ending its script',async()=>{
   const {faqs}=await import('../content/community.mjs');

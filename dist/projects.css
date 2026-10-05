@@ -1,0 +1,104 @@
+/* 作品卡片与作品详情页：延续纸张拼贴的纸质、字号与间距。 */
+.project-tags { margin: 14px 6px 0; gap: 7px; }
+.project-tags li { border-radius: 2px; }
+.project-card h3 a { color: inherit; }
+.project-card h3 a::after { content: ""; display: inline-block; width: 7px; height: 7px; margin: 0 0 1px 9px; border-right: 1.5px solid currentColor; border-top: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .35s var(--ease, cubic-bezier(.16,1,.3,1)); }
+.project-card:is(:hover, :focus-within) h3 a::after { transform: translate(3px, -3px) rotate(45deg); }
+.project-card .project-members { color: #5c5670; font-size: 12px; margin: 9px 6px 0; }
+
+/* 作品较多时按主题分组：每组一条细分隔线 + 主题标题，视觉上弱于页面 h1。 */
+.project-group + .project-group { margin-top: 12px; }
+.project-group .group-label { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding-top: 26px; padding-bottom: 22px; }
+.project-group .group-label h2 { font-size: clamp(21px, 2.2vw, 27px); line-height: 1.45; letter-spacing: -.02em; }
+.project-group .group-label .mono { font-size: 11px; letter-spacing: .06em; color: #6a5c7a; white-space: nowrap; }
+
+.project-breadcrumb { display: flex; align-items: center; gap: 10px; padding-top: 26px; font-size: 13px; color: #574f6b; }
+.project-breadcrumb a { border-bottom: 1px solid #bdb4cd; }
+.project-breadcrumb a:hover { color: var(--blue); border-color: var(--blue); }
+.project-breadcrumb > span[aria-hidden] { color: #a49cbb; }
+
+.project-detail-hero { padding-top: 26px; padding-bottom: 34px; }
+.project-kicker { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.project-tag { background: #ece5f8; border: 1px solid #c9bcdf; border-radius: 3px; color: #514569; font-size: 12px; padding: 4px 10px; }
+.project-kicker .mono { font-size: 12px; letter-spacing: .04em; color: #6a5c7a; }
+.project-detail-hero h1 { font-size: clamp(32px, 4.2vw, 58px); line-height: 1.35; margin-top: 6px; }
+.project-detail-summary { font-size: 17px; line-height: 1.9; color: #4e4763; margin-top: 20px; max-width: 760px; }
+.project-detail-hero .project-tags { margin: 22px 0 0; }
+.project-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.project-actions .unavailable { min-height: 48px; padding: 0 4px; color: #6b6479; }
+
+.project-detail-cover .media-frame { aspect-ratio: 2.1; min-height: 260px; }
+.project-detail-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 60px; padding-top: 52px; padding-bottom: 20px; }
+.project-sidebar { align-self: start; position: sticky; top: 108px; }
+.project-toc { border-top: 1px solid var(--line); padding-top: 24px; }
+.project-toc > .mono { display: block; font-size: 11px; letter-spacing: .08em; color: #6a5c7a; margin-bottom: 14px; }
+.project-toc nav { display: grid; gap: 2px; }
+.project-toc nav a { display: flex; align-items: baseline; gap: 12px; min-height: 44px; padding: 8px 0; font-size: 15px; border-bottom: 1px solid #e5e0ee; }
+.project-toc nav a .mono { font-size: 12px; color: #8c83a5; }
+.project-toc nav a:hover { color: var(--blue); }
+.project-facts { margin: 26px 0 0; display: grid; gap: 16px; }
+.project-facts div { display: grid; gap: 4px; }
+.project-facts dt { font-size: 12px; color: #6a5c7a; }
+.project-facts dd { margin: 0; font-size: 15px; line-height: 1.8; overflow-wrap: anywhere; }
+.project-outbound { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.project-outbound > .mono { font-size: 11px; letter-spacing: .08em; color: #6a5c7a; margin-bottom: 6px; }
+.project-outbound > a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; color: var(--blue); }
+.project-outbound > a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.project-outbound .link-arrow { width: 14px; height: 14px; }
+.project-outbound-note { font-size: 12px; color: #6f6784; margin-top: 6px; }
+.project-sidebar .page-share-button { padding-left: 0; }
+.project-sidebar .text-link { margin-top: 14px; }
+
+.project-detail-body { max-width: 780px; }
+.project-section { padding-bottom: 46px; }
+.project-section > h2 { font-size: clamp(26px, 2.6vw, 34px); line-height: 1.5; margin-top: 10px; }
+.project-section > p { font-size: 17px; line-height: 1.95; margin-top: 18px; color: #443f57; }
+.project-section > p + p { font-size: 16px; color: #55506a; }
+.project-features { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 2px; }
+.project-features li { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 14px; padding: 22px 0; border-bottom: 1px solid #e5e0ee; }
+.project-features .mono { font-size: 13px; color: var(--blue); padding-top: 4px; }
+.project-features h3 { font-size: 20px; line-height: 1.6; }
+.project-features p { font-size: 16px; line-height: 1.9; color: #55506a; margin-top: 8px; }
+.project-stack { display: grid; gap: 22px; margin-top: 26px; }
+.project-stack h3 { font-size: 16px; margin-bottom: 4px; }
+.project-stack .tag-list { margin: 0; }
+/* 成员名单：姓名为主，分工作为次要信息跟在后面。 */
+.project-team { list-style: none; margin: 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 30px; }
+.project-team li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 15px 0; border-bottom: 1px solid #e5e0ee; }
+.project-team b { font-size: 16px; font-weight: 600; }
+.project-team span { font-size: 13px; color: #6f6784; }
+
+.project-detail-next { padding-block: 20px 72px; }
+.project-detail-next > .mono { display: block; font-size: 11px; letter-spacing: .08em; color: #6a5c7a; }
+.project-detail-next h2 { font-size: clamp(24px, 2.4vw, 30px); line-height: 1.5; margin-top: 10px; }
+.project-detail-next-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 22px; }
+.project-detail-next-links a { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 18px; border: 1px solid #bdb4cd; border-radius: 5px; background: var(--paper-white, #fffefa); font-size: 15px; transition: background-color .2s, border-color .2s; }
+.project-detail-next-links a:hover { background: #ece7fa; border-color: #8f85bd; color: var(--blue); }
+
+@media (max-width: 1000px) {
+  .project-detail-layout { grid-template-columns: 240px minmax(0, 1fr); gap: 40px; }
+}
+@media (max-width: 860px) {
+  .project-detail-layout { grid-template-columns: minmax(0, 1fr); gap: 34px; padding-top: 34px; }
+  .project-sidebar { position: static; }
+  .project-detail-cover .media-frame { aspect-ratio: 1.7; min-height: 220px; }
+  .project-detail-hero { padding-bottom: 26px; }
+  .project-detail-summary { font-size: 16px; }
+  .project-section > p { font-size: 16px; }
+}
+@media (max-width: 640px) {
+  .project-group .group-label { padding-top: 22px; padding-bottom: 18px; gap: 10px; }
+  .project-group .group-label .mono { font-size: 10px; }
+  .project-team { grid-template-columns: minmax(0, 1fr); }
+  .project-breadcrumb { padding-top: 20px; font-size: 12px; }
+  .project-detail-hero .project-actions { gap: 10px; }
+  .project-detail-hero .project-actions .button { width: 100%; justify-content: space-between; }
+  .project-toc nav a { font-size: 14px; }
+  .project-features li { grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+  .project-features h3 { font-size: 18px; }
+  .project-features p { font-size: 15px; }
+  .project-detail-next-links a { width: 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .project-card h3 a::after { transition: none; }
+}
