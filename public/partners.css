@@ -201,3 +201,7 @@ body.motion-stopped .collab-case-sheet,body.motion-stopped .collab-intro-link sv
 }
 @media(max-width:860px){.collab-draft .brief-workspace {gap:30px;padding:5px 5px 12px}}
 @media print{.collab-draft :is(.brief-form,.brief-preview){box-shadow:none}.collab-draft :is(.brief-form,.brief-preview)::before,.collab-draft :is(.brief-form,.brief-preview)::after {display:none}}
+
+/* The supplied artwork carries the visible brand; accessible names stay on the link. */
+.collab-case-sheet .collab-brand-image {opacity:1}
+.collab-case--lilac .collab-case-sheet .collab-brand-image {padding:24px}

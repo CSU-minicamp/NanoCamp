@@ -16,8 +16,8 @@ function caseStudy(item) {
   const theme = caseTheme(item);
   const url = safeUrl(item.url, true);
   return `<article class="collab-case collab-case--${theme}" id="partner-${esc(item.id)}" aria-labelledby="partner-${esc(item.id)}-name">
-    <a class="collab-case-trigger" href="#partner-${esc(item.id)}-details" data-partner-open="partner-${esc(item.id)}-details" aria-haspopup="dialog">
-      <div class="collab-case-sheet">${brandImage(item)}<h3 id="partner-${esc(item.id)}-name">${esc(item.name)}${item.tagline ? `<span>${esc(item.tagline)}</span>` : ''}</h3><span class="collab-case-action">查看合作详情</span></div>
+    <a class="collab-case-trigger" aria-label="查看${esc(item.name)}合作详情" href="#partner-${esc(item.id)}-details" data-partner-open="partner-${esc(item.id)}-details" aria-haspopup="dialog">
+      <h3 class="sr-only" id="partner-${esc(item.id)}-name">${esc(item.name)}</h3><div class="collab-case-sheet">${brandImage(item)}</div>
       <div class="collab-case-caption"><p>${esc(item.summary?.trim() || '合作介绍与现场记录待补充。')}</p></div>
     </a>${url ? `<a href="${esc(url)}" class="collab-case-link">阅读合作记录 ${arrow}</a>` : ''}
   </article>`;
