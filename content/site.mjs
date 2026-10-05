@@ -14,15 +14,22 @@ export const site = {
 };
 
 export const event = {
-  title: '首届 minicamp',
+  title: 'minicamp 2026',
   edition: '01',
-  date: null,
-  location: null,
-  theme: null,
-  status: '已结束',
-  intro: '一场黑客松，是一次相遇的开始。活动告一段落，一起创造的故事还在继续。',
-  summary: [],
-  cover: null,
+  officialUrl: 'https://minicamp.flipperusc.work/',
+  date: '2026 年 9 月 26–27 日',
+  location: '中南大学潇湘校区 外语楼 635',
+  theme: ['Build for Humans', 'Reimagine Campus', 'Create the Unexpected'],
+  status: '已结束 · 可回顾',
+  intro: '两天时间，现场组队，借助 AI Coding，把想法做成能演示的作品。',
+  summary: [
+    'minicamp 2026 是中南大学首个三社团联合发起的校园黑客松，面向全校同学开放。活动于 2026 年 9 月 26–27 日在潇湘校区外语楼 635 举行，约有 90 位同学参加。',
+    '这里不要求你来自计算机专业，也不要求提前组队或带着完整创意到场。现场公布主题、现场组队，在伙伴、导师和 AI Coding 的帮助下，把一个想法推进到可以演示的版本。',
+    '作品可以是网站、App、小程序、游戏、硬件、数据项目或有趣的交互实验。活动结束后，作品仍然可以继续完善，新的连接也会在 NanoCamp 社区里延续。',
+  ],
+  cover: '/images/minicamp-group-photo.jpg',
+  coverFull: '/images/minicamp-group-photo.jpg',
+  coverAlt: 'minicamp 2026 活动结束合照',
 };
 
 export const projects = [
@@ -31,8 +38,15 @@ export const projects = [
   { id: '03', title: '项目名称', description: '关于这个作品的一句话介绍。', cover: null, coverAlt: '', category: null, members: [], introUrl: null, demoUrl: null, theme: 'mint' },
 ];
 
+// Published on the official minicamp activity site. These entries stay scoped to the annual recap.
+export const featuredProjects = [
+  { id: 'TEAM-06', title: '收藏夹不吃灰计划', description: '防止收藏夹里的链接和视频吃灰，让收藏真正回到日常使用中。', cover: null, coverAlt: '收藏夹不吃灰计划作品封面', category: 'Build for Humans', members: ['于政霖', '路和鑫', '刘森', '段旭冉'], introUrl: null, demoUrl: null, theme: 'blue' },
+  { id: 'TEAM-04', title: 'Build to Taste：报寝助手 × 麓光', description: '用自动化解决生活部每晚的报寝，用 HD-2D 像素游戏还原中南大学的来路。', cover: null, coverAlt: 'Build to Taste 报寝助手作品封面', category: 'Build for Humans', members: ['罗景涛', '鲍渐', '田鑫源', '郭亿瑞'], introUrl: null, demoUrl: 'https://zhigao.me/#projects', theme: 'mint' },
+  { id: 'TEAM-11', title: '中国龙能飞', description: '解决奶龙不会飞的问题，也让传统游戏交互变得更有沉浸感。', cover: null, coverAlt: '中国龙能飞作品封面', category: 'Create the Unexpected', members: ['陈一鸣', '肖子涵', '肖贞怡', '辛俐庆', '古钰蓥'], introUrl: null, demoUrl: 'https://flylong666.netlify.app/', theme: 'orange' },
+];
+
 export const moments = [
-  { id: '01', src: null, alt: 'minicamp 活动现场', caption: '相遇的瞬间', theme: 'blue' },
+  { id: '01', src: '/images/minicamp-group-photo.jpg', alt: 'minicamp 2026 活动结束合照', caption: '活动结束合照', theme: 'blue' },
   { id: '02', src: null, alt: 'minicamp 共创现场', caption: '一起动手的时候', theme: 'orange' },
   { id: '03', src: null, alt: 'minicamp 作品展示', caption: '想法被看见', theme: 'mint' },
   { id: '04', src: null, alt: 'minicamp 交流现场', caption: '新的连接', theme: 'sand' },
