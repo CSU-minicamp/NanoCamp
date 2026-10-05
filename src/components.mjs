@@ -64,17 +64,30 @@ export function media({ src, alt = '活动照片', label = '现场照片', id = 
   return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} ${image ? 'has-image' : ''}">${image ? `<a class="media-open" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image><span class="media-zoom" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg>查看照片</span></a>` : ''}${placeholder}<div class="media-label"><span>${esc(label)}</span><span>${esc(id)}</span></div></div>`;
 }
 
-export function joinSection(compact = false) {
+export function joinSection(compact = false, active = '') {
   const available=Boolean(site.join.qrCode || site.join.contact);
-  return `<section class="join-section ${compact?'join-compact':''}" aria-labelledby="join-heading"><div class="container join-inner"><div><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>${available?joinButton('加入 NanoCamp'):pageLink('/community/','了解参与方式','button-white')}</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong><span>${available?'欢迎每一份好奇心。':'加入渠道尚未公布，可先阅读参与指南。'}</span>${joinButton(available?'查看加入渠道':'查看加入方式','button-small')}</div></div></section>`;
+  const pageClass=active === 'minicamp' ? 'join-minicamp' : '';
+  const paperCopy=active === 'minicamp' ? '' : '<span>' + (available ? '欢迎每一份好奇心。' : '加入渠道尚未公布，可先阅读参与指南。') + '</span>';
+  const className='join-section ' + (compact ? 'join-compact ' : '') + pageClass;
+  const paperButton=joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small');
+  return '<section class="' + className + '" aria-labelledby="join-heading"><div class="container join-inner"><div><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>' + (available ? joinButton('加入 NanoCamp') : pageLink('/community/','了解参与方式','button-white')) + '</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong>' + paperCopy + paperButton + '</div></div></section>';
 }
 
 export function shareButton(label = '复制页面链接') {
   return `<button type="button" class="page-share-button" data-share-page hidden aria-controls="share-manual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 10v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-5M5 13H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"/></svg><span data-share-label>${label}</span></button>`;
 }
 export function footer(active) {
+  if (active === 'minicamp') return minicampFooter(active);
   if (active === 'community') return `<footer class="site-footer community-footer"><div class="container community-footer-inner"><a class="brand" href="/" aria-label="NanoCamp 首页">${wordmark()}</a><p>Meet. Build. Make something together.</p></div></footer>`;
   return `<footer class="site-footer"><div class="container"><div class="footer-top"><div class="footer-brand"><a class="brand" href="/" aria-label="NanoCamp 首页">${wordmark()}</a><p class="footer-slogan"><span class="brand-blue">Meet. Build.</span><span class="brand-mint">Make something together.</span></p></div><nav aria-label="页脚导航"><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></nav></div><div class="footer-bottom"><span class="footer-signoff"><i aria-hidden="true"></i>一个属于学生创造者的社区。</span><div class="footer-tools"><button type="button" class="site-motion-toggle" data-site-motion-toggle aria-pressed="false" hidden><span class="motion-levels" aria-hidden="true"><i></i><i></i><i></i></span><span>暂停全站动效</span></button>${shareButton()}<a class="back-to-top" href="#top"><span>回到顶部</span><span class="back-top-arrow" aria-hidden="true">↑</span></a></div></div><p class="share-status" role="status" aria-live="polite" data-share-status></p><div id="share-manual" class="share-fallback" data-share-fallback hidden><label for="share-url">手动复制链接</label><input id="share-url" type="text" readonly autocomplete="off" spellcheck="false"><button type="button">收起</button></div></div></footer>`;
+}
+
+function minicampFooter(active = '') {
+  const detailTools = active === 'minicamp' ? '' : '<button type="button" class="site-motion-toggle" data-site-motion-toggle aria-pressed="false" hidden><span class="motion-levels" aria-hidden="true"><i></i><i></i><i></i></span><span>暂停全站动效</span></button>' + shareButton();
+  const backToTop = active === 'minicamp' ? '' : '<a class="back-to-top" href="#top"><span>回到顶部</span><span class="back-top-arrow" aria-hidden="true">↑</span></a>';
+  const shareFeedback = active === 'minicamp' ? '' : '<p class="share-status" role="status" aria-live="polite" data-share-status></p><div id="share-manual" class="share-fallback" data-share-fallback hidden><label for="share-url">手动复制链接</label><input id="share-url" type="text" readonly autocomplete="off" spellcheck="false"><button type="button">收起</button></div>';
+  const signoff = active === 'minicamp' ? '<span class="footer-signoff"><span class="footer-signoff-mark" aria-hidden="true">' + logoMark('symbol', '', true) + '</span><span class="footer-signoff-copy"><span class="footer-signoff-kicker mono">WHO WE BUILD WITH</span><span>一个属于学生创造者的社区。</span></span></span>' : '<span class="footer-signoff"><i aria-hidden="true"></i>一个属于学生创造者的社区。</span>';
+  return '<footer class="site-footer"><div class="container"><div class="footer-top"><a class="brand" href="/" aria-label="NanoCamp 首页">' + wordmark() + '</a><p>Meet. Build.<br>Make something together.</p><nav aria-label="页脚导航"><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></nav></div><div class="footer-bottom">' + signoff + '<div class="footer-tools">' + detailTools + backToTop + '</div></div>' + shareFeedback + '</div></footer>';
 }
 
 export function dialogs() {

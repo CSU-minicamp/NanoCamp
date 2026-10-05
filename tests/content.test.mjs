@@ -68,3 +68,22 @@ test('photos can be published before projects without contradictory empty states
     assert.match(html,/作品介绍与 Demo 链接待补充/);
   } finally { moments[0].src=original; projects.push(...listed); }
 });
+
+test('minicamp page keeps confirmed event content and omits footer utility controls',()=>{
+  const html=renderPage('/minicamp/');
+  assert.match(html,/2026 年 9 月 26–27 日/);
+  assert.match(html,/中南大学潇湘校区 外语楼 635/);
+  assert.match(html,/minicamp-group-photo\.jpg/);
+  assert.match(html,/2026 届优秀作品。/);
+  assert.match(html,/收藏夹不吃灰计划|Build to Taste|中国龙能飞/);
+  assert.match(html,/event-theme-list/);
+  assert.doesNotMatch(html,/先读一份 Demo 指南|回到顶部|back-to-top|暂停全站动效|复制页面链接|data-site-motion-toggle|data-share-page/);
+  assert.doesNotMatch(html,/加入渠道尚未公布，可先阅读参与指南。/);
+});
+
+test('minicamp page links to the official activity site',()=>{
+  const html=renderPage('/minicamp/');
+  assert.match(html,/href="https:\/\/minicamp\.flipperusc\.work\/"/);
+  assert.match(html,/target="_blank" rel="noopener noreferrer"/);
+  assert.match(html,/进入 minicamp 活动官网/);
+});
