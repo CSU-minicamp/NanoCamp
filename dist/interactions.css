@@ -68,7 +68,7 @@
   body[data-page="home"] .b-sheet-mint:is(:hover, :focus-within) .brand-asset { transform: scale(1.05); }
 
   /* --- 8. 社区行：左侧色条滑入 + 浅色泛底 -------------------------------- */
-  body[data-page="home"] .community-row { position: relative; padding: 30px 10px;}
+  body[data-page="home"] .community-row { position: relative; }
   body[data-page="home"] .community-row::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
     /* 行的左内边距是 20px，色条左移 12px 正好落在间隙中央（留 10px，距文字 10px），

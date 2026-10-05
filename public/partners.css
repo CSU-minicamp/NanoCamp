@@ -4,8 +4,8 @@
 .collab-intro h1 {font-size:clamp(40px,4.2vw,64px);font-weight:800;line-height:1.35;letter-spacing:-.03em;margin:0}
 .collab-intro h1>.brand-blue {color:var(--brand-text-blue)}
 .collab-intro h1>.brand-mint {color:var(--brand-text-mint)}
-.collab-intro>div {padding-bottom:8px}
-.collab-intro p {font-size:17px;line-height:1.9;max-width:46ch;color:var(--muted)}
+.collab-intro>div {padding:0;display:flex;align-items:center}
+.collab-intro p {margin:0;font-size:17px;line-height:1.9;max-width:46ch;color:var(--muted)}
 .collab-intro-link {display:inline-flex;align-items:center;gap:15px;min-height:44px;margin-top:18px;color:var(--blue);font-size:15px;text-decoration:underline;text-underline-offset:7px;text-decoration-color:#b7acd1}
 .collab-intro-link svg,.collab-case-link svg,.collab-email-link svg {width:20px;height:20px;flex:none;stroke:currentColor;stroke-width:1.6;transition:transform .24s var(--ease)}
 .collab-intro-link:hover svg,.collab-case-link:hover svg,.collab-email-link:hover svg {transform:translate(2px,-2px)}
@@ -28,7 +28,7 @@
 .collab-case--yellow .collab-case-sheet {--case-angle:-.7deg;background:var(--orange);color:#5b421d;animation-delay:.16s}
 .collab-case--yellow h3 {font-family:var(--latin);font-size:clamp(36px,3.8vw,56px);font-weight:700}
 .collab-case-caption {padding:25px 6px 0}
-.collab-case-caption p {font-size:14px;line-height:1.8;color:var(--muted)}
+.collab-case-caption p {text-align:center;font-weight:600;font-size:14px;line-height:1.8;color:var(--muted)}
 .collab-case-trigger:hover .collab-case-action {text-decoration:underline;text-underline-offset:4px}
 .collab-case-trigger:focus-visible,.collab-detail-close:focus-visible {outline:2px solid var(--blue);outline-offset:6px}
 
@@ -168,3 +168,40 @@
 @media(prefers-reduced-motion:reduce){.collab-case-sheet,.collab-intro-link svg,.collab-case-link svg,.collab-email-link svg,.collab-plus-vertical{animation:none;transition:none}}
 body.motion-stopped .collab-case-sheet,body.motion-stopped .collab-intro-link svg,body.motion-stopped .collab-case-link svg,body.motion-stopped .collab-email-link svg,body.motion-stopped .collab-plus-vertical{animation:none;transition:none}
 @media print{.collab-intro-link,.collab-draft,.collab-detail-close{display:none}.collab-case-sheet{transform:none;box-shadow:none}.collab-section{padding-block:28px}.collab-contact{padding-bottom:0}.collab-case-details{display:grid;gap:24px;margin-top:30px}.collab-detail{display:block;position:static;width:100%;max-height:none;box-shadow:none;break-inside:avoid}.collab-detail-header{min-height:0}.collab-detail-body{padding-bottom:20px}}
+
+/* Two physical sheets: calm paper surfaces above a slightly offset backing. */
+.collab-draft .brief-workspace {gap:30px;padding:8px 7px 14px}
+.collab-draft :is(.brief-form,.brief-preview) {
+  --sheet:#f3eef9;--sheet-back:#ded4eb;--sheet-shadow:#453657;
+  position:relative;isolation:isolate;background:transparent;border:0;border-radius:2px;
+  box-shadow:0 2px 3px -2px #45365726,0 16px 28px -19px #45365755;
+}
+.collab-draft .brief-preview {--sheet:#edf5ef;--sheet-back:#cfdfd3;--sheet-shadow:#345343}
+.collab-draft :is(.brief-form,.brief-preview)::before,
+.collab-draft :is(.brief-form,.brief-preview)::after {
+  content:"";position:absolute;inset:0;border-radius:2px;pointer-events:none;z-index:-1;
+}
+.collab-draft :is(.brief-form,.brief-preview)::before {
+  background:var(--sheet-back);transform:translate(4px,6px) rotate(.35deg);
+  box-shadow:0 7px 13px -8px #45365750;
+}
+.collab-draft .brief-preview::before {transform:translate(-3px,6px) rotate(-.3deg)}
+.collab-draft :is(.brief-form,.brief-preview)::after {
+  background-color:var(--sheet);
+  background-image:linear-gradient(225deg,#ffffffbd,#ffffff08 55%,#45365708),radial-gradient(#45365710 .45px,transparent .7px);
+  background-size:100% 100%,5px 7px;
+  box-shadow:inset 0 1px 0 #ffffffdd,inset 0 -1px 0 #45365712;
+}
+.collab-draft .brief-form-heading {padding-top:3px}
+.collab-draft .form-field :is(input,select,textarea) {
+  background:#fffefbd9;border-color:#b5a5c8;box-shadow:inset 0 1px 3px #45365709;
+}
+.collab-draft .brief-preview textarea {
+  background:#fffefa96;border-color:#abc2b1;box-shadow:inset 0 1px 3px #34534308;
+}
+@media(max-width:860px){.collab-draft .brief-workspace {gap:30px;padding:5px 5px 12px}}
+@media print{.collab-draft :is(.brief-form,.brief-preview){box-shadow:none}.collab-draft :is(.brief-form,.brief-preview)::before,.collab-draft :is(.brief-form,.brief-preview)::after {display:none}}
+
+/* The supplied artwork carries the visible brand; accessible names stay on the link. */
+.collab-case-sheet .collab-brand-image {opacity:1}
+.collab-case--lilac .collab-case-sheet .collab-brand-image {padding:24px}

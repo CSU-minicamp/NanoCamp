@@ -16,8 +16,8 @@ function caseStudy(item) {
   const theme = caseTheme(item);
   const url = safeUrl(item.url, true);
   return `<article class="collab-case collab-case--${theme}" id="partner-${esc(item.id)}" aria-labelledby="partner-${esc(item.id)}-name">
-    <a class="collab-case-trigger" href="#partner-${esc(item.id)}-details" data-partner-open="partner-${esc(item.id)}-details" aria-haspopup="dialog">
-      <div class="collab-case-sheet">${brandImage(item)}<h3 id="partner-${esc(item.id)}-name">${esc(item.name)}${item.tagline ? `<span>${esc(item.tagline)}</span>` : ''}</h3><span class="collab-case-action">查看合作详情</span></div>
+    <a class="collab-case-trigger" aria-label="查看${esc(item.name)}合作详情" href="#partner-${esc(item.id)}-details" data-partner-open="partner-${esc(item.id)}-details" aria-haspopup="dialog">
+      <h3 class="sr-only" id="partner-${esc(item.id)}-name">${esc(item.name)}</h3><div class="collab-case-sheet">${brandImage(item)}</div>
       <div class="collab-case-caption"><p>${esc(item.summary?.trim() || '合作介绍与现场记录待补充。')}</p></div>
     </a>${url ? `<a href="${esc(url)}" class="collab-case-link">阅读合作记录 ${arrow}</a>` : ''}
   </article>`;
@@ -55,7 +55,7 @@ export function partnersPage(data = partnership) {
     <div class="collab-case-details">${data.cases.map(caseDetails).join('')}</div>
   </section>
   <section id="possibilities" class="container collab-section collab-formats" aria-labelledby="possibilities-title">
-    <div class="collab-section-intro"><h2 id="possibilities-title">我们接受<br>哪些合作？</h2><p>一次分享，一场共创，<br>或者一年一度的重要相遇。</p><p class="collab-side-note">不必一开始就有完整方案。<br>从一个共同感兴趣的主题聊起。</p></div>
+    <div class="collab-section-intro"><h2 id="possibilities-title">我们接受<br>哪些合作？</h2></div>
     <div class="collab-format-list">${data.formats.map(item => `<article${item.featured ? ' class="collab-format-featured"' : ''}><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><p class="collab-format-examples">${esc(item.examples)}</p></article>`).join('')}</div>
   </section>
   <section id="what-we-bring" class="collab-offers" aria-labelledby="collab-offers-title"><div class="container collab-section collab-exchange">
@@ -65,7 +65,7 @@ export function partnersPage(data = partnership) {
     <div class="collab-section-intro"><h2 id="collab-requests-title">我们期待什么</h2></div>${exchangeList(data.requests)}
   </section>
   <section id="contact" class="container collab-contact" aria-labelledby="collab-contact-title">
-    <div class="collab-contact-intro"><h2 id="collab-contact-title">下一次相遇，<span>从一封信开始。</span></h2><p>你来自哪里，想一起做什么？<br>简单介绍一下，就可以开始对话。</p></div>
+    <div class="collab-contact-intro"><h2 id="collab-contact-title">下一次相遇，<span>从一封信开始。</span></h2></div>
     <details id="brief" class="collab-draft"><summary><span>把合作想法整理成一份草稿</span>${plus}</summary><div class="collab-draft-content"><p class="collab-draft-note">左侧填写要点，右侧实时预览。填写主题后即可复制或下载，内容只保留在当前页面，需要你自行发送。</p>${partnerDraft()}</div></details>
     ${emailContact(data.email)}
   </section>`;

@@ -17,12 +17,30 @@ export function flatten(nodes) {
   return nodes.flatMap(node => (node && node.nodeName === '#fragment' ? flatten(node.children) : node));
 }
 
+function eventTarget() {
+  const listeners = new Map();
+  return {
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(listener);
+    },
+    removeEventListener(type, listener) { listeners.get(type)?.delete(listener); },
+    dispatchEvent(event) {
+      event.target ??= this;
+      for (const listener of [...(listeners.get(event.type) || [])]) listener.call(this, event);
+      return !event.defaultPrevented;
+    }
+  };
+}
+
 export class FakeNode {
   constructor(name) {
     this.nodeName = name;
     this.attributes = new Map();
     this.children = [];
     this.text = '';
+    this.parentNode = null;
+    Object.assign(this, eventTarget());
   }
 
   // 与真实 DOM 一致：布尔属性由 property 反映到 attribute 上。
@@ -45,11 +63,23 @@ export class FakeNode {
   }
   get textContent() { return this.text; }
   set textContent(value) { this.text = String(value); this.children = []; }
-  append(...nodes) { this.children.push(...flatten(nodes)); }
-  replaceChildren(...nodes) { this.children = flatten(nodes); }
-  addEventListener() {}
-  focus() {}
-  contains(node) { return node === this || this.children.includes(node); }
+  append(...nodes) {
+    for (const node of flatten(nodes)) {
+      if (node.parentNode) {
+        const siblings = node.parentNode.children;
+        siblings.splice(siblings.indexOf(node), 1);
+      }
+      node.parentNode = this;
+      this.children.push(node);
+    }
+  }
+  replaceChildren(...nodes) {
+    this.children.forEach(node => { node.parentNode = null; });
+    this.children = [];
+    this.append(...nodes);
+  }
+  focus() { this.focused = true; }
+  contains(node) { return node === this || this.children.some(child => child.contains(node)); }
   get className() { return this.getAttribute('class') || ''; }
   matches(selector) { return matchSelector(this, selector); }
   querySelector(selector) { return findFirst(this, selector); }
@@ -175,7 +205,7 @@ export function createDocument() {
     createDocumentFragment: () => new FakeNode('#fragment'),
     querySelector: selector => findFirst(body, selector) || findFirst(document.documentElement, selector),
     querySelectorAll: selector => body.querySelectorAll(selector),
-    addEventListener() {}
+    ...eventTarget()
   };
   return document;
 }
@@ -188,7 +218,7 @@ export function createWindow(document) {
     innerHeight: 900,
     requestAnimationFrame: callback => { callback(); return 1; },
     cancelAnimationFrame() {},
-    addEventListener() {}
+    ...eventTarget()
   };
 }
 

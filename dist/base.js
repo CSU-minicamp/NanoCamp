@@ -29,6 +29,9 @@
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   let warned = false;
+  let unbindMenu = () => {};
+  let unbindMoreMenu = () => {};
+  const backToTopBindings = new WeakSet();
 
   function warn(message) {
     if (warned || typeof console === 'undefined' || !console.warn) return;
@@ -222,6 +225,8 @@
       button = backToTop();
       footer.append(button);
     }
+    if (backToTopBindings.has(button)) return button;
+    backToTopBindings.add(button);
 
     // 点击行为归 base.js 所有：details.js 不再插手这个元素，避免两处竞态。
     button.addEventListener('click', () => {
@@ -284,6 +289,7 @@
 
   // 手机导航面板的开合（槽位与按钮都由本文件之外的模板提供，找不到就跳过）。
   function bindMenu() {
+    unbindMenu();
     const button = doc.querySelector('[data-menu-toggle]');
     const menu = doc.querySelector('[data-nav="mobile"]');
     if (!button || !menu) { warn('没有找到手机导航槽位，菜单交互未启用。'); return; }
@@ -299,41 +305,57 @@
       return button.getAttribute('aria-expanded') === 'true';
     }
 
-    button.addEventListener('click', () => {
+    const toggle = () => {
       const open = !isOpen();
       button.setAttribute('aria-expanded', String(open));
       button.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
       menu.hidden = !open;
-    });
-    doc.addEventListener('keydown', event => {
+    };
+    const escape = event => {
       if (event.key !== 'Escape' || menu.hidden) return;
       close();
       button.focus();
-    });
-    doc.addEventListener('focusin', event => {
+    };
+    const outside = event => {
       if (menu.hidden || menu.contains(event.target) || button.contains(event.target)) return;
       close();
-    });
-    doc.addEventListener('click', event => {
-      if (menu.hidden || menu.contains(event.target) || button.contains(event.target)) return;
-      close();
-    });
-    if (mobile) mobile.addEventListener('change', () => { if (!mobile.matches) close(); });
+    };
+    const resize = () => { if (!mobile.matches) close(); };
+    button.addEventListener('click', toggle);
+    doc.addEventListener('keydown', escape);
+    doc.addEventListener('focusin', outside);
+    doc.addEventListener('click', outside);
+    if (mobile) mobile.addEventListener('change', resize);
+    unbindMenu = () => {
+      button.removeEventListener('click', toggle);
+      doc.removeEventListener('keydown', escape);
+      doc.removeEventListener('focusin', outside);
+      doc.removeEventListener('click', outside);
+      if (mobile) mobile.removeEventListener('change', resize);
+    };
   }
 
   // 桌面端「更多」的收尾：点击外部、失焦、Esc 时收起。原生 details 自身负责开合。
   function bindMoreMenu() {
+    unbindMoreMenu();
     const more = doc.querySelector('.nav-more');
     if (!more) return;
     const close = () => { more.open = false; };
-    doc.addEventListener('click', event => { if (!more.contains(event.target)) close(); });
-    doc.addEventListener('focusin', event => { if (more.open && !more.contains(event.target)) close(); });
-    doc.addEventListener('keydown', event => {
+    const outside = event => { if (!more.contains(event.target)) close(); };
+    const escape = event => {
       if (event.key !== 'Escape' || !more.open) return;
       close();
       const summary = more.querySelector('summary');
       if (summary) summary.focus();
-    });
+    };
+    doc.addEventListener('click', outside);
+    doc.addEventListener('focusin', outside);
+    doc.addEventListener('keydown', escape);
+    unbindMoreMenu = () => {
+      doc.removeEventListener('click', outside);
+      doc.removeEventListener('focusin', outside);
+      doc.removeEventListener('keydown', escape);
+    };
   }
 
   const api = Object.freeze({
