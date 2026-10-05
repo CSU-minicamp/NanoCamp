@@ -45,7 +45,7 @@ const routes = {
   '/community/': { title: '参与社区 · NanoCamp', description: '从第一次交流到一起共创，认识 NanoCamp 的参与方式、分享准备和共创约定。', active: 'community', content: communityPage },
   '/faq/': { title: '常见问题 · NanoCamp', description: '关于 NanoCamp 社区、minicamp 活动、作品展示和交流合作的常见问题。', active: 'faq', content: faqPage },
   '/resources/': { title: '共创资源 · NanoCamp', description: '从想法到 Demo、组队协作与技术分享：实用指南、可下载模板和官方学习入口。', active: 'resources', content: resourcesPage },
-  '/partners/': { title: '交流与合作 · NanoCamp', description: '连接学校、企业和实践者，探索技术分享、校园联动与共创交流，整理你的交流提案。', active: 'partners', content: partnersPage },
+  '/partners/': { title: '交流与合作 · NanoCamp', description: '认识去探索、bonjour 交友卡片与 opendev 的 minicamp 合作案例，了解 NanoCamp 的合作方向、双方支持与联系邮箱。', active: 'partners', content: partnersPage },
   ...Object.fromEntries(guides.map(guide => [guidePath(guide), { title: `${guide.shortTitle} · NanoCamp 共创指南`, description: guide.description, active: 'resources', content: () => guidePage(guide) }])),
   ...Object.fromEntries(readyProjects().map(project => [projectPath(project), { title: `${project.title} · NanoCamp 社区作品`, description: `${project.title}｜${project.description}`, active: 'projects', content: () => projectDetailPage(project) }])),
   '/search/': { title: '站内搜索 · NanoCamp', description: '搜索 NanoCamp 的活动、社区指南、模板与常见问题，找到下一次探索的起点。', active: 'search', noindex: true, content: () => searchPage(createSearchIndex(pageSummaries())) },

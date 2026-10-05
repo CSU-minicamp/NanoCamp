@@ -45,6 +45,17 @@ npm run dev
 
 外部项目链接使用完整的 http 或 https 地址。未提供的地址保持 `null`，页面会显示待补充状态。
 
+## 合作页面
+
+合作页按「三个合作案例 → 接受的合作类型 → 我们能提供什么 → 希望合作方提供什么 → 合作邮箱」排列，主要内容集中在 `content/partners.mjs`：
+
+- `cases`：赛百味、bonjour！交友卡片、OpenDev。`logo` 是品牌图片路径，`summary` 是卡片简介，`period` 是合作时间；`sponsorship` 和 `promotion` 分别列出赞助内容与社区提供的宣传支持。未确认具体日期时保留待补充说明。`id` 用于页面锚点和站内搜索，请保持唯一且稳定。
+- `cases[].photos`：风采照片数组，初始为空并显示照片占位。将照片放入 `public/images/` 后，添加 `{ src: '/images/照片文件名.jpg', alt: '照片描述', caption: '可选图注' }` 即可展示。可选的 `url` 用于真实合作记录链接。
+- `formats`、`offers`、`requests`：合作方向与双方支持的初稿，可直接改标题和说明；实际合作安排由双方另行确认。
+- `email`：合作邮箱为 `qmzjyyds@163.com`，点击后复制到剪贴板。复制受浏览器限制时会选中邮箱供手动复制；没有邮箱时明确显示「合作邮箱待补充」。
+
+`src/partners.mjs` 负责页面，`public/partners.css` 和 `public/partners.js` 仅在合作页加载。点击品牌卡片会放大为居中的详情卡片，支持关闭按钮、点击遮罩、Esc 关闭与键盘焦点循环；减少动态效果或暂停全站动效后立即展示详情。关闭 JavaScript 时，合作详情直接显示，卡片仍可跳转到对应记录。联系区的本地草稿工具由 `src/partner-draft.mjs` 和 `public/workshop.js` 提供，输入与选项变化会实时同步到预览；填写主题后可复制或下载，清空后可撤销。共享页脚将标语放在 Logo 下方，标题与标语采用 Logo 的蓝色与薄荷绿。网站不会代发邮件或提交申请。修改后运行 `npm run build`、`npm run check` 和 `npm test`。
+
 ## 文件说明
 
 - `src/components.mjs`：导航、卡片、媒体、弹窗、页脚与文档外壳。

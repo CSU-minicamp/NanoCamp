@@ -1,5 +1,6 @@
 import { faqs, programs } from '../content/community.mjs';
 import { guides } from '../content/guides.mjs';
+import { partnership } from '../content/partners.mjs';
 import { esc, eyebrow, pageLink } from './components.mjs';
 import { readyProjects, projectPath } from './projects.mjs';
 
@@ -11,6 +12,7 @@ export function createSearchIndex(pages) {
     type: page.path === '/minicamp/' || page.path === '/activities/' ? 'event' : page.path.startsWith('/resources/') ? 'guide' : page.path === '/faq/' ? 'faq' : page.path.startsWith('/projects/') && page.path !== '/projects/' ? 'project' : 'page',
     context: 'NanoCamp 官网', text: page.path === '/community/' ? '参与 加入 新手 学生 专业 分享 组队 志愿 交流 社群' : page.path === '/partners/' ? '合作 学校 企业 校园 校企交流 社团 赞助 支持 交流 草稿 提案' : '',
   }));
+  records.push(...partnership.cases.map(item => ({ id:`partner:${item.id}`, href:`/partners/#partner-${encodeURIComponent(item.id)}`, title:item.name, description:item.summary?.trim() || '首届 minicamp 合作案例，合作介绍与现场记录待补充。', text:'合作伙伴 minicamp', type:'page', context:'合作案例 · minicamp' })));
   records.push(...programs.slice(1).map(program => ({ id:`format:${program.id}`, href:program.href, title:program.name, description:program.description, text:[program.label,...program.tags].join(' '), type:'event', context:`活动形式 · ${program.label}` })));
   records.push(...faqs.map(faq => ({ id:`faq:${faq.id}`, href:`/faq/#${faq.id}`, title:faq.question, description:faq.answer, text:'', type:'faq', context:'常见问题 · 直达回答' })));
   for (const guide of guides) {

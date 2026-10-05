@@ -1,13 +1,72 @@
-import { site } from '../content/site.mjs';
-import { eyebrow, pageLink, joinButton, joinSection, logoMark } from './components.mjs';
-import { programIcon } from './community.mjs';
+import { partnership } from '../content/partners.mjs';
+import { esc, safeUrl } from './components.mjs';
+import { partnerDraft } from './partner-draft.mjs';
 
-export function partnersPage() {
-  return `<section class="page-hero container partner-hero"><div>${eyebrow('GOOD CONNECTIONS MAKE NEW THINGS POSSIBLE.')}<h1>让校园的好奇心，<br>遇见<span class="blue-text">更大的世界。</span></h1><p class="page-subtitle">和学校、企业、社群与实践者一起，<br>让知识流动，让真实的问题成为共创的起点。</p><div class="portal-actions">${pageLink('#possibilities','探索交流方向')}${pageLink('#brief','整理一个合作想法')}</div></div><div class="connection-art" aria-hidden="true"><div class="connection-lines"></div><span class="connection-label label-school">校园社群 <b>↗</b></span><span class="connection-label label-makers">实践者 <b>+</b></span><span class="connection-label label-company">企业团队 <b>✳</b></span><div class="connection-center">${logoMark('symbol')}<span>学生创造者</span></div><span class="connection-caption mono">DIFFERENT WORLDS. SHARED CURIOSITY.</span></div></section>
-  <section id="possibilities" class="container section partnership-options" aria-labelledby="possibilities-title"><div class="section-top"><div>${eyebrow('LET’S FIND A GOOD REASON TO MEET', '01')}<h2 id="possibilities-title">从一次具体的交流开始。</h2></div><p class="section-description">以下是可共同探讨的交流形式。<br>实际主题、时间和支持安排，由双方一起确认。</p></div><div class="partnership-grid"><article><span class="program-icon">${programIcon('talk')}</span><span class="mono">01 / KNOWLEDGE</span><h3>把实践经验带进校园</h3><p>一次技术分享、一段项目复盘，或一个职业中的真实问题。让学生看见知识如何被实际使用。</p><span class="partnership-example">可以从「一个具体案例」开始</span></article><article><span class="program-icon">${programIcon('connect')}</span><span class="mono">02 / CONNECTIONS</span><h3>让不同校园彼此认识</h3><p>联合交流、社团间的作品分享，或围绕共同兴趣的对话。让不同学校的伙伴找到合作的可能。</p><span class="partnership-example">可以从「一个共同主题」开始</span></article><article><span class="program-icon">${programIcon('build')}</span><span class="mono">03 / CO-CREATION</span><h3>围绕真实问题一起尝试</h3><p>把一个适合探索的小问题带来，通过讨论、工作坊或原型尝试，一起交换思路与反馈。</p><span class="partnership-example">可以从「一个开放问题」开始</span></article><article><span class="program-icon">${programIcon('camp')}</span><span class="mono">04 / MINICAMP</span><h3>为年度相遇创造条件</h3><p>围绕 minicamp 讨论经验分享、学习资源、场地或其他具体支持，让有好奇心的人更容易一起创造。</p><span class="partnership-example">可以从「一份明确的支持」开始</span></article></div></section>
-  <section class="partner-values-band"><div class="container partner-values"><div>${eyebrow('WHAT MAKES A GOOD COLLABORATION')}<h2>交流的中心，<br>始终是一起学习的人。</h2></div><ul><li><span>有实际收获</span><p>先确定参与者能学到、尝试到或带走什么，再决定活动形式。</p></li><li><span>有清楚的期待</span><p>把双方的目标、投入、职责与时间说清楚，为调整留出空间。</p></li><li><span>有彼此的尊重</span><p>尊重学生的选择、创作者的贡献，以及照片、作品和资料的公开范围。</p></li></ul></div></section>
-  <section id="brief" class="container section collaboration-brief" aria-labelledby="brief-title"><div class="section-top"><div>${eyebrow('TURN A HELLO INTO A CONVERSATION', '02')}<h2 id="brief-title">有个合作想法？先把它写下来。</h2></div><p class="section-description">写下主题与期待，生成可复制、可下载的草稿。<br>内容不会通过网站发送，离开前请自行保存。</p></div><div class="brief-fallback" data-brief-fallback><h3>一份简单的交流提案，可以先回答这些问题。</h3><ol><li>你来自哪里，想与怎样的学生交流？</li><li>想围绕什么具体主题，以什么形式开展？</li><li>预计何时进行，双方需要提供哪些支持？</li><li>希望参与者最后能带走什么？</li></ol><p>你可以自行整理这些信息，再通过官方渠道联系社区。</p></div>
-    <div class="brief-workspace" data-brief-builder hidden><form class="brief-form" data-brief-form><div class="brief-form-heading"><span class="mono">01 / 交流想法</span><span>从一个小主题开始</span></div><div class="form-row"><div class="form-field"><label for="brief-kind">你代表的方向</label><select id="brief-kind" name="kind"><option value="学校或学生社团">学校或学生社团</option><option value="企业或机构团队">企业或机构团队</option><option value="个人实践者">个人实践者</option><option value="其他交流伙伴">其他交流伙伴</option></select></div><div class="form-field"><label for="brief-format">期待的交流形式</label><select id="brief-format" name="format"><option value="技术分享">技术分享</option><option value="校园联合交流">校园联合交流</option><option value="共创工作坊">共创工作坊</option><option value="真实问题讨论">真实问题讨论</option><option value="minicamp 活动支持">minicamp 活动支持</option></select></div></div><div class="form-field"><label for="brief-organization">学校、社团或团队名称 <span>选填</span></label><input id="brief-organization" name="organization" type="text" maxlength="80" autocomplete="off" placeholder="让我们知道这份想法来自哪里"></div><div class="form-field"><label for="brief-topic">想交流的具体主题 <span class="field-required">必填</span></label><input id="brief-topic" name="topic" type="text" required maxlength="120" autocomplete="off" placeholder="例如：把课堂里的一个点子做成原型"></div><div class="form-row"><div class="form-field"><label for="brief-audience">希望参与的人群 <span>选填</span></label><input id="brief-audience" name="audience" type="text" maxlength="120" autocomplete="off" placeholder="例如：第一次做项目的同学"></div><div class="form-field"><label for="brief-timing">大致时间与方式 <span>选填</span></label><input id="brief-timing" name="timing" type="text" maxlength="100" autocomplete="off" placeholder="例如：时间可讨论，线上交流"></div></div><div class="form-field"><label for="brief-notes">期待、支持与补充 <span>选填</span></label><textarea id="brief-notes" name="notes" rows="4" maxlength="1500" placeholder="希望大家带走什么？可以提供什么？还需要一起确认什么？"></textarea><span class="field-note">这里只整理交流想法，不需要填写个人联系方式。</span></div><div class="brief-form-actions"><button class="button button-primary" type="submit">生成交流草稿 <span aria-hidden="true">↗</span></button><button type="button" class="subtle-button" data-brief-reset>清空内容</button></div></form>
-    <div class="brief-preview"><div class="brief-form-heading"><span class="mono">02 / 草稿预览</span><span class="preview-state" data-brief-state>等待你的想法</span></div><label for="brief-output" class="sr-only">生成的交流草稿</label><textarea id="brief-output" data-brief-output readonly placeholder="填写交流想法后，\n点击「生成交流草稿」。\n生成的内容会显示在这里。"></textarea><div class="brief-export-actions"><button class="button button-secondary" type="button" data-brief-copy disabled>复制草稿 <span aria-hidden="true">⧉</span></button><button class="button button-secondary" type="button" data-brief-download disabled>下载文本 <span aria-hidden="true">↓</span></button></div><p class="tool-status" role="status" aria-live="polite" data-brief-status></p><p class="brief-privacy-note">草稿只留在当前页面，离开前记得复制或下载。生成草稿不代表已发起合作申请。</p></div></div>
-    <div class="partner-contact"><div><h3>先把草稿留好，再开始交流。</h3><p>${site.join.contact || site.join.qrCode ? '通过官方社区渠道联系，介绍你的交流想法。' : '官方联系渠道待公布，更新后可通过「加入方式」查看。先复制或下载，留住这次的想法。'}</p></div>${joinButton('查看加入方式')}</div></section><section class="container community-help"><div><span class="mono">START WITH SOMETHING SMALL</span><h2>第一次做分享，从一个小主题开始。</h2><p>从一个小主题到一份清楚的提纲，看看轻量分享指南。</p></div>${pageLink('/resources/host-a-sharing/','阅读分享指南')}</section>${joinSection(true)}`;
+const arrow = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg>';
+const plus = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14"/><path class="collab-plus-vertical" d="M12 5v14"/></svg>';
+const photoIcon = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="4" y="6" width="24" height="20" rx="2"/><circle cx="11" cy="12" r="2"/><path d="m5 23 7-7 5 5 4-4 7 7"/></svg>';
+const caseTheme = item => ['mint', 'lilac', 'yellow'].includes(item.theme) ? item.theme : 'mint';
+
+function brandImage(item) {
+  const logo = safeUrl(item.logo, true);
+  return logo ? `<img class="collab-brand-image" src="${esc(logo)}" alt="" aria-hidden="true" decoding="async">` : '';
+}
+
+function caseStudy(item) {
+  const theme = caseTheme(item);
+  const url = safeUrl(item.url, true);
+  return `<article class="collab-case collab-case--${theme}" id="partner-${esc(item.id)}" aria-labelledby="partner-${esc(item.id)}-name">
+    <a class="collab-case-trigger" href="#partner-${esc(item.id)}-details" data-partner-open="partner-${esc(item.id)}-details" aria-haspopup="dialog">
+      <div class="collab-case-sheet">${brandImage(item)}<h3 id="partner-${esc(item.id)}-name">${esc(item.name)}${item.tagline ? `<span>${esc(item.tagline)}</span>` : ''}</h3><span class="collab-case-action">查看合作详情</span></div>
+      <div class="collab-case-caption"><p>${esc(item.summary?.trim() || '合作介绍与现场记录待补充。')}</p></div>
+    </a>${url ? `<a href="${esc(url)}" class="collab-case-link">阅读合作记录 ${arrow}</a>` : ''}
+  </article>`;
+}
+
+function caseDetails(item) {
+  const list = values => Array.isArray(values) && values.length ? `<ul>${values.map(value => `<li>${esc(value)}</li>`).join('')}</ul>` : '<p>合作内容待补充。</p>';
+  const photos = (Array.isArray(item.photos) ? item.photos : []).filter(photo => safeUrl(photo.src, true));
+  return `<dialog class="collab-detail collab-case--${caseTheme(item)}" id="partner-${esc(item.id)}-details" aria-labelledby="partner-${esc(item.id)}-detail-title">
+    <button class="collab-detail-close" type="button" data-partner-close aria-label="关闭${esc(item.name)}合作详情" autofocus><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+    <header class="collab-detail-header">${brandImage(item)}<h2 id="partner-${esc(item.id)}-detail-title">${esc(item.name)}${item.tagline ? `<span>${esc(item.tagline)}</span>` : ''}</h2><dl class="collab-detail-time"><div><dt>合作时间</dt><dd>${esc(item.period?.trim() || '具体日期待补充')}</dd></div></dl></header>
+    <div class="collab-detail-body"><div class="collab-detail-exchange"><section aria-labelledby="partner-${esc(item.id)}-support"><h3 id="partner-${esc(item.id)}-support">赞助内容</h3>${list(item.sponsorship)}</section><section aria-labelledby="partner-${esc(item.id)}-promotion"><h3 id="partner-${esc(item.id)}-promotion">我们的宣传支持</h3>${list(item.promotion)}</section></div>
+      <section class="collab-detail-photos" aria-labelledby="partner-${esc(item.id)}-photos"><h3 id="partner-${esc(item.id)}-photos">风采照片</h3>${photos.length ? `<div class="collab-photo-grid">${photos.map(photo => `<figure><img src="${esc(safeUrl(photo.src, true))}" alt="${esc(photo.alt || item.name + '合作现场')}" loading="lazy" decoding="async">${photo.caption ? `<figcaption>${esc(photo.caption)}</figcaption>` : ''}</figure>`).join('')}</div>` : `<div class="collab-photo-placeholder">${photoIcon}<p>照片待补充</p></div>`}</section>
+    </div>
+  </dialog>`;
+}
+
+function exchangeList(items) {
+  return `<dl class="collab-exchange-list">${items.map(item => `<div><dt>${esc(item.title)}</dt><dd>${esc(item.description)}</dd></div>`).join('')}</dl>`;
+}
+
+function emailContact(value) {
+  const email = typeof value === 'string' ? value.trim() : '';
+  const valid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+  return `<div class="collab-email"><p class="collab-email-label">合作邮箱</p>${valid
+    ? `<button class="collab-email-link" type="button" data-copy-email="${esc(email)}" aria-label="复制合作邮箱 ${esc(email)}" disabled><span data-email-value>${esc(email)}</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button><p>欢迎告诉我们你的团队、合作想法和大致时间。</p><p class="collab-email-status" role="status" aria-live="polite" data-email-status></p>`
+    : '<p class="collab-email-pending">合作邮箱待补充</p><p>邮箱公布后，欢迎带着你的合作想法来信。</p>'}</div>`;
+}
+
+export function partnersPage(data = partnership) {
+  return `<section class="container collab-opening" aria-labelledby="collab-title">
+    <div class="collab-intro"><h1 id="collab-title"><span class="brand-blue">期待与你</span><span class="brand-mint">相遇</span></h1><div><p>从一年一度的 minicamp，到平日的技术分享与校园交流。<br>期待和你一起，创造更多相遇的机会。</p></div></div>
+    <div class="collab-cases-heading"><h2>合作样例</h2></div>
+    <div class="collab-cases">${data.cases.map(caseStudy).join('')}</div>
+    <div class="collab-case-details">${data.cases.map(caseDetails).join('')}</div>
+  </section>
+  <section id="possibilities" class="container collab-section collab-formats" aria-labelledby="possibilities-title">
+    <div class="collab-section-intro"><h2 id="possibilities-title">我们接受<br>哪些合作？</h2><p>一次分享，一场共创，<br>或者一年一度的重要相遇。</p><p class="collab-side-note">不必一开始就有完整方案。<br>从一个共同感兴趣的主题聊起。</p></div>
+    <div class="collab-format-list">${data.formats.map(item => `<article${item.featured ? ' class="collab-format-featured"' : ''}><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><p class="collab-format-examples">${esc(item.examples)}</p></article>`).join('')}</div>
+  </section>
+  <section id="what-we-bring" class="collab-offers" aria-labelledby="collab-offers-title"><div class="container collab-section collab-exchange">
+    <div class="collab-section-intro"><h2 id="collab-offers-title">我们能带来什么。</h2></div>${exchangeList(data.offers)}
+  </div></section>
+  <section id="what-we-need" class="container collab-section collab-exchange collab-requests" aria-labelledby="collab-requests-title">
+    <div class="collab-section-intro"><h2 id="collab-requests-title">我们期待什么</h2></div>${exchangeList(data.requests)}
+  </section>
+  <section id="contact" class="container collab-contact" aria-labelledby="collab-contact-title">
+    <div class="collab-contact-intro"><h2 id="collab-contact-title">下一次相遇，<span>从一封信开始。</span></h2><p>你来自哪里，想一起做什么？<br>简单介绍一下，就可以开始对话。</p></div>
+    <details id="brief" class="collab-draft"><summary><span>把合作想法整理成一份草稿</span>${plus}</summary><div class="collab-draft-content"><p class="collab-draft-note">左侧填写要点，右侧实时预览。填写主题后即可复制或下载，内容只保留在当前页面，需要你自行发送。</p>${partnerDraft()}</div></details>
+    ${emailContact(data.email)}
+  </section>`;
 }

@@ -124,6 +124,7 @@
   const copy = builder.querySelector('[data-brief-copy]');
   const download = builder.querySelector('[data-brief-download]');
   const reset = builder.querySelector('[data-brief-reset]');
+  const live = builder.hasAttribute('data-brief-live');
   const names = ['kind', 'format', 'organization', 'topic', 'audience', 'timing', 'notes'];
   let ready = false;
   let revision = 0;
@@ -139,15 +140,34 @@
     copy.disabled = !value;
     download.disabled = !value;
     preview.classList.toggle('is-ready', value);
-    preview.dataset.state = value ? 'ready' : output.value ? 'stale' : 'empty';
-    state.textContent = label;
+    preview.dataset.state = value ? 'ready' : live ? 'incomplete' : output.value ? 'stale' : 'empty';
+    if (state) state.textContent = label;
   }
   function clearUndo() { backup = null; reset.textContent = '清空内容'; }
+  function updateDraft() {
+    output.value = [
+      'NanoCamp 交流草稿', '',
+      `交流方向：${value('kind', 80)}`,
+      `学校、社团或团队：${value('organization', 80) || '待补充'}`,
+      `期待的形式：${value('format', 80)}`,
+      `交流主题：${value('topic', 120) || '待补充'}`,
+      `参与人群：${value('audience', 120) || '待一起确认'}`,
+      `时间与方式：${value('timing', 100) || '待一起确认'}`, '',
+      '期待、可提供的支持与需要讨论的问题：', value('notes') || '待补充', '',
+      '下一步：一起确认主题、参与范围、时间、分工与公开安排。',
+      '联系信息：请在自行发送前按需要补充。', '',
+      '这是一份交流草稿，尚未通过官网发送。',
+    ].join('\n');
+    markReady(Boolean(value('topic', 120)), '草稿已就绪');
+  }
   function edited() {
     field('topic').setCustomValidity('');
     revision++;
     clearUndo();
-    if (output.value) {
+    if (live) {
+      updateDraft();
+      feedback('');
+    } else if (output.value) {
       markReady(false, '请重新生成');
       feedback('内容已修改，请重新生成草稿后再复制或下载。');
     }
@@ -160,20 +180,8 @@
     if (!form.reportValidity()) return;
     revision++;
     clearUndo();
-    output.value = [
-      'NanoCamp 交流草稿', '',
-      `交流方向：${value('kind', 80)}`,
-      `学校、社团或团队：${value('organization', 80) || '待补充'}`,
-      `期待的形式：${value('format', 80)}`,
-      `交流主题：${value('topic', 120)}`,
-      `参与人群：${value('audience', 120) || '待一起确认'}`,
-      `时间与方式：${value('timing', 100) || '待一起确认'}`, '',
-      '期待、可提供的支持与需要讨论的问题：', value('notes') || '待补充', '',
-      '下一步：一起确认主题、参与范围、时间、分工与公开安排。',
-      '联系信息：请在自行发送前按需要补充。', '',
-      '这是一份交流草稿，尚未通过官网发送。',
-    ].join('\n');
-    markReady(true, '草稿已就绪');
+    updateDraft();
+    if (live) return;
     feedback('草稿已生成。复制或下载后，可自行联系。', 'success');
     output.scrollTop = 0;
     output.focus({ preventScroll: true });
@@ -194,13 +202,14 @@
       const original = control.tagName === 'SELECT' ? ([...control.options].find(option => option.defaultSelected) || control.options[0]).value : control.defaultValue;
       return control.value !== original;
     });
-    if (output.value || hasChanges) {
-      backup = { fields: Object.fromEntries(names.map(name => [name, field(name).value])), output: output.value, ready, state: state.textContent };
+    if ((!live && output.value) || hasChanges) {
+      backup = { fields: Object.fromEntries(names.map(name => [name, field(name).value])), output: output.value, ready, state: state?.textContent };
     }
     form.reset();
     field('topic').setCustomValidity('');
     output.value = '';
     markReady(false, '等待你的想法');
+    if (live) updateDraft();
     feedback(backup ? '内容已清空，可点击「撤销清空」恢复。' : '');
     reset.textContent = backup ? '撤销清空' : '清空内容';
   });
@@ -231,6 +240,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 1500);
     feedback('已发起下载，可在浏览器的下载记录中查看。', 'success');
   });
+  if (live) updateDraft();
   document.querySelector('[data-brief-fallback]').hidden = true;
   builder.hidden = false;
 })();
