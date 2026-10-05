@@ -83,3 +83,67 @@ test('每个构建页面都引入了 base.js（先于 app.js）', () => {
     assert.ok(app > base, `${route} 里 base.js 应在 app.js 之前加载`);
   }
 });
+
+test('页脚与浮窗：静态 HTML 无按钮残留，浮窗由 base.js 生成', () => {
+  for (const route of routePaths) {
+    const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
+    const footer = /<footer[\s\S]*?<\/footer>/.exec(html)[0];
+    for (const forbidden of ['footer-tools', 'data-back-to-top', '回到顶部', 'data-site-motion-toggle', 'motion-levels']) {
+      assert.equal(footer.includes(forbidden), false, `${route} 的页脚残留了已移除的 ${forbidden}`);
+    }
+    const slot = /<div data-nav="footer-bottom">/.test(html);
+    if (route === '/community/') {
+      assert.equal(slot, false, '社区页使用极简页脚，没有页脚底部槽位');
+      continue;
+    }
+    assert.ok(slot, `${route} 应该有页脚底部槽位`);
+    assert.match(footer, /一个属于学生创造者的社区。/, `${route} 的署名应写死在静态 HTML 里`);
+  }
+});
+
+test('base.js 接管页脚底部：静态 HTML 与客户端渲染一致，并补上浮窗', () => {
+  for (const route of ['/projects/', '/minicamp/']) {
+    const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
+    const page = /<body[^>]*\sdata-page="([^"]*)"/.exec(html)?.[1] || '';
+    const footerHTML = /<footer[\s\S]*?<\/footer>/.exec(html)?.[0];
+    assert.ok(footerHTML, `${route} 构建产物里应该有 footer`);
+
+    const document = createDocument();
+    document.body.setAttribute('data-page', page);
+    document.body.append(toFakeNodes(parse(footerHTML), document));
+    const slot = findFirst(document.body, '[data-nav="footer-bottom"]');
+    const before = canonical(parse(slot.outerHTML).children[0]);
+    assert.ok(slot.children.length > 0, `${route} 的页脚底部应该是构建期渲染好的，而不是空槽位`);
+
+    runBase(baseSource, document);
+    assert.equal(canonical(parse(slot.outerHTML).children[0]), before, `${route} 页脚底部替换后结构应完全一致`);
+
+    const fab = findFirst(document.body, '[data-back-to-top]');
+    if (route === '/minicamp/') assert.equal(fab, null, 'minicamp 页不应生成浮窗');
+    else assert.ok(fab, `${route} 应由 base.js 生成回到顶部浮窗`);
+  }
+});
+
+test('侧边栏分享按钮仍然可用（页脚按钮已移除，触发点只在侧边栏）', () => {
+  for (const route of ['/resources/from-idea-to-demo/', '/projects/memodot/']) {
+    const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
+    assert.equal((html.match(/data-share-page/g) || []).length, 1, `${route} 应保留一个侧边栏分享按钮`);
+    assert.ok(html.includes('data-share-status') && html.includes('data-share-fallback'), `${route} 应保留分享状态区与兜底输入`);
+  }
+  for (const route of ['/', '/activities/', '/minicamp/', '/community/']) {
+    const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
+    assert.equal(html.includes('data-share-page'), false, `${route} 不应再有页面级分享按钮`);
+  }
+});
+
+test('base.css 被引入，且排在皮肤文件之前', () => {
+  for (const route of routePaths) {
+    const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
+    const base = html.indexOf('href="/base.css"');
+    assert.ok(base > -1, `${route} 缺少 base.css`);
+    assert.ok(html.indexOf('href="/styles.css"') < base, `${route} 里 base.css 应在 styles.css 之后`);
+    for (const later of ['/details.css', '/discovery.css', '/collage.css']) {
+      assert.ok(html.indexOf(`href="${later}"`) > base, `${route} 里 base.css 应在 ${later} 之前`);
+    }
+  }
+});

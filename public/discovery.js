@@ -6,7 +6,6 @@
   const timers = new Map();
   let shareTrigger;
   let shareRevision = 0;
-  const defaultPlacement = fallback?.parentElement;
   function pageUrl() {
     const current = new URL(location.href);
     const canonical = document.querySelector('link[rel="canonical"]')?.href;
@@ -24,8 +23,8 @@
         if (button.getAttribute('aria-busy') === 'true') return;
         shareTrigger = button;
         const revision = ++shareRevision;
-        if (button.closest('.guide-toc')) button.after(status,fallback);
-        else defaultPlacement.append(status,fallback);
+        // 结果区就放在触发按钮旁边（页脚按钮已移除，触发点都在侧边栏）。
+        button.after(status, fallback);
         fallback.hidden = true;
         status.textContent = '';
         clearTimeout(timers.get(button));

@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { header } from '../src/components.mjs';
-import { createDocument, parse, canonical, runBase, FakeNode } from './helpers/fake-dom.mjs';
+import { header, footer } from '../src/components.mjs';
+import { createDocument, parse, canonical, runBase, FakeNode, findFirst } from './helpers/fake-dom.mjs';
 
 const baseSource = readFileSync(new URL('../public/base.js', import.meta.url), 'utf8');
 
@@ -11,7 +11,7 @@ function loadBase({ page = '' } = {}) {
   const document = createDocument();
   if (page) document.body.setAttribute('data-page', page);
 
-  // 复刻 components.mjs 的 header 结构：nav 槽位（属性也与模板一致）+ 菜单按钮。
+  // 复刻 components.mjs 的结构：nav 槽位（属性也与模板一致）+ 菜单按钮 + 页脚槽位。
   const element = (name, attributes = {}) => {
     const node = document.createElement(name);
     Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
@@ -29,15 +29,37 @@ function loadBase({ page = '' } = {}) {
   headerNode.append(inner);
   document.body.append(headerNode);
 
+  const footerNode = element('footer', { class: 'site-footer' });
+  if (page !== 'community') footerNode.append(element('div', { 'data-nav': 'footer-bottom' }));
+  document.body.append(footerNode);
+
   const api = runBase(baseSource, document);
-  return { api, document, toggle, mobile };
+  return { api, document, toggle, mobile, footer: footerNode };
 }
 
-function headerSlot(active, slot, attributes) {
-  const pattern = new RegExp(`<nav[^>]*data-nav="${slot}"[^>]*>([\\s\\S]*?)</nav>`);
-  const match = pattern.exec(header(active));
-  assert.ok(match, `header("${active}") 里应该有 data-nav="${slot}" 槽位`);
-  return canonical(parse(`<nav${attributes}>${match[1]}</nav>`).children[0]);
+// 取出 data-nav="<slot>" 槽位内部的 HTML（按标签配对，不是碰到第一个闭合标签就停）。
+function slotContent(html, slot) {
+  const opening = new RegExp(`<([\\w-]+)[^>]*data-nav="${slot}"[^>]*>`).exec(html);
+  assert.ok(opening, `页面里应该有 data-nav="${slot}" 槽位`);
+  const tag = opening[1];
+  const pattern = new RegExp(`<${tag}\\b[^>]*?/>|<${tag}\\b[^>]*>|</${tag}\\s*>`, 'g');
+  pattern.lastIndex = opening.index;
+  let depth = 0;
+  let match;
+  while ((match = pattern.exec(html))) {
+    // <input /> 这类自闭合标签不进栈，否则深度永远回不到 0。
+    if (match[0].endsWith('/>')) continue;
+    depth += match[0].startsWith('</') ? -1 : 1;
+    if (depth === 0) return html.slice(opening.index + opening[0].length, match.index);
+  }
+  throw new Error(`data-nav="${slot}" 槽位没有闭合`);
+}
+
+// 槽位既有 header 里的（nav），也有 footer 里的（footer-bottom），两处都找。
+function pageSlotHtml(active, slot, attributes) {
+  const tag = slot === 'desktop' || slot === 'mobile' ? 'nav' : 'div';
+  const inner = slotContent(header(active) + footer(active), slot);
+  return canonical(parse(`<${tag}${attributes}>${inner}</${tag}>`).children[0]);
 }
 
 function slotOf(document, name) {
@@ -47,7 +69,7 @@ function slotOf(document, name) {
 }
 
 function renderedSlot(document, name) {
-  return canonical(parse(slotOf(document, name).serialize()).children[0]);
+  return canonical(parse(slotOf(document, name).outerHTML).children[0]);
 }
 
 // --- 数据与渲染结果必须和构建期输出一致 ---
@@ -55,23 +77,25 @@ function renderedSlot(document, name) {
 test('base.js 暴露统一渲染入口', () => {
   const { api } = loadBase();
   assert.ok(api, 'window.NanoCampBase 应该存在');
-  assert.deepEqual(Object.keys(api.nav).sort(), ['desktop', 'footer', 'mobile']);
+  assert.deepEqual(Object.keys(api.nav).sort(), ['desktop', 'footer', 'footer-bottom', 'mobile']);
   assert.equal(typeof api.mount, 'function');
+  assert.equal(typeof api.backToTop, 'function');
   assert.equal(api.links.length, 9);
 });
 
-test('构建期 nav 与 base.js 的渲染逐节点一致', () => {
+test('构建期输出与 base.js 的渲染逐节点一致', () => {
   assert.equal(canonical(parse('<span class="x"></span>')), '<#root><span class="x"></span></#root>', '规范化函数自身应可用');
   const attributes = {
     desktop: ' aria-label="主导航" class="desktop-nav" data-nav="desktop"',
-    mobile: ' aria-label="手机导航" class="mobile-nav" data-nav="mobile" hidden id="mobile-nav"'
+    mobile: ' aria-label="手机导航" class="mobile-nav" data-nav="mobile" hidden id="mobile-nav"',
+    'footer-bottom': ' data-nav="footer-bottom"'
   };
   for (const active of ['', 'minicamp', 'projects', 'resources', 'search']) {
-    for (const slot of ['desktop', 'mobile']) {
+    for (const slot of ['desktop', 'mobile', 'footer-bottom']) {
       assert.equal(
-        headerSlot(active, slot, attributes[slot]),
+        pageSlotHtml(active, slot, attributes[slot]),
         renderedSlot(loadBase({ page: active }).document, slot),
-        `data-page="${active}" 的 ${slot} 导航：构建期输出应与 base.js 渲染一致`
+        `data-page="${active}" 的 ${slot}：构建期输出应与 base.js 渲染一致`
       );
     }
   }
@@ -129,11 +153,45 @@ test('mount 替换槽位内原有的构建期内容', () => {
   assert.equal(slot.children[1].getAttribute('aria-current'), 'page');
 });
 
-test('页脚渲染器已就绪，但暂未接管页脚槽位', () => {
+test('页脚底部只有署名：没有动效开关、分享按钮或分享状态区', () => {
+  const standard = loadBase({ page: 'projects' }).document.querySelector('[data-nav="footer-bottom"]');
+  const bottom = standard.children[0];
+  assert.equal(bottom.getAttribute('class'), 'footer-bottom');
+  assert.equal(bottom.children.length, 1, '页脚底部只应有署名');
+  const signoff = canonical(parse(bottom.children[0].serialize()).children[0]);
+  assert.match(signoff, /class="footer-signoff"/);
+  assert.match(signoff, /一个属于学生创造者的社区。/);
+  for (const selector of ['[data-site-motion-toggle]', '.motion-levels', '[data-share-page]', '.share-status', '.share-fallback']) {
+    assert.equal(findFirst(standard, selector), null, `页脚底部不应再有 ${selector}`);
+  }
+
+  const minicamp = loadBase({ page: 'minicamp' }).document.querySelector('[data-nav="footer-bottom"]');
+  const minicampBottom = minicamp.children[0];
+  assert.equal(minicampBottom.children.length, 1, 'minicamp 页脚底部同样只有署名');
+  assert.equal(findFirst(minicampBottom, '.footer-signoff-copy').children.length, 2);
+});
+
+test('页脚导航渲染器已就绪，但页脚顶部仍由构建期输出', () => {
   const { api, document } = loadBase({ page: 'about' });
   assert.deepEqual(
     api.nav.footer().children.map(node => node.getAttribute('href')),
     ['/minicamp/', '/activities/', '/projects/', '/resources/', '/community/', '/partners/', '/about/', '/search/', '/faq/']
   );
-  assert.equal(document.querySelector('[data-nav="footer"]'), null);
+  assert.equal(findFirst(document.body, '[data-nav="footer"]'), null);
+});
+
+test('回到顶部浮窗：由 base.js 生成，minicamp 与社区页不生成', () => {
+  const { footer: footerNode } = loadBase({ page: 'projects' });
+  const button = footerNode.children.find(node => node.getAttribute && node.getAttribute('data-back-to-top') !== null);
+  assert.ok(button, '普通页面应该生成回到顶部浮窗');
+  assert.equal(button.getAttribute('class'), 'back-to-top');
+  assert.equal(button.getAttribute('aria-label'), '回到顶部');
+  assert.equal(button.hidden, true, '初始应隐藏，滚动后再显示');
+  assert.equal(button.getAttribute('data-visible'), null);
+  assert.equal(button.children[0].text, '↑');
+
+  for (const page of ['minicamp', 'community']) {
+    const { footer: node } = loadBase({ page });
+    assert.equal(node.querySelector('[data-back-to-top]'), null, `${page} 页不应有回到顶部浮窗`);
+  }
 });

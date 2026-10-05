@@ -58,8 +58,9 @@ npm run dev
 
 ## 文件说明
 
-- `src/components.mjs`：卡片、媒体、弹窗、页脚与文档外壳；头部导航按 `public/base.js` 的数据源做一份构建期输出。
-- `public/base.js`：**站点框架（header 导航，未来含页脚）的唯一数据源与客户端渲染入口**。导航项定义在 `NAV_LINKS`：`compact` 决定是否常显在桌面端、`more` 决定是否进入桌面「更多」下拉、`footer`/`footerOnly` 供页脚使用。构建期把同一份定义渲染进 HTML 作为首屏内容与无 JS 兜底，`base.js` 载入后用 `data-nav` 槽位原地替换，并接管手机菜单开合与「更多」下拉的收尾。改导航只需改 `NAV_LINKS`，再同步 `src/components.mjs` 里的 `navLinks`——`tests/nav.test.mjs` 会逐节点比对两边，不一致就会失败，`tests/nav-build.test.mjs` 还会拿真实 `dist` 产物验证替换前后结构完全一致。
+- `src/components.mjs`：卡片、媒体、弹窗、页脚与文档外壳；头部导航与页脚底部（`data-nav="footer-bottom"` 槽位）按 `public/base.js` 的数据源做一份构建期输出。页脚署名「一个属于学生创造者的社区。」同时写死在静态 HTML 里，无 JS 时也可见。
+- `public/base.js`：**站点框架（header 导航 + 页脚底部）的唯一数据源与客户端渲染入口**。导航项定义在 `NAV_LINKS`：`compact` 决定是否常显在桌面端、`more` 决定是否进入桌面「更多」下拉、`footer`/`footerOnly` 供页脚使用。构建期把同一份定义渲染进 HTML 作为首屏内容与无 JS 兜底，`base.js` 载入后用 `data-nav` 槽位原地替换，并接管手机菜单开合、「更多」下拉收尾、页脚署名，以及回到顶部浮窗（静态 HTML 里完全没有浮窗与 `footer-tools` 的标记，`base.js` 用 `mountBackToTop()` 生成并在下滑 `max(240px, 视口一半)` 后加 `data-visible`；minicamp 与社区页不生成）。改导航或页脚只需改 `base.js`，再同步 `src/components.mjs` 的对应输出——`tests/nav.test.mjs` 会逐节点比对两边，不一致就会失败，`tests/nav-build.test.mjs` 还会拿真实 `dist` 产物验证替换前后结构完全一致。
+- `public/base.css`：与 `base.js` 成对的站点框架样式——顶部栏与品牌、桌面/手机导航、「更多」面板、页脚版式、回到顶部浮窗（缓入/缓出过渡与 `:hover`/`:focus-visible`）。在 `styles.css` 之后、其余皮肤文件之前加载，所以 `collage.css` 等页面级覆盖仍然生效；浮窗的显隐由 `data-visible` 驱动，`details.js` 只负责判断滚动距离。
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
 - `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
 - `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
@@ -68,7 +69,7 @@ npm run dev
 - `public/hero.css`、`public/hero.js`：B 版首屏海报与入场动效，仅在首页加载。
 - `public/interactions.css`：**首页专属**的鼠标交互层（导航下划线、按钮柔光、卡片抬起、封面推近等 15 项）。所有规则都限定在 `body[data-page="home"]`，其他页面不受影响。由 `documentPage()` 用 `<link>` 引入，**不要改成 `collage.css` 里的 `@import`**：该文件开头已有 `@font-face`，而 CSS 规定 `@import` 必须位于所有规则之前，否则整条被浏览器丢弃，交互会静默失效。规则包在 `@media(hover:hover) and (pointer:fine)` 内，只用 transform / 颜色 / 阴影 / 伪元素，不改变布局。
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。
-- `public/details.css`、`public/details.js`：全站共享的按钮、导航、卡片、照片框、弹窗、阅读进度、滚动入场、全站动效开关，以及右下角的回到顶部浮窗。
+- `public/details.css`、`public/details.js`：全站共享的按钮、卡片、照片框、弹窗、阅读进度与滚动入场（导航/页脚/浮窗样式已移到 `public/base.css`）。动效偏好只跟随系统的 `prefers-reduced-motion`：「暂停全站动效」按钮已移除，`window.NanoCampMotion` 仍暴露 `stopped` / `subscribe` 供社区页、相册与合作页判断。
 - `public/styles.css`：颜色、排版、组件与响应式样式。
 - `public/app.js`：弹窗、图片查看、复制及图片失败处理（导航交互已移至 `public/base.js`）。
 - `scripts/build.mjs`：生成 `dist` 中的静态网站。

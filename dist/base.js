@@ -36,32 +36,36 @@
     console.warn('[NanoCamp base.js] ' + message);
   }
 
-  function svg(viewBox, attrs) {
-    const node = doc.createElementNS(SVG_NS, 'svg');
+  function svg(node, viewBox, attrs) {
     node.setAttribute('viewBox', viewBox);
     node.setAttribute('aria-hidden', 'true');
     Object.keys(attrs || {}).forEach(name => node.setAttribute(name, attrs[name]));
     return node;
   }
 
-  function searchIcon() {
-    const node = svg('0 0 24 24', { class: 'nav-search-icon' });
-    const circle = doc.createElementNS(SVG_NS, 'circle');
-    circle.setAttribute('cx', '10.5');
-    circle.setAttribute('cy', '10.5');
-    circle.setAttribute('r', '6.5');
-    const path = doc.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', 'm16 16 5 5');
-    node.append(circle, path);
+  function svgEl(name) {
+    return doc.createElementNS(SVG_NS, name);
+  }
+
+  function svgPath(node, d) {
+    const path = svgEl('path');
+    path.setAttribute('d', d);
+    node.append(path);
     return node;
   }
 
+  function searchIcon() {
+    const node = svg(svgEl('svg'), '0 0 24 24', { class: 'nav-search-icon' });
+    const circle = svgEl('circle');
+    circle.setAttribute('cx', '10.5');
+    circle.setAttribute('cy', '10.5');
+    circle.setAttribute('r', '6.5');
+    node.append(circle);
+    return svgPath(node, 'm16 16 5 5');
+  }
+
   function caretIcon() {
-    const node = svg('0 0 16 16');
-    const path = doc.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', 'm4 6 4 4 4-4');
-    node.append(path);
-    return node;
+    return svgPath(svg(svgEl('svg'), '0 0 16 16'), 'm4 6 4 4 4-4');
   }
 
   function linkNode(link, active, label = link.label) {
@@ -129,10 +133,131 @@
     return fragment;
   }
 
+  // --- 页脚底部（数据源在这里，构建期会按同一份定义输出一份静态 HTML）---
+
+  // 页脚署名：普通页面是菱形点 + 文字，minicamp 页用图形标志加说明。
+  // 这行文字同时写死在静态 HTML 里（见 src/components.mjs），无 JS 时也可见。
+  function signoff() {
+    const wrapper = doc.createElement('span');
+    wrapper.setAttribute('class', 'footer-signoff');
+    if (navActive() !== 'minicamp') {
+      const dot = doc.createElement('i');
+      dot.setAttribute('aria-hidden', 'true');
+      wrapper.append(dot, doc.createTextNode('一个属于学生创造者的社区。'));
+      return wrapper;
+    }
+    const mark = doc.createElement('span');
+    mark.setAttribute('class', 'footer-signoff-mark');
+    mark.setAttribute('aria-hidden', 'true');
+    const asset = doc.createElement('span');
+    asset.setAttribute('class', 'brand-asset brand-symbol');
+    const image = doc.createElement('img');
+    image.setAttribute('class', 'brand-image');
+    image.setAttribute('src', '/images/nanocamp-symbol.webp');
+    image.setAttribute('alt', 'NanoCamp NC 图形标志');
+    image.setAttribute('decoding', 'async');
+    image.setAttribute('loading', 'lazy');
+    image.setAttribute('width', '428');
+    image.setAttribute('height', '430');
+    const fallback = doc.createElement('span');
+    fallback.setAttribute('class', 'brand-fallback');
+    fallback.hidden = true;
+    fallback.textContent = 'NC';
+    asset.append(image, fallback);
+    mark.append(asset);
+    const copy = doc.createElement('span');
+    copy.setAttribute('class', 'footer-signoff-copy');
+    const kicker = doc.createElement('span');
+    kicker.setAttribute('class', 'footer-signoff-kicker mono');
+    kicker.textContent = 'WHO WE BUILD WITH';
+    const line = doc.createElement('span');
+    line.textContent = '一个属于学生创造者的社区。';
+    copy.append(kicker, line);
+    wrapper.append(mark, copy);
+    return wrapper;
+  }
+
+  function footerBottom() {
+    const bottom = doc.createElement('div');
+    bottom.setAttribute('class', 'footer-bottom');
+    bottom.append(signoff());
+    return bottom;
+  }
+
+  // 回到顶部浮窗：常驻右下角，下滑一段距离后由 mountBackToTop 显示。
+  // minicamp 与社区页按原设计不提供。
+  function backToTop() {
+    const button = doc.createElement('button');
+    button.setAttribute('type', 'button');
+    button.setAttribute('class', 'back-to-top');
+    button.setAttribute('data-back-to-top', '');
+    button.setAttribute('aria-label', '回到顶部');
+    button.setAttribute('aria-controls', 'top');
+    button.hidden = true;
+    const arrow = doc.createElement('span');
+    arrow.setAttribute('class', 'back-top-arrow');
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '↑';
+    button.append(arrow);
+    return button;
+  }
+
+  function mountBackToTop() {
+    const active = navActive();
+    // 已有的浮窗先清空属性再复用节点：navMount 可能被再次调用，重复插入会在页脚
+    // 留下第二个按钮。这里不用 node.remove()，保持与测试用的精简 DOM 兼容。
+    const existing = doc.querySelectorAll('[data-back-to-top]');
+    Array.prototype.forEach.call(existing, (node, index) => {
+      if (index === 0) return;
+      node.setAttribute('hidden', '');
+      node.setAttribute('aria-hidden', 'true');
+    });
+    if (active === 'minicamp' || active === 'community') return null;
+    const footer = doc.querySelector('.site-footer');
+    if (!footer) return null;
+
+    let button = existing[0];
+    if (button && button.parentNode !== footer) button = null;
+    if (!button) {
+      button = backToTop();
+      footer.append(button);
+    }
+
+    // 点击行为归 base.js 所有：details.js 不再插手这个元素，避免两处竞态。
+    button.addEventListener('click', () => {
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    });
+
+    let frame = 0;
+    const shouldShow = () => window.scrollY > Math.max(240, window.innerHeight * .5);
+    function paint() {
+      frame = 0;
+      const show = shouldShow();
+      // 只切 data-visible：显隐完全交给 base.css 的 visibility + opacity 过渡。
+      // 不回写 hidden —— hidden 在浏览器里有 display:none 的 UA 样式，回写会让
+      // display 在 grid / none 之间拆装，下一次淡入可能从“无盒子”开始而丢掉插值。
+      // 首次出现时清掉 hidden 即可；CSS 的 [data-visible] 会它让立刻可见。
+      if (show && button.hidden) button.hidden = false;
+      if (show) button.setAttribute('data-visible', '');
+      else button.removeAttribute('data-visible');
+    }
+    function schedule() { if (!frame && !doc.hidden) frame = window.requestAnimationFrame(paint); }
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    doc.addEventListener('visibilitychange', () => {
+      if (doc.hidden) { window.cancelAnimationFrame(frame); frame = 0; }
+      else schedule();
+    });
+    paint();
+    return button;
+  }
+
   const NAV_RENDERERS = Object.freeze({
     desktop: desktopNav,
     mobile: mobileNav,
-    footer: footerNav
+    footer: footerNav,
+    'footer-bottom': footerBottom
   });
 
   // 当前页以 <body data-page="..."> 为准；home 与 404 页没有对应的 nav 项。
@@ -154,6 +279,7 @@
     });
     bindMenu();
     bindMoreMenu();
+    mountBackToTop();
   }
 
   // 手机导航面板的开合（槽位与按钮都由本文件之外的模板提供，找不到就跳过）。
@@ -215,7 +341,8 @@
     active: navActive,
     slots: navSlots,
     mount: navMount,
-    nav: NAV_RENDERERS
+    nav: NAV_RENDERERS,
+    backToTop: mountBackToTop
   });
 
   window.NanoCampBase = api;
