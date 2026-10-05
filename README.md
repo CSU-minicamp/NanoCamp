@@ -39,15 +39,19 @@ npm run dev
 4. `site.join.qrCode` 填写入群二维码，`contact` 填写联系账号，`contactLabel` 填写账号类型。缺少资料时显示加入方式待公布。
 5. `event` 中填写活动时间、地点、主题、总结与主图；`summary` 数组的每一项为一段正文。
 6. `projects` 中填写作品标题、简介、图片、成员、介绍链接和 Demo 链接。添加或删减数组项即可调整作品数量。
-7. `moments` 中填写照片、描述与图注。填写真实图片后自动支持点击查看大图。
-8. 执行 `npm run build` 更新生成页面。
+7. 作品的 `slug` 决定详情页地址 `/projects/<slug>/`，填写后应尽量保持稳定；缺省时回退为 `/projects/project-<id>/`。字段为：`description`（一句话简介）、`problem` / `solution`（问题与做法，换行即分段）、`theme`（活动主题，列表页据此分组）、`team` / `year`（队伍与年份）、`tools`（工具标签数组，卡片显示前 3 个）、`members`（`{name, role}` 数组）、`cover` / `coverAlt` / `coverFull`（封面与点击查看的原图）、`repoUrl`（GitHub 仓库）、`demoUrl`（在线体验）、`sourceId`（上游系统编号，用于去重）。未提供的地址保持 `null`，页面显示「待补充」而不是编造内容。标题仍为「项目名称」的占位项不会进入列表、详情页路由与站内搜索。
+8. `moments` 中填写照片、描述与图注。填写真实图片后自动支持点击查看大图。
+9. 执行 `npm run build` 更新生成页面。
 
 外部项目链接使用完整的 http 或 https 地址。未提供的地址保持 `null`，页面会显示待补充状态。
 
 ## 文件说明
 
 - `src/components.mjs`：导航、卡片、媒体、弹窗、页脚与文档外壳。
-- `src/pages.mjs`：页面路由与首页、活动回顾、作品、关于页面的内容结构。
+- `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
+- `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
+- `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
+- `scripts/sync-minicamp-projects.mjs`：从 minicamp 官方接口 `https://minicamp.flipperusc.work/api/projects` 拉取已发布作品，按主题、队伍、编号排序后生成 `projects` 数组片段，加 `--write-images` 会把接口内嵌的 base64 封面导出到 `public/images/projects/`。默认只打印结果，不改动 `content/site.mjs`。
 - `src/hero.mjs`：首页品牌舞台与动画控件。
 - `public/hero.css`、`public/hero.js`：B 版首屏海报、入场动效、悬浮与视差，仅在首页加载。
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。
@@ -65,6 +69,14 @@ npm run dev
 页脚提供全站动效开关，与首屏暂停、重播保持同步。偏好使用本地 `nanocamp-motion-paused` 设置跨页保存；浏览器禁止存储时，当页操作仍可用。系统的减少动态效果设置优先。`details.js` 在 `hero.js` 之前加载，通过 `window.NanoCampMotion` 共享状态。
 
 所有新增反馈均为渐进增强：按钮按压波纹会自动清理，卡片光泽只在精确指针移动时刷新，阅读进度随滚动更新，屏幕下方内容进入视口后仅显露一次。占位内容维持不可点击；只有已填写的照片和链接提供查看、跳转等操作。项目封面、活动照片补齐后，会自动使用新的照片缩放与查看提示。
+
+## 作品列表与详情
+
+- `/projects/` 是卡片网格；点击卡片标题或「查看详情」进入 `/projects/<slug>/`。卡片不做整卡链接，避免与封面相册、Demo、仓库等外链形成嵌套 `<a>`。
+- 详情页依次为：面包屑、主题标签、标题与导语、工具标签、外链按钮、封面、侧栏目录与元信息、想解决的问题、我们的做法、用到的工具、参与的同学、上一个/下一个作品。未填写的章节显示待补充占位框。
+- 作品超过 6 个时，列表页按 `theme` 分组，每组一条 `.project-group` 并带 `id="theme-<slug>"` 锚点；无主题的条目归入末尾的「未分类主题」。
+- 所有外部地址经 `safeUrl()` 只放行 http / https，统一 `target="_blank"` + `rel="noopener noreferrer"`，并带箭头图标与「（新标签页打开）」读屏提示；未填写时显示待补充，不生成链接。
+- 详情页复用 `active: 'projects'` 的相册脚本与 `collage.css` 视觉；桌面为侧栏 + 正文双栏，860px 以下单栏。
 
 ## 全年社区
 
@@ -87,7 +99,7 @@ npm run dev
 - 官方学习链接核实于 2026-10-02。社区指南为通用准备建议，不代表某一届 minicamp 的实际规则。
 ## 站内发现与分享
 
-- 站内搜索 `/search/` 从公开页面、活动形式、指南正文与模板、FAQ 自动生成索引。填写真实作品标题后，该作品自动加入索引；`项目名称` 占位项不加入。作品 `id` 应保持唯一且稳定。
+- 站内搜索 `/search/` 从公开页面、活动形式、指南正文与模板、FAQ 自动生成索引。填写真实作品标题后，该作品自动加入索引并指向详情页；`项目名称` 占位项不加入。作品 `id` 应保持唯一且稳定，`slug` 决定详情页地址。
 - `src/search.mjs` 生成索引和无脚本目录；`public/search-core.js` 提供规范化、多词共同匹配、排序及摘要；`public/search.js` 渐进增强查询、分类、分页及安全高亮。所有结果文本使用 DOM 文本节点。
 - 搜索使用 `?q=关键词&type=guide`；空格分隔的词共同匹配，支持全角字符。无 JavaScript 或索引无法读取时回退为公开页面目录。
 - 主导航搜索入口支持 Ctrl / Command + K，输入控件或打开的弹窗内不会触发。不会绑定纯字符快捷键。

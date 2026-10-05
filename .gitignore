@@ -5,3 +5,7 @@ node_modules/
 
 
 .impeccable/
+# 临时工作区与编辑器、智能体本地数据，不入库。
+.scratch/
+.idea/
+.workbuddy/

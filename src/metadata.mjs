@@ -4,7 +4,7 @@ const html = value => String(value ?? '').replace(/[&<>"']/g, char=>({'&':'&amp;
 export const canonicalUrl = route => new URL(route, site.url).href;
 export function metadata({ title, description, route, noindex = false }) {
   const canonical = route ? canonicalUrl(route) : null;
-  const article = route?.startsWith('/resources/') && route !== '/resources/';
+  const article = (route?.startsWith('/resources/') && route !== '/resources/') || (route?.startsWith('/projects/') && route !== '/projects/');
   const image = canonicalUrl('/images/nanocamp-social.png');
   const structured = route === '/' ? { '@context':'https://schema.org', '@type':'Organization', name:site.name, url:site.url, logo:canonicalUrl(site.symbol), description:site.description } : route === '/faq/' ? { '@context':'https://schema.org', '@type':'FAQPage', mainEntity:faqs.map(faq=>({'@type':'Question',name:faq.question,acceptedAnswer:{'@type':'Answer',text:faq.answer}})) } : article ? { '@context':'https://schema.org', '@type':'Article', headline:title.replace(/ · NanoCamp.*$/,''), description, mainEntityOfPage:canonical, image, author:{'@type':'Organization',name:'NanoCamp'}, publisher:{'@type':'Organization',name:'NanoCamp',logo:{'@type':'ImageObject',url:canonicalUrl(site.symbol)}} } : null;
   const structuredJSON = structured ? JSON.stringify(structured).replace(/</g, '\\u003c') : '';

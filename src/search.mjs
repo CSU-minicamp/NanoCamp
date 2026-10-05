@@ -1,14 +1,14 @@
 import { faqs, programs } from '../content/community.mjs';
 import { guides } from '../content/guides.mjs';
-import { projects } from '../content/site.mjs';
 import { esc, eyebrow, pageLink } from './components.mjs';
+import { readyProjects, projectPath } from './projects.mjs';
 
 export const searchTypes = [['all','全部'],['page','社区页面'],['event','活动'],['guide','共创指南'],['faq','常见问题'],['project','作品']];
 const labels = Object.fromEntries(searchTypes);
 export function createSearchIndex(pages) {
   const records = pages.filter(page => page.path !== '/search/').map(page => ({
     id: `page:${page.path}`, href: page.path, title: page.title.replace(/ · NanoCamp.*$/, ''), description: page.description,
-    type: page.path === '/minicamp/' || page.path === '/activities/' ? 'event' : page.path.startsWith('/resources/') ? 'guide' : page.path === '/faq/' ? 'faq' : 'page',
+    type: page.path === '/minicamp/' || page.path === '/activities/' ? 'event' : page.path.startsWith('/resources/') ? 'guide' : page.path === '/faq/' ? 'faq' : page.path.startsWith('/projects/') && page.path !== '/projects/' ? 'project' : 'page',
     context: 'NanoCamp 官网', text: page.path === '/community/' ? '参与 加入 新手 学生 专业 分享 组队 志愿 交流 社群' : page.path === '/partners/' ? '合作 学校 企业 校园 校企交流 社团 赞助 支持 交流 草稿 提案' : '',
   }));
   records.push(...programs.slice(1).map(program => ({ id:`format:${program.id}`, href:program.href, title:program.name, description:program.description, text:[program.label,...program.tags].join(' '), type:'event', context:`活动形式 · ${program.label}` })));
@@ -19,7 +19,12 @@ export function createSearchIndex(pages) {
     records.push(...guide.sections.map(section => ({ id:`guide:${guide.slug}:${section.id}`, href:`/resources/${guide.slug}/#${section.id}`, title:section.title, description:section.paragraphs[0], text:[...section.paragraphs,...(section.bullets || []),section.prompt || ''].join(' '), type:'guide', context:`指南段落 · ${guide.shortTitle}` })));
     records.push({ id:`template:${guide.slug}`, href:`/resources/${guide.slug}/#template`, title:`${guide.shortTitle} · 空白模板`, description:guide.takeaway, text:guide.template, type:'guide', context:'共创资源 · 可复制与下载' });
   }
-  records.push(...projects.filter(project => project.title?.trim() && project.title.trim() !== '项目名称').map(project => ({ id:`project:${project.id}`, href:`/projects/#project-${encodeURIComponent(project.id)}`, title:project.title, description:project.description, text:[project.category,...(project.members || [])].filter(Boolean).join(' '), type:'project', context:'社区作品 · 首届 minicamp' })));
+  // members 是 {name, role} 对象，只取姓名；problem / solution 让正文也能被检索到。
+  records.push(...readyProjects().map(project => ({
+    id: `project:${project.id}`, href: projectPath(project), title: project.title, description: project.description,
+    text: [project.theme, project.team, ...(project.tools || []), ...(project.members || []).map(member => member?.name).filter(Boolean), project.problem, project.solution].filter(Boolean).join(' '),
+    type: 'project', context: '社区作品 · 首届 minicamp',
+  })));
   return records;
 }
 
