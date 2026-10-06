@@ -1,0 +1,116 @@
+/* A writing desk: two sheets, with the preview typeset as a letter. */
+.collab-draft .brief-workspace {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;padding:12px 8px 24px;perspective:1200px}
+.collab-draft :is(.brief-form,.brief-preview) {padding:32px;transform-origin:50% 12%;box-shadow:0 3px 5px -3px #45365730,0 17px 32px -22px #45365755}
+.collab-draft .brief-form {--sheet:#f2edf8;--sheet-back:#ddd2e9}
+.collab-draft .brief-preview {--sheet:#f7faf3;--sheet-back:#d0e1d1;scroll-margin-top:110px}
+.collab-draft .brief-form-heading {align-items:flex-start;gap:14px;padding-bottom:24px;margin-bottom:28px}
+.collab-draft .brief-form-heading .mono {font-family:var(--font);font-size:19px;font-weight:700;letter-spacing:0;line-height:1.5;color:#4b385f}
+.collab-draft .brief-preview .brief-form-heading {align-items:center;padding-bottom:20px;margin-bottom:24px}
+.collab-draft .brief-preview .brief-form-heading>.mono {color:#2f5141}
+.brief-sheet-description {font-size:13px;line-height:1.8;color:#6c587b;margin-top:7px;max-width:32ch}
+.brief-pen {flex:none;width:36px;height:36px;color:#75568f;transform-origin:50% 90%}
+.brief-pen svg {width:32px;height:32px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.collab-draft .form-field {margin-bottom:24px}
+.collab-draft .form-field label {font-size:14px;line-height:1.6;color:#4f3d62;transition:color .18s ease}
+.collab-draft .form-field label>span {color:#6c587b;font-size:11px;margin-left:6px}
+.collab-draft .form-field label>.field-required {color:#674187}
+.collab-draft .form-field :is(input,select,textarea) {font-size:15px;min-height:49px;border-radius:5px;padding:12px 13px;background:#fffcf9ba;border-color:#bba9cd;transition:border-color .18s,background .18s,box-shadow .22s,transform .22s cubic-bezier(.16,1,.3,1);caret-color:#674187}
+.collab-draft .form-field :is(input,select,textarea)::placeholder {font-size:13px;color:#735e80;opacity:1}
+.collab-draft .form-field:focus-within label {color:#613583}
+.collab-draft .form-field :is(input,select,textarea):focus {outline:2px solid #76509a;outline-offset:2px;background:#fffdfa;border-color:#a184b7;box-shadow:0 5px 12px -8px #67418766;transform:translateY(-1px)}
+.collab-draft .form-field textarea {min-height:132px;line-height:1.9}
+.collab-draft .field-note {color:#6c587b;font-size:12px;line-height:1.8;margin-top:9px}
+.collab-draft .brief-form-actions {justify-content:space-between;padding-top:0;gap:14px}
+.collab-draft .subtle-button {color:#634e77;font:13px var(--font);min-height:44px;padding:8px 0}
+.brief-mobile-preview {display:none;align-items:center;gap:12px;min-height:44px;color:#634e77;font-size:13px;text-decoration:underline;text-underline-offset:5px}
+.brief-mobile-preview svg {width:18px;height:18px;stroke:currentColor;stroke-width:1.5}
+.collab-draft .brief-sync {display:flex;align-items:center;gap:7px;font-size:12px;color:#46654f;line-height:1.5;white-space:nowrap}
+.brief-sync i {width:6px;height:6px;border-radius:50%;background:#568467;flex:none}
+.brief-letter {flex:1;min-width:0;scroll-margin-top:120px;color:#304e3d;outline-offset:5px}
+.brief-letter-masthead {display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:28px;color:#597361;font-size:12px}
+.brief-letter-brand {font:700 21px/1.3 var(--latin),var(--font);letter-spacing:-.025em;color:#537dc1}
+.brief-letter-brand>span {color:#537f67}
+.brief-letter-subject {position:relative;padding:0 0 13px;margin-bottom:15px;min-width:0}
+.brief-letter-subject h3 {font-size:23px;font-weight:700;line-height:1.55;letter-spacing:-.015em;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#2f5141}
+.brief-letter-subject h3.is-empty {font-weight:500;color:#58705e}
+.brief-letter-greeting {font-size:14px;line-height:1.8;margin-bottom:12px;color:#526e59}
+.brief-letter-facts {margin:0;display:grid;gap:0}
+.brief-letter-facts>div {position:relative;display:grid;grid-template-columns:86px minmax(0,1fr);gap:13px;align-items:start;padding:9px 0;min-width:0}
+.brief-letter-facts dt {font-size:13px;line-height:1.85;color:#597361}
+.brief-letter-facts dd {font-size:14px;line-height:1.8;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#304e3d}
+.brief-letter-facts .is-empty {color:#58705e}
+.brief-letter-notes {position:relative;margin-top:19px;padding:19px 0 14px;border-top:1px solid #ccdcca}
+.brief-letter-notes h4 {font-size:14px;font-weight:600;line-height:1.6;margin:0 0 10px;color:#375e48}
+.brief-letter-notes p {font-size:14px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:#304e3d}
+.brief-letter-notes p.is-empty {color:#58705e}
+.brief-letter [data-letter-for] {border-radius:3px;transition:background-color .22s}
+.brief-letter [data-letter-for]::after {content:"";position:absolute;left:0;bottom:0;width:100%;height:1px;background:#739783;transform:scaleX(0);transform-origin:left;transition:transform .24s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.brief-letter [data-letter-for].is-current {background:#dcebd969}
+.brief-letter [data-letter-for].is-current::after {transform:scaleX(1)}
+.brief-letter-closing {padding:19px 0 0;margin-top:7px;border-top:1px solid #ccdcca;color:#597361}
+.brief-letter-closing p {font-size:12px;line-height:1.85;margin:0 0 6px;overflow-wrap:anywhere}
+.brief-letter-readiness {display:flex;align-items:center;gap:9px;margin-top:25px;font-size:12px;line-height:1.8;color:#58705e;transition:color .2s}
+.brief-letter-readiness .brief-action-check {width:19px;height:19px;flex:none;stroke:#58705e;opacity:.5}
+.brief-letter-readiness .brief-action-check path {stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .32s cubic-bezier(.16,1,.3,1)}
+.brief-letter-readiness.is-complete {color:#365f45}
+.brief-letter-readiness.is-complete .brief-action-check {opacity:1;stroke:#365f45}
+.brief-letter-readiness.is-complete .brief-action-check path {stroke-dashoffset:0}
+.collab-draft .brief-export-actions {display:flex;gap:12px;margin-top:15px}
+.collab-draft .brief-export-actions .button {flex:1;justify-content:center;gap:12px;min-height:48px;border-radius:5px;font-size:14px;font-weight:600;padding:11px 13px;transition:background .2s,border-color .2s,box-shadow .2s,transform .2s}
+.collab-draft .brief-export-actions [data-brief-copy] {background:#426457;border:1px solid #426457;color:#fffdf6}
+.collab-draft .brief-export-actions [data-brief-download] {background:transparent;border:1px solid #8ea792;color:#385b44}
+.collab-draft .brief-export-actions .button:disabled {opacity:1;background:#e5ece1;border-color:#c9d5c3;color:#69816c;cursor:not-allowed;box-shadow:none}
+.brief-action-icon,.brief-action-check {width:19px;height:19px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.brief-action-check path {stroke-dasharray:24}
+.brief-export-actions .brief-action-check {display:none}
+.brief-preview[data-export=copy] [data-brief-copy] .brief-action-icon,.brief-preview[data-export=download] [data-brief-download] .brief-action-icon {display:none}
+.brief-preview[data-export=copy] [data-brief-copy] .brief-action-check,.brief-preview[data-export=download] [data-brief-download] .brief-action-check {display:block}
+.collab-draft .brief-preview .tool-status {min-height:1.85em;margin-top:12px;font-size:13px;line-height:1.85;color:#355f44}
+.collab-draft .brief-preview .tool-status[data-state=error] {color:#795325}
+.collab-draft .brief-privacy-note {font-size:12px;line-height:1.85;color:#597361;margin-top:12px}
+.brief-return {border:0;min-height:44px;padding:8px 0;background:transparent;color:#385b44;font:13px var(--font);text-align:left;text-decoration:underline;text-underline-offset:5px;cursor:pointer}
+.collab-draft .brief-preview.is-manual-copy textarea {flex:1;font-size:14px;min-height:420px}
+.brief-letter ::selection {background:#c9e1cc;color:#213f2c}
+.brief-form ::selection {background:#decfec;color:#432453}
+.brief-mobile-preview:focus-visible,.brief-return:focus-visible,.brief-letter:focus-visible {outline:2px solid #5b8065;outline-offset:5px}
+@media(hover:hover) and (pointer:fine){
+  .collab-draft .brief-export-actions [data-brief-copy]:not(:disabled):hover {background:#345447;box-shadow:0 6px 13px -9px #304e3d99;transform:translateY(-1px)}
+  .collab-draft .brief-export-actions [data-brief-download]:not(:disabled):hover {background:#e5efdf;border-color:#63836b;transform:translateY(-1px)}
+}
+@media(max-width:1100px){
+  .collab-draft :is(.brief-form,.brief-preview) {padding:26px}
+  .collab-draft .brief-workspace {gap:26px}
+  .collab-draft .form-row {gap:14px}
+  .collab-draft .form-field :is(input,select,textarea) {font-size:14px;padding:12px 11px}
+}
+@media(max-width:860px){
+  .collab-draft .brief-workspace {grid-template-columns:minmax(0,1fr);gap:32px;padding-inline:6px}
+  .brief-mobile-preview {display:inline-flex}
+  .brief-letter-facts>div {grid-template-columns:96px minmax(0,1fr)}
+  .collab-draft .brief-preview {scroll-margin-top:105px}
+}
+@media(max-width:480px){
+  .collab-draft :is(.brief-form,.brief-preview) {padding:23px 21px}
+  .collab-draft .brief-form-heading .mono {font-size:18px}
+  .brief-sheet-description {font-size:12px}
+  .brief-pen {width:27px;height:30px}.brief-pen svg {width:27px;height:27px}
+  .collab-draft .form-field :is(input,select,textarea) {font-size:16px}
+  .collab-draft .form-field :is(input,select,textarea)::placeholder {font-size:13px}
+  .brief-letter-masthead {margin-bottom:23px}
+  .brief-letter-subject h3 {font-size:22px}
+  .brief-letter-facts>div {grid-template-columns:79px minmax(0,1fr);gap:10px}
+  .collab-draft .brief-export-actions {gap:9px}
+  .collab-draft .brief-export-actions .button {font-size:13px;gap:9px;padding-inline:10px}
+}
+@media(max-width:360px){
+  .collab-draft :is(.brief-form,.brief-preview) {padding:22px 17px}
+  .collab-draft .brief-sync {font-size:11px;gap:5px}
+  .brief-letter-facts>div {grid-template-columns:75px minmax(0,1fr)}
+  .brief-letter-subject h3 {font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){
+  .collab-draft .form-field :is(input,select,textarea),.brief-letter [data-letter-for]::after,.collab-draft .brief-export-actions .button {transition:none;transform:none!important}
+  .brief-letter-readiness .brief-action-check path {transition:none}
+}
+body.motion-stopped .collab-draft .form-field :is(input,select,textarea),body.motion-stopped .brief-letter [data-letter-for]::after,body.motion-stopped .collab-draft .brief-export-actions .button {transition:none;transform:none!important}
+@media print{.brief-letter-readiness,.brief-mobile-preview,.brief-return {display:none}}
