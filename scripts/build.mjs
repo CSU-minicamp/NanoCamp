@@ -2,6 +2,7 @@ import { mkdir, writeFile, cp } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { routePaths, renderPage, renderNotFound } from '../src/pages.mjs';
+import { renderIntroPage } from '../src/intro.mjs';
 import { guides } from '../content/guides.mjs';
 import { canonicalUrl } from '../src/metadata.mjs';
 
@@ -13,6 +14,9 @@ for (const route of routePaths) {
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, 'index.html'), renderPage(route), 'utf8');
 }
+// 首页首屏的海报是独立文档，但不属于站点路由：不进 sitemap、不进搜索索引。
+await mkdir(path.join(output, 'intro'), { recursive: true });
+await writeFile(path.join(output, 'intro', 'index.html'), renderIntroPage(), 'utf8');
 await cp(path.join(root, 'public'), output, { recursive: true });
 await mkdir(path.join(output, 'downloads'), { recursive: true });
 for (const guide of guides) {

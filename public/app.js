@@ -28,7 +28,8 @@
 
   document.documentElement.classList.remove('no-js');
 
-  [joinDialog, lightboxDialog].forEach(dialog => {
+  // 首页海报文档（/intro/）里没有弹窗，这里允许缺少 dialog 的页面继续复用 app.js。
+  [joinDialog, lightboxDialog].filter(Boolean).forEach(dialog => {
     dialog.addEventListener('click', event => {
       if (event.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
