@@ -1,0 +1,92 @@
+/* The side notes become a desk of idea cards, real memories and a shared puzzle. */
+.collab-formats>.collab-section-intro {position:sticky;top:116px;align-self:start}
+.partner-scene {width:100%;max-width:320px;position:relative}
+.partner-scene svg {stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.partner-ideas {margin-top:29px}
+.idea-deck {position:relative;height:238px;margin-inline:6px;isolation:isolate}
+.idea-paper {position:absolute;inset:24px 13px 24px;background:#d9e2fa;color:#344c84;display:flex;flex-direction:column;justify-content:flex-end;padding:25px 24px 20px;border-radius:3px;transform:rotate(var(--paper-angle)) translateY(-5px);z-index:var(--paper-order);box-shadow:0 4px 7px -5px #28395540,0 17px 24px -20px #28395560;transition:transform .48s var(--ease),box-shadow .4s var(--ease)}
+.idea-paper--1 {background:#e0d2f1;color:#4c3568}
+.idea-paper--2 {background:#cce9d7;color:#315f49}
+.idea-paper--3 {background:#ffe09a;color:#725021}
+.idea-paper.is-active {z-index:6;transform:rotate(-2deg);box-shadow:0 4px 7px -5px #28395540,0 20px 30px -19px #28395566}
+.idea-paper::after {content:"";position:absolute;top:0;right:0;width:25px;height:25px;background:#fff8;clip-path:polygon(0 0,100% 100%,0 100%);transform:rotate(180deg);pointer-events:none}
+.idea-paper-mark {position:absolute;right:23px;top:21px;width:39px;height:39px}
+.idea-paper-print {font:700 29px/1.4 var(--display);letter-spacing:-.02em;overflow-wrap:anywhere;max-width:100%;margin-top:29px}
+.idea-paper-latin {font-family:var(--latin);font-size:35px;font-weight:800;letter-spacing:-.035em}
+.idea-paper-detail {font-size:14px;line-height:1.7;margin-top:5px}
+.idea-paper-foot {display:flex;align-items:center;justify-content:space-between;font:600 12px/1.5 var(--font);border-top:1px solid #ffffff80;padding-top:12px;margin-top:20px}
+.idea-paper-foot svg {width:19px;height:19px}
+.idea-nav {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 17px;padding:5px 14px 0}
+.idea-nav a {display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;line-height:1.5;color:#625577;text-underline-offset:5px}
+.idea-nav i {width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.3;flex:none}
+.idea-nav a[aria-current] {color:#424ead;font-weight:700}.idea-nav a[aria-current] i {opacity:1}
+.idea-nav a:hover {color:#424ead;text-decoration:underline}
+.idea-nav a.is-preview {color:#424ead;text-decoration:underline}
+.idea-nav a:focus-visible {outline:2px solid #66518e;outline-offset:3px;border-radius:2px}
+.collab-format-list [data-idea-section] {scroll-margin-top:125px}
+.collab-format-list [data-idea-section]:focus-visible {outline:2px solid #8b78ad;outline-offset:10px}
+.partner-album {height:285px;margin-top:29px;isolation:isolate}
+.partner-photo {position:absolute;width:79%;padding:9px 9px 0;background:#fffcf4;border-radius:2px;transform:rotate(var(--photo-angle));box-shadow:0 3px 6px -4px #31534340,0 18px 28px -20px #31534366;transition:transform .35s var(--ease),box-shadow .35s var(--ease);transform-origin:50% 60%;color:#375746;text-decoration:none}
+.partner-photo--people {left:3%;top:7px;z-index:1}
+.partner-photo--work {right:0;top:109px;width:73%;z-index:2}
+.partner-photo img {width:100%;height:135px;object-fit:cover;background:#d0e1d5}
+.partner-photo--people img {object-position:50% 60%}
+.partner-photo--work img {height:111px;object-position:50% 50%}
+.partner-photo>span {display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:39px;padding-inline:4px;font:600 12px/1.5 var(--font)}
+.partner-photo>span svg {width:15px;height:15px;flex:none}
+.album-tape {position:absolute;width:85px;height:27px;left:24%;top:-3px;z-index:3;background:#e0cfad8c;transform:rotate(-12deg);clip-path:polygon(3% 0,98% 2%,100% 94%,0 100%);pointer-events:none}
+.album-sticker {position:absolute;right:7px;top:14px;width:55px;height:55px;display:grid;place-items:center;background:#fffcf4;border-radius:50%;padding:7px;transform:rotate(11deg);box-shadow:0 4px 6px -4px #31534355;z-index:3;pointer-events:none}
+.album-sticker .brand-asset {width:100%;height:auto}
+.partner-photo:focus-visible {outline:2px solid #3f7560;outline-offset:5px;z-index:4;transform:translateY(-5px) rotate(-1deg)}
+.partner-puzzle {max-width:290px;display:flex;flex-direction:column;align-items:flex-start;margin-top:22px;text-decoration:none;color:#4e4779}
+.puzzle-art {width:100%;height:auto;overflow:visible}
+.partner-puzzle .puzzle-piece {stroke:#faf9fe;stroke-width:1.2;filter:drop-shadow(0 4px 3px #3b305622)}
+.puzzle-piece--blue {fill:#cbd8f6}.puzzle-piece--mint {fill:#c9e7d5}.puzzle-piece--lilac {fill:#e0d2f1}
+.partner-puzzle text {fill:#37547e;font:700 16px var(--display);stroke:none;letter-spacing:0}
+.partner-puzzle .puzzle-fixed text:last-child {fill:#315d48}
+.partner-puzzle .puzzle-waiting text {fill:#4c3568}
+.puzzle-waiting {transform-box:fill-box;transform-origin:50% 50%;transform:translate(20px,14px) rotate(-5deg);transition:transform .45s var(--ease)}
+.partner-puzzle:hover .puzzle-waiting,.partner-puzzle:focus-visible .puzzle-waiting {transform:translate(0,0) rotate(0)}
+.puzzle-spark {fill:#c18a30;stroke:none;opacity:0;transform:scale(.65) rotate(-12deg);transform-box:fill-box;transform-origin:center;transition:opacity .2s,transform .4s var(--ease)}
+.partner-puzzle:hover .puzzle-spark,.partner-puzzle:focus-visible .puzzle-spark {opacity:1;transform:scale(1) rotate(8deg)}
+.puzzle-link-label {display:flex;align-items:center;gap:25px;min-height:44px;margin:1px 0 0 25px;font-size:14px;line-height:1.6;text-decoration:underline;text-underline-offset:6px;text-decoration-color:#a594bf}
+.puzzle-link-label svg {width:19px;height:19px;transition:transform .25s var(--ease)}
+.partner-puzzle:hover .puzzle-link-label svg {transform:translate(2px,-2px)}
+.partner-puzzle:focus-visible {outline:2px solid #66518e;outline-offset:8px;border-radius:3px}
+.collab-contact:focus-visible {outline:none}.collab-contact:focus-visible h2 {outline:2px solid #66518e;outline-offset:8px}
+@media(hover:hover) and (pointer:fine){
+  .partner-photo:hover {z-index:4;transform:translateY(-6px) rotate(-1deg);box-shadow:0 4px 7px -4px #31534340,0 22px 30px -20px #31534380}
+}
+@media(max-width:1000px){
+  .idea-paper {padding:22px 18px 17px}.idea-paper-print {font-size:26px}.idea-paper-latin {font-size:31px}
+  .idea-paper-mark {right:20px;width:34px;height:34px}.idea-paper-detail {font-size:13px}
+  .partner-photo img {height:119px}.partner-photo--work img {height:103px}.partner-album {height:260px}
+}
+@media(max-width:760px){
+  .collab-formats>.collab-section-intro {position:static}
+  .partner-scene {margin-inline:auto}.partner-ideas {margin-top:17px;max-width:300px}
+  .idea-deck {height:219px}.idea-paper {inset:17px 12px 17px;padding:21px 23px 17px}
+  .idea-paper-print {font-size:28px}.idea-paper-latin {font-size:33px}.idea-paper-detail {font-size:14px}
+  .idea-nav {grid-template-columns:repeat(2,minmax(0,1fr));padding-top:0}
+  .partner-album {max-width:285px;margin-top:23px;height:263px}.partner-photo img {height:125px}.partner-photo--work img {height:105px}
+  .partner-puzzle {max-width:260px;margin-top:15px}.puzzle-link-label {font-size:14px}
+}
+@media(max-width:360px){
+  .idea-paper-print {font-size:25px}.idea-paper-latin {font-size:30px}
+  .partner-album {max-width:255px;height:258px}.partner-photo img {height:114px}.partner-photo--work img {height:99px}
+}
+@media(max-height:650px){.collab-formats>.collab-section-intro {position:static}}
+@media(prefers-reduced-motion:reduce){
+  .partner-scene * {animation:none!important;transition:none!important}
+  .puzzle-waiting {transform:none!important}
+  .partner-photo:hover,.partner-photo:focus-visible {transform:rotate(var(--photo-angle))}
+  .partner-puzzle:hover .puzzle-link-label svg {transform:none}
+}
+body.motion-stopped .partner-scene * {animation:none!important;transition:none!important}
+body.motion-stopped .puzzle-waiting {transform:none!important}
+body.motion-stopped .partner-photo:hover,body.motion-stopped .partner-photo:focus-visible {transform:rotate(var(--photo-angle))}
+body.motion-stopped .partner-puzzle:hover .puzzle-link-label svg {transform:none}
+@media print{
+  .collab-formats>.collab-section-intro {position:static}
+  .partner-scene {display:none}
+}

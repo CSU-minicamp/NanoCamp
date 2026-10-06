@@ -4,11 +4,11 @@ export const communityFounders = [
   { name: '华为智能基座', image: '/images/community-founders/huawei.jpg', mark: 'huawei', width: 627, height: 589 },
 ];
 export const communityChannels = [
-  { name: '抖音', account: 'mini', label: '抖音号', id: '58149936120', instruction: '在抖音中搜索此抖音号。' },
-  { name: '小红书', account: 'mini', label: '小红书号', id: '95929963754', instruction: '在小红书中搜索此小红书号。' },
-  { name: 'B站', account: 'minicamp', label: 'UID', id: '3632309624376033', href: 'https://space.bilibili.com/3632309624376033' },
+  { name: '抖音', account: 'NanoCamp', label: '抖音号', id: '32909058309', href: 'https://www.douyin.com/user/MS4wLjABAAAATk819gTiNcRVjSH_Jkgwv9HM1GYXDsx60geCRl_pTSxQNzb2RYFhIhsf6vIaNhtt' },
+  { name: '小红书', account: 'NanoCamp', label: '小红书号', id: '95929963754', href: 'https://www.xiaohongshu.com/user/profile/6ab796c80000000013032803' },
+  { name: 'B站', account: 'NanoCamp', label: 'UID', id: '3632309624376033', href: 'https://space.bilibili.com/3632309624376033' },
 ];
-export const communityContact = { name: 'mini', qq: '3675906985' };
+export const communityContact = { name: 'NanoCamp', qq: '3675906985' };
 
 export const programs = [
   { id: 'minicamp', category: 'hackathon', label: '年度黑客松', name: 'minicamp', en: 'THE ANNUAL CAMP', tone: 'blue', icon: 'camp', status: '首届已结束', description: '一年一度，把好奇心带到同一个现场。组队、尝试、做出原型，让想法拥有第一次被看见的机会。', tags: ['跨专业组队', '动手创造', '作品展示'], href: '/minicamp/', action: '回看首届 minicamp' },

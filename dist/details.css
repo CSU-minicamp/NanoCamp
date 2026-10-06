@@ -66,9 +66,9 @@ a:focus-visible, button:focus-visible { outline: 3px solid #467dda; outline-offs
 .media-open img { transition: transform .8s var(--detail-ease), filter .6s; }
 .media-open:is(:hover,:focus-visible) img { transform: scale(1.05); filter: saturate(1.045); }
 .media-open:focus-visible { outline-offset: -5px; border-radius: inherit; outline-color: white; }
-.media-zoom { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; color: #233b4c; background: #fffffff0; border: 1px solid #ffffff8c; border-radius: 8px; box-shadow: 0 3px 15px #1638560a; font-size: 11px; opacity: 0; transform: translateY(5px); transition: opacity .3s, transform .4s var(--detail-ease); }
+.media-zoom { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; color: #233b4c; background: #fffffff0; border: 1px solid #ffffff8c; border-radius: 8px; box-shadow: 0 3px 15px #1638560a; font-size: 11px; opacity: 0; transform: translateY(5px); transition: opacity .3s, transform .4s var(--detail-ease); text-decoration: none; cursor: pointer; }
 .media-zoom svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: round; }
-.media-open:is(:hover,:focus-visible) .media-zoom { opacity: 1; transform: translateY(0); }
+.media-frame:is(:hover,:focus-within) .media-zoom { opacity: 1; transform: translateY(0); }
 .moments-grid figcaption, .event-gallery figcaption { transition: color .3s; }
 .moments-grid figure:hover figcaption, .event-gallery figure:hover figcaption { color: #356acb; }
 .moments-grid figcaption > .mono { display: inline-flex; min-width: 36px; justify-content: flex-end; }

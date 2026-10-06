@@ -224,7 +224,13 @@ export function createWindow(document) {
 
 // 在最小 DOM 里执行 public/base.js，返回它挂到 window 上的接口。
 export function runBase(source, document, window = createWindow(document)) {
-  const context = vm.createContext({ window, document, console });
-  vm.runInContext(source, context, { filename: 'public/base.js' });
+  vm.runInContext(source, vm.createContext({ window, document, console }), { filename: 'public/base.js' });
   return window.NanoCampBase;
+}
+
+// 通用版本：把浏览器里可以直接裸用的全局（matchMedia / getComputedStyle / requestAnimationFrame …）
+// 一并放进 context，方便测试那些按浏览器全局写法写的脚本。
+export function runScript(source, document, window = createWindow(document), globals = {}, filename = 'client-script.js') {
+  vm.runInContext(source, vm.createContext({ window, document, console, ...globals }), { filename });
+  return window;
 }
