@@ -35,7 +35,7 @@ export const event = {
 // 作品数据由 scripts/sync-minicamp-projects.mjs 从 minicamp 官方接口整理而来（首届 minicamp，2026）。
 // slug 决定详情页地址 /projects/<slug>/，填写后应尽量保持稳定。
 // 外部地址必须是完整 http 或 https；缺失字段保持 null，页面会显示「待补充」而不是编造内容。
-export const projects = [
+const rawProjects = [
 {
     id: '01', slug: 'aiclassrep', title: 'AIClassRep',
     description: 'AI 课代表：连接本机 QQ 群，自动监听群消息，用 AI 提取课程通知、作业、考试和调课信息，整理成可搜索、可提醒的个人课代表。',
@@ -230,13 +230,22 @@ export const projects = [
     id: '20', slug: 'project-20', title: '属于工程师的AI智能桌宠助手',
     description: '把AI和桌宠结合',
     problem: '简化AI使用流程', solution: '简化AI使用流程，使日常中的一些任务的处理流程得到简化，让工程开发与生活更加便捷。平时是桌宠图片，点击桌宠打开AI对话框',
-    theme: null, team: 'TEAM 20', year: '2026',
+    theme: 'Build for Humans', team: 'TEAM 20', year: '2026',
     tools: ['Codex'], members: [{ name: '陈成一', role: null }, { name: '邱浩俊', role: null }, { name: '张淮博', role: null }, { name: '张宸瑾', role: null }, { name: '李春梅', role: null }],
     cover: null, coverAlt: '属于工程师的AI智能桌宠助手 作品封面', coverFull: null,
     repoUrl: null, demoUrl: null,
     sourceId: 'PROJECT-A920F953CB',
   },
 ];
+
+// 统一为每条作品补上「分类」维度：minicamp 作品默认归 'minicamp'，
+// 社区作品 / 成员个人作品后续从 communityProjects / personalProjects 取数（见下）。
+export const projects = rawProjects.map(project => ({ ...project, category: project.category || 'minicamp' }));
+
+// 社区作品与成员个人作品：当前暂无数据，先占位，后续从对应渠道填充。
+// 二者与 minicamp 作品共用同一套卡片 / 详情渲染（改版方案见 design/projects-page-revision.md）。
+export const communityProjects = [];
+export const personalProjects = [];
 
 // Published on the official minicamp activity site. These entries stay scoped to the annual recap.
 export const featuredProjects = ['05', '03', '16'].map(id => projects.find(project => project.id === id));

@@ -83,11 +83,18 @@ function moreNavigation(active) {
   return `<details class="nav-more"><summary>更多<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="nav-more-panel">${navLinks.filter(link => link.more).map(link => navLink(link, active, link.moreLabel)).join('')}</div></details>`;
 }
 
-export function media({ src, alt = '活动照片', label = '现场照片', id = '01', theme = 'blue', classes = '', kind = 'moment', fullSrc = null, caption = alt, album = 'moments', albumLabel = 'minicamp 现场相册' } = {}) {
+export function media({ src, alt = '活动照片', label = '现场照片', id = '01', theme = 'blue', classes = '', kind = 'moment', fullSrc = null, caption = alt, album = 'moments', albumLabel = 'minicamp 现场相册', linkTo = null } = {}) {
   const image = safeUrl(src, true);
   const original = safeUrl(fullSrc, true) || image;
   const placeholder = `<div class="media-placeholder ${image ? 'media-fallback' : ''}" ${image ? 'hidden' : ''}><span class="media-corner corner-tl" aria-hidden="true"></span><span class="media-corner corner-br" aria-hidden="true"></span><span class="media-glyph" aria-hidden="true">${kind === 'project' ? esc(id) : '+'}</span><span class="media-placeholder-caption">${kind === 'project' ? '作品封面' : '现场照片'}待补充</span></div>`;
-  return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} ${image ? 'has-image' : ''}">${image ? `<a class="media-open" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image><span class="media-zoom" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg>查看照片</span></a>` : ''}${placeholder}<div class="media-label"><span>${esc(label)}</span><span>${esc(id)}</span></div></div>`;
+  const zoom = `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg>查看照片`;
+  const labelRow = `<div class="media-label"><span>${esc(label)}</span><span>${esc(id)}</span></div>`;
+  if (!image) return `<div class="media-frame tone-${esc(theme)} ${esc(classes)}">${placeholder}${labelRow}</div>`;
+  if (linkTo) {
+    // 封面点击进入作品详情页；「查看照片」作为独立按钮打开大图（lightbox）。
+    return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} has-image"><a class="media-open" href="${esc(linkTo)}" aria-label="查看详情：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image></a><a class="media-zoom" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}">${zoom}</a>${labelRow}</div>`;
+  }
+  return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} has-image"><a class="media-open" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image><span class="media-zoom" aria-hidden="true">${zoom}</span></a>${labelRow}</div>`;
 }
 
 export function joinSection(compact = false, active = '') {

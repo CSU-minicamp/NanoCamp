@@ -85,3 +85,32 @@
   });
 
 })();
+// Native details keeps the secondary navigation available without JavaScript.
+(() => { const menu=document.querySelector('.nav-more'); if(!menu)return;
+ document.addEventListener('click',event=>{if(!menu.contains(event.target))menu.open=false;});
+  document.addEventListener('focusin',event=>{if(menu.open&&!menu.contains(event.target))menu.open=false;});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&menu.open){menu.open=false;menu.querySelector('summary').focus();}});
+})();
+
+// 作品页：分类 Tab 切换 + 主题「查看全部」展开。
+(() => {
+  const tabs = document.querySelectorAll('[data-project-tab]');
+  if (!tabs.length) return;
+  const panels = document.querySelectorAll('[data-project-panel]');
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    const key = tab.dataset.projectTab;
+    tabs.forEach(t => t.setAttribute('aria-pressed', String(t === tab)));
+    panels.forEach(p => { p.hidden = p.dataset.projectPanel !== key; });
+  }));
+  document.querySelectorAll('[data-theme-more]').forEach(button => {
+    button.addEventListener('click', () => {
+      const section = document.getElementById(button.dataset.themeMore);
+      if (!section) return;
+      const expanded = button.getAttribute('aria-expanded') === 'true';
+      section.querySelectorAll('.theme-extra').forEach(el => { el.hidden = expanded; });
+      button.setAttribute('aria-expanded', String(!expanded));
+      const arrow = button.querySelector('.theme-more-arrow');
+      if (arrow) arrow.textContent = expanded ? '↓' : '↑';
+    });
+  });
+})();
