@@ -2,7 +2,7 @@ import { esc, logoMark } from './components.mjs';
 
 const arrow = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg>';
 const marks = [
-  '<path d="M24 1Q27 21 47 24Q27 27 24 47Q21 27 1 24Q21 21 24 1Z" fill="currentColor" stroke="none"/>',
+  null,
   '<path d="m17 11-12 13 12 13m14-26 12 13-12 13M28 6l-8 36"/>',
   '<rect x="4" y="8" width="26" height="26" rx="3"/><rect x="18" y="16" width="26" height="26" rx="3"/>',
   '<path d="M10 14v20m28-20v20M10 24h28"/><circle cx="10" cy="9" r="5"/><circle cx="38" cy="39" r="5"/>',
@@ -17,8 +17,9 @@ const captions = new Map([
 export function ideasScene(formats) {
   const cards = formats.map((item, index) => {
     const [title, detail] = captions.get(item.name) || [item.name, '交流合作'];
+    const mark = marks[index % 4];
     return `<div class="idea-paper idea-paper--${index % 4}${index === 0 ? ' is-active' : ''}" data-idea-paper="${index}" style="--paper-angle:${[-7, 6, -3, 9][index % 4]}deg;--paper-order:${formats.length - index}">
-      <svg class="idea-paper-mark" viewBox="0 0 48 48" fill="none">${marks[index % 4]}</svg><span class="idea-paper-print${index === 0 ? ' idea-paper-latin' : ''}">${esc(title)}</span><span class="idea-paper-detail">${esc(detail)}</span><span class="idea-paper-foot">NanoCamp${arrow}</span>
+      ${mark ? `<svg class="idea-paper-mark" viewBox="0 0 48 48" fill="none">${mark}</svg>` : ''}<span class="idea-paper-print${index === 0 ? ' idea-paper-latin' : ''}">${esc(title)}</span><span class="idea-paper-detail">${esc(detail)}</span><span class="idea-paper-foot">NanoCamp${arrow}</span>
     </div>`;
   }).join('');
   return `<div class="partner-scene partner-ideas"><div class="idea-deck" aria-hidden="true">${cards}</div><nav class="idea-nav" aria-label="选择合作形式">${formats.map((item, index) => `<a href="#collab-format-${index}" data-idea-nav="${index}"${index === 0 ? ' aria-current="location"' : ''}><i aria-hidden="true"></i>${esc((captions.get(item.name) || [item.name])[0])}</a>`).join('')}</nav></div>`;
@@ -37,7 +38,6 @@ export function puzzleScene() {
     <svg class="puzzle-art" viewBox="0 0 276 230" aria-hidden="true">
       <g class="puzzle-fixed"><path class="puzzle-piece puzzle-piece--blue" d="M24 28H112V56C85 50 85 88 112 82V112H84C90 139 52 139 58 112H24Z"/><text x="68" y="76" text-anchor="middle">技术</text><path class="puzzle-piece puzzle-piece--mint" d="M112 28H212V56C239 50 239 88 212 82V112H183C189 139 151 139 157 112H112V82C85 88 85 50 112 56Z"/><text x="164" y="76" text-anchor="middle">保障</text></g>
       <g class="puzzle-waiting"><path class="puzzle-piece puzzle-piece--lilac" d="M24 112H58C52 139 90 139 84 112H157C151 139 189 139 183 112H212V196H24Z"/><text x="119" y="168" text-anchor="middle">伙伴连接</text></g>
-      <path class="puzzle-spark" d="M247 120Q249 139 268 141Q249 143 247 162Q245 143 226 141Q245 139 247 120Z"/>
     </svg><span class="puzzle-link-label">从一封信开始${arrow}</span>
   </a>`;
 }

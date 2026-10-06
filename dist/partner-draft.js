@@ -77,8 +77,8 @@
       summary.getBoundingClientRect().height + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
     disclosure.style.height = `${from}px`;
     const animation = disclosure.animate([{ height: `${from}px` }, { height: `${to}px` }], {
-      duration: open ? 520 : 340,
-      easing: 'cubic-bezier(.22,1,.36,1)',
+      duration: open ? 1000 : 600,
+      easing: 'cubic-bezier(.4,0,.2,1)',
     });
     panelAnimation = animation;
     animation.finished.then(() => {
@@ -136,10 +136,10 @@
     sheets.forEach((sheet, index) => animate(sheet, [
       { transform: `perspective(1000px) rotateX(${index ? -6 : 8}deg) translateY(18px)`, opacity: .65, clipPath: 'inset(0 0 8% 0)', boxShadow: '0 5px 8px -6px #45365722' },
       { transform: 'perspective(1000px) rotateX(0deg) translateY(0)', opacity: 1, clipPath: 'inset(-40px -20px -40px -20px)', boxShadow: '0 17px 32px -22px #45365755' },
-    ], { duration: 560, delay: index * 70 }));
+    ], { duration: 900, delay: index * 130 }));
     animate(form.querySelector('.brief-pen'), [
       { transform: 'rotate(-12deg) translateY(4px)' }, { transform: 'rotate(0) translateY(0)' },
-    ], { duration: 480, delay: 100 });
+    ], { duration: 650, delay: 180 });
   }
   form.addEventListener('focusin', event => {
     const name = event.target.name;
