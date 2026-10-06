@@ -63,8 +63,10 @@ test('photos can be published before projects without contradictory empty states
   try {
     moments[0].src='/images/real-event-photo.jpg';
     const html=renderPage('/');
-    assert.match(html,/src="\/images\/real-event-photo.jpg"/);
-    assert.doesNotMatch(html,/首届活动照片待补充/);
+    // 首页不再展示现场相册（.moments-grid 已移除），但文案不能和已发布的照片互相矛盾。
+    assert.doesNotMatch(html,/moments-grid/);
+    assert.match(html,/一起回看 2026 届 minicamp 的现场瞬间。/);
+    assert.doesNotMatch(html,/2026 届活动照片待补充/);
     assert.match(html,/作品介绍与 Demo 链接待补充/);
   } finally { moments[0].src=original; projects.push(...listed); }
 });

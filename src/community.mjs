@@ -27,7 +27,7 @@ function filterBar(options, label) {
 }
 
 export function ecosystem() {
- return `<section class="community-ecosystem" aria-labelledby="ecosystem-title"><div class="container section"><div class="section-top"><h2 id="ecosystem-title">不只一年一次。<br>平常，也一起创造。</h2><p class="section-description">技术分享、日常共创、校企交流。<br>具体场次与参与方式，以正式公告为准。</p></div><div class="community-rows">${programs.slice(1).map(p=>`<a class="community-row" href="${p.href}"><span class="row-label">${esc(p.label)}</span><div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p></div><span class="row-action">${esc(p.action)} <b aria-hidden="true">↗</b></span></a>`).join('')}</div></div></section>`;
+ return `<section class="community-ecosystem" aria-labelledby="ecosystem-title"><div class="container section"><div class="section-top"><h2 id="ecosystem-title">不只一年一次。<br>平常，也一起创造。</h2></div><div class="community-rows">${programs.slice(1).map(p=>`<a class="community-row" href="${p.href}"><span class="row-label">${esc(p.label)}</span><div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p></div><span class="row-action">${esc(p.action)} <b aria-hidden="true">↗</b></span></a>`).join('')}</div></div></section>`;
 }
 
 export function activitiesPage() {
