@@ -8,7 +8,7 @@ export function partnerDraft() {
   return `<div class="brief-fallback" data-brief-fallback><h3>一份简单的交流提案，可以先回答这些问题。</h3><ol><li>你来自哪里，想与怎样的学生交流？</li><li>想围绕什么具体主题，以什么形式开展？</li><li>预计何时进行，双方需要提供哪些支持？</li><li>希望参与者最后能带走什么？</li></ol><p>你可以自行整理这些信息，再通过官方渠道联系社区。</p></div>
   <div class="brief-workspace" data-brief-builder data-brief-live hidden>
     <form class="brief-form" data-brief-form>
-      <div class="brief-form-heading"><div><span class="mono">编辑草稿</span><p class="brief-sheet-description">先写下一个想法，其他可以慢慢补充。</p></div><span class="brief-pen">${pen}</span></div>
+      <div class="brief-form-heading"><div><span class="mono">编辑草稿</span></div><span class="brief-pen">${pen}</span></div>
       <div class="form-row">
         <div class="form-field"><label for="brief-kind">你代表的方向</label><select id="brief-kind" name="kind"><option value="学校或学生社团">学校或学生社团</option><option value="企业或机构团队">企业或机构团队</option><option value="个人实践者">个人实践者</option><option value="其他交流伙伴">其他交流伙伴</option></select></div>
         <div class="form-field"><label for="brief-format">期待的交流形式</label><select id="brief-format" name="format"><option value="技术分享">技术分享</option><option value="校园联合交流">校园联合交流</option><option value="共创工作坊">共创工作坊</option><option value="真实问题讨论">真实问题讨论</option><option value="minicamp 活动支持">minicamp 活动支持</option></select></div>

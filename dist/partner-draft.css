@@ -4,18 +4,17 @@
 .collab-draft .brief-form {--sheet:#f2edf8;--sheet-back:#ddd2e9}
 .collab-draft .brief-preview {--sheet:#f7faf3;--sheet-back:#d0e1d1;scroll-margin-top:110px}
 .collab-draft .brief-form-heading {align-items:flex-start;gap:14px;padding-bottom:24px;margin-bottom:28px}
-.collab-draft .brief-form-heading .mono {font-family:var(--font);font-size:19px;font-weight:700;letter-spacing:0;line-height:1.5;color:#4b385f}
+.collab-draft .brief-form-heading .mono {font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:0;line-height:1.5;color:#4b385f}
 .collab-draft .brief-preview .brief-form-heading {align-items:center;padding-bottom:20px;margin-bottom:24px}
 .collab-draft .brief-preview .brief-form-heading>.mono {color:#2f5141}
-.brief-sheet-description {font-size:13px;line-height:1.8;color:#6c587b;margin-top:7px;max-width:32ch}
 .brief-pen {flex:none;width:36px;height:36px;color:#75568f;transform-origin:50% 90%}
 .brief-pen svg {width:32px;height:32px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .collab-draft .form-field {margin-bottom:24px}
-.collab-draft .form-field label {font-size:14px;line-height:1.6;color:#4f3d62;transition:color .18s ease}
-.collab-draft .form-field label>span {color:#6c587b;font-size:11px;margin-left:6px}
+.collab-draft .form-field label {font-family:var(--display);font-size:15px;font-weight:700;line-height:1.6;letter-spacing:0;color:#4f3d62;transition:color .18s ease}
+.collab-draft .form-field label>span {font-family:var(--font);font-weight:400;color:#6c587b;font-size:12px;margin-left:6px}
 .collab-draft .form-field label>.field-required {color:#674187}
-.collab-draft .form-field :is(input,select,textarea) {font-size:15px;min-height:49px;border-radius:5px;padding:12px 13px;background:#fffcf9ba;border-color:#bba9cd;transition:border-color .18s,background .18s,box-shadow .22s,transform .22s cubic-bezier(.16,1,.3,1);caret-color:#674187}
-.collab-draft .form-field :is(input,select,textarea)::placeholder {font-size:13px;color:#735e80;opacity:1}
+.collab-draft .form-field :is(input,select,textarea) {font-family:var(--font);font-size:16px;font-weight:400;line-height:1.7;min-height:49px;border-radius:5px;padding:12px 13px;background:#fffcf9ba;border-color:#bba9cd;transition:border-color .18s,background .18s,box-shadow .22s,transform .22s cubic-bezier(.16,1,.3,1);caret-color:#674187}
+.collab-draft .form-field :is(input,select,textarea)::placeholder {font-size:14px;color:#735e80;opacity:1}
 .collab-draft .form-field:focus-within label {color:#613583}
 .collab-draft .form-field :is(input,select,textarea):focus {outline:2px solid #76509a;outline-offset:2px;background:#fffdfa;border-color:#a184b7;box-shadow:0 5px 12px -8px #67418766;transform:translateY(-1px)}
 .collab-draft .form-field textarea {min-height:132px;line-height:1.9}
@@ -81,7 +80,7 @@
   .collab-draft :is(.brief-form,.brief-preview) {padding:26px}
   .collab-draft .brief-workspace {gap:26px}
   .collab-draft .form-row {gap:14px}
-  .collab-draft .form-field :is(input,select,textarea) {font-size:14px;padding:12px 11px}
+  .collab-draft .form-field :is(input,select,textarea) {padding:12px 11px}
 }
 @media(max-width:860px){
   .collab-draft .brief-workspace {grid-template-columns:minmax(0,1fr);gap:32px;padding-inline:6px}
@@ -92,10 +91,7 @@
 @media(max-width:480px){
   .collab-draft :is(.brief-form,.brief-preview) {padding:23px 21px}
   .collab-draft .brief-form-heading .mono {font-size:18px}
-  .brief-sheet-description {font-size:12px}
   .brief-pen {width:27px;height:30px}.brief-pen svg {width:27px;height:27px}
-  .collab-draft .form-field :is(input,select,textarea) {font-size:16px}
-  .collab-draft .form-field :is(input,select,textarea)::placeholder {font-size:13px}
   .brief-letter-masthead {margin-bottom:23px}
   .brief-letter-subject h3 {font-size:22px}
   .brief-letter-facts>div {grid-template-columns:79px minmax(0,1fr);gap:10px}
