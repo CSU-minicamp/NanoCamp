@@ -11,6 +11,10 @@ export const projectPath = project => `/projects/${projectSlug(project)}/`;
 const tones = ['blue', 'orange', 'mint', 'sand'];
 const toneOf = project => tones[Math.max(0, readyProjects().indexOf(project)) % tones.length];
 
+// 列表优先展示有封面的作品：无封面条目会渲染成占位块，排在后面版面更整齐。
+const hasCover = project => Boolean(String(project?.cover ?? '').trim());
+const coverFirst = items => [...items].sort((a, b) => Number(hasCover(b)) - Number(hasCover(a)));
+
 const memberNames = project => (project.members || []).map(member => member.name).filter(Boolean);
 // problem / solution 是人工填写的自由文本，换行表示分段。
 const paragraphs = value => String(value ?? '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -73,9 +77,12 @@ export function projectCard(project, tone = toneOf(project)) {
   </article>`;
 }
 
-export const projectGrid = (items = projects) => readyProjects(items).length
-  ? `<div class="projects-grid">${readyProjects(items).map((item, index) => projectCard(item, tones[index % tones.length])).join('')}</div>`
-  : '<div class="archive-empty"><div><h3>首届作品，待补充。</h3><p>作品介绍、团队成员与 Demo 链接会收录在这里。</p></div><a class="text-link" href="/resources/from-idea-to-demo/">先读一份 Demo 指南</a></div>';
+export function projectGrid(items = projects) {
+  const list = coverFirst(readyProjects(items));
+  return list.length
+    ? `<div class="projects-grid">${list.map((item, index) => projectCard(item, tones[index % tones.length])).join('')}</div>`
+    : '<div class="archive-empty"><div><h3>首届作品，待补充。</h3><p>作品介绍、团队成员与 Demo 链接会收录在这里。</p></div><a class="text-link" href="/resources/from-idea-to-demo/">先读一份 Demo 指南</a></div>';
+}
 
 // 作品较多时按活动主题分组。每组先展示 3 个，超出部分折叠并提供「查看该主题全部」展开。
 function catalogGroups(categoryItems = readyProjects()) {
@@ -88,6 +95,8 @@ function catalogGroups(categoryItems = readyProjects()) {
     if (!group) groups.push(group = { theme: item.theme || '', items: [] });
     group.items.push(item);
   }
+  // 每个主题组内也把有封面的作品排在前面，首屏 3 个尽量都有封面。
+  groups.forEach(group => { group.items = coverFirst(group.items); });
   let offset = 0;
   return groups.map(group => {
     const id = `theme-${slugify(group.theme) || 'unthemed'}`;
