@@ -28,18 +28,32 @@
   body[data-page="home"] .nav-more:hover summary svg { transform: translateY(2px); }
   body[data-page="home"] .nav-more[open]:hover summary svg { transform: rotate(180deg) translateY(-2px); }
 
-  /* --- 3. 主按钮：上浮 + 柔光斜扫 --------------------------------------- */
+  /* --- 3. 主按钮：上浮 + 双亮带斜扫 + 内描边追光 + 加号翻转 ------------- */
+  /* 只加伪元素和 hover/focus 态：按钮自身的尺寸、圆角、配色、字号一个都不动。 */
   body[data-page="home"] .button { position: relative; overflow: hidden; }
   body[data-page="home"] .button::after {
-    content: ""; position: absolute; top: 0; bottom: 0; width: 36%; pointer-events: none;
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 62%; pointer-events: none;
     /* collage.css 有 .button::before,.button::after{display:none}，同特异性靠后加载取胜，
        这里必须显式恢复，否则扫光层被整条隐藏。 */
     display: block;
-    background: linear-gradient(100deg, #ffffff00, #ffffff5e, #ffffff00);
+    /* 双亮带：一次扫过读起来像两道光前后掠过 */
+    background: linear-gradient(100deg, #ffffff00 0 10%, #ffffff6b 16% 24%, #ffffff00 30% 58%, #ffffff45 64% 72%, #ffffff00 78% 100%);
     transform: translateX(-180%) skewX(-18deg);
   }
-  body[data-page="home"] .button:is(:hover, :focus-visible) { transform: translateY(-2px); box-shadow: 0 12px 24px -14px #222d3e59; }
-  body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: nc-sheen .85s var(--ease); }
+  /* 内描边从下往上"画"出来，白色按钮与实心按钮都吃 currentColor */
+  body[data-page="home"] .button::before {
+    content: ""; position: absolute; inset: 4px; display: block; pointer-events: none;
+    border: 1px solid currentColor; border-radius: inherit; opacity: .4;
+    clip-path: inset(0 0 100% 0); transition: clip-path .42s var(--ease);
+  }
+  body[data-page="home"] .button:is(:hover, :focus-visible) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -14px #222d3e59, 0 0 0 5px #245fd61f;
+  }
+  body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: nc-sheen .95s var(--ease); }
+  body[data-page="home"] .button:is(:hover, :focus-visible)::before { clip-path: inset(0); }
+  /* + 号不转：details.css 的 90° 对「+」本来就看不出来，这里一并按掉，保持静止。 */
+  body[data-page="home"] .button .button-plus { transform: none; }
 
   /* --- 4. 文字链接：下划线长展开 + 箭头位移 ----------------------------- */
   body[data-page="home"] .text-link { position: relative; }
@@ -98,8 +112,9 @@
   body[data-page="home"] .event-panel:hover { transform: translateY(-4px); box-shadow: 0 22px 40px -26px #2c23404d; }
 
   /* --- 12. 加入区卡片：抬起 + 微转 -------------------------------------- */
+  /* 静止态是 home.css 里的硬阴影，悬停时把阴影推远一点，保持"贴纸"的手感。 */
   body[data-page="home"] .join-paper { transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
-  body[data-page="home"] .join-paper:hover { transform: rotate(-1.2deg) translateY(-5px); box-shadow: 0 20px 34px -20px #30291c66; }
+  body[data-page="home"] .join-paper:hover { transform: rotate(-1.2deg) translateY(-5px); box-shadow: 16px 16px 0 #a9cdb9; }
 
   /* --- 13. 页脚导航：下划线从中心展开 ----------------------------------- */
   body[data-page="home"] .footer-top nav a { position: relative; }
@@ -123,6 +138,7 @@
 /* 减少动态效果：保留颜色/阴影反馈，去掉位移与扫光 */
 @media (prefers-reduced-motion: reduce) {
   body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: none; }
+  body[data-page="home"] .button::before { transition: none; }
   body[data-page="home"] .button:is(:hover, :focus-visible),
   body[data-page="home"] .project-card:is(:hover, :focus-within),
   body[data-page="home"] .event-panel:hover,

@@ -1,0 +1,183 @@
+/* ============================================================================
+   NanoCamp 首页视觉层（只在首页加载，且 /intro/ 海报文档不加载它）
+   目标：把首页的整体质感向 /minicamp/ 靠拢——hero 之外整页共用一张斜带 + 细网格背景
+   （章节之间不留接缝），配等宽字距的小标签、硬边标签块，join-section 保留斜线纹理。
+   注意：字体大小保持现状（minicamp 的字号偏大），这里只动背景、字距、字重与颜色。
+   ============================================================================ */
+
+/* --- 1. 整页一张背景：hero 之外的所有区块共用它，章节之间不留接缝 ---------- */
+/* html 先落底色，body 的背景就不会被提升成画布背景（那样百分比尺寸会按视口算）。
+   于是 body 的这张背景按整页盒子铺开：斜带与网格跨章节连续，不再一段一块。 */
+html { background-color: #faf9fe; }
+body[data-page="home"] {
+  background-color: #faf9fe;
+  background-image:
+    linear-gradient(118deg, transparent 0 12%, #e8f2ff 12% 26%, transparent 26%),
+    linear-gradient(154deg, transparent 0 34%, #fdf1d8 34% 46%, transparent 46%),
+    linear-gradient(124deg, transparent 0 54%, #e2f1e9 54% 70%, transparent 70%),
+    linear-gradient(166deg, transparent 0 78%, #e6f0fb 78% 93%, transparent 93%),
+    repeating-linear-gradient(90deg, transparent 0 118px, #cfe0ec3d 118px 119px);
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, auto;
+}
+/* hero 之外的区块不再自带底色，统一露出上面这张背景 */
+body[data-page="home"] .site-footer { background: transparent; }
+
+/* --- 2. 分隔线统一成 minicamp 的蓝绿细线 ---------------------------------- */
+body[data-page="home"] .community-rows,
+body[data-page="home"] .community-row,
+body[data-page="home"] .community-intro-strip {
+  border-color: #b7d1c9;
+}
+body[data-page="home"] .community-ecosystem {
+  border-block-color: #bcd7df;
+}
+
+/* --- 3. 小标签字体：等宽字距 + 硬边标签块 --------------------------------- */
+/* 社区行的左侧标签：前面加一小段实线，字重压紧 */
+body[data-page="home"] .row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 800;
+  letter-spacing: .005em;
+  color: #1f5a4a;
+}
+body[data-page="home"] .row-label::before {
+  content: "";
+  flex: none;
+  width: 20px;
+  height: 2px;
+  background: #5da98a;
+}
+/* 行尾动作：等宽字距，箭头换成会翻色的圆形印章 */
+body[data-page="home"] .row-action {
+  gap: 13px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  font-variant-numeric: tabular-nums;
+  color: #1f5a4a;
+}
+body[data-page="home"] .row-action b {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  /* 静止态只有一个箭头：不描边、不加圆底；圆底留给 hover */
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #2f7d5d;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  transition: transform .3s var(--ease), background .3s var(--ease), color .3s var(--ease);
+}
+body[data-page="home"] .community-row:hover .row-action b,
+body[data-page="home"] .community-row:focus-within .row-action b {
+  background: #2f7d5d;
+  color: #fff;
+  transform: translate(2px, -2px);
+}
+/* 活动徽章 / 活动事实：等宽字距 + 硬边阴影 */
+body[data-page="home"] .event-badge {
+  padding: 5px 11px;
+  border-radius: 3px;
+  border-color: #c2b3d7;
+  background: #faf7fe;
+  color: #514569;
+  box-shadow: 3px 3px 0 #ddd2ef;
+  font-family: var(--mono);
+  letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+}
+body[data-page="home"] .event-facts {
+  font-family: var(--mono);
+  letter-spacing: .06em;
+  color: #5b5170;
+}
+body[data-page="home"] .event-facts span + span {
+  border-left-color: #c2b3d7;
+}
+/* 档案卡上的小标签与底部动作 */
+body[data-page="home"] .archive-links > a > span {
+  font-family: var(--mono);
+  letter-spacing: .08em;
+  font-variant-numeric: tabular-nums;
+}
+body[data-page="home"] .archive-links b {
+  font-family: var(--mono);
+  letter-spacing: .05em;
+}
+
+/* --- 4. join-section：照搬 minicamp 的分段背景（字号不动） ---------------- */
+body[data-page="home"] .join-section {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: transparent;
+}
+/* collage.css 里有 .join-section::before/::after{display:none}，同特异性靠后加载取胜，
+   这里必须显式恢复 display，否则两条背景层都被整条隐藏。 */
+body[data-page="home"] .join-section::before {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, transparent 0 18%, #ffffff75 18% 18.2%, transparent 18.2% 100%),
+    linear-gradient(28deg, transparent 0 52%, #ffffff72 52% 52.3%, transparent 52.3% 100%),
+    repeating-linear-gradient(90deg, transparent 0 92px, #5da1a933 92px 93px);
+  transform: skewX(-12deg) scale(1.2);
+  animation: nc-join-lines 12s linear infinite;
+}
+body[data-page="home"] .join-section::after {
+  content: "KEEP BUILDING";
+  display: block;
+  position: absolute;
+  right: 7%;
+  bottom: 16px;
+  color: #27655a;
+  font: 700 11px/1 var(--mono);
+  letter-spacing: .18em;
+  opacity: .7;
+}
+/* 内容再往内收一点：背景整屏铺开之后，贴着容器边缘会显得局促 */
+body[data-page="home"] .join-section .join-inner {
+  padding-inline: clamp(0px, 4.5vw, 68px);
+}
+/* 黄纸压在整页背景上，用 minicamp 同款的描边 + 硬阴影把层次拎开 */
+body[data-page="home"] .join-paper {
+  border: 1px solid #b2913f;
+  box-shadow: 12px 12px 0 #b7d8c4;
+}
+
+/* --- 5. 动效 ----------------------------------------------------------------- */
+@keyframes nc-join-lines {
+  from { transform: skewX(-12deg) translateX(-4%); }
+  to { transform: skewX(-12deg) translateX(4%); }
+}
+
+/* --- 6. 响应式：小屏把网格和斜带都收窄一点 ---------------------------------- */
+@media (max-width: 640px) {
+  body[data-page="home"] {
+    background-image:
+      linear-gradient(118deg, transparent 0 10%, #e8f2ff 10% 24%, transparent 24%),
+      linear-gradient(154deg, transparent 0 32%, #fdf1d8 32% 44%, transparent 44%),
+      linear-gradient(124deg, transparent 0 52%, #e2f1e9 52% 68%, transparent 68%),
+      linear-gradient(166deg, transparent 0 76%, #e6f0fb 76% 92%, transparent 92%),
+      repeating-linear-gradient(90deg, transparent 0 72px, #cfe0ec2e 72px 73px);
+  }
+  body[data-page="home"] .row-label::before { width: 14px; }
+  body[data-page="home"] .row-action b { width: 25px; height: 25px; }
+  body[data-page="home"] .join-section .join-inner { padding-inline: 0; }
+  body[data-page="home"] .join-paper { box-shadow: 7px 7px 0 #b7d8c4; }
+  body[data-page="home"] .join-section::after { right: 5%; bottom: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="home"] .join-section::before { animation: none; }
+}
