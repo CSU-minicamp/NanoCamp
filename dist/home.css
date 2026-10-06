@@ -178,6 +178,117 @@ body[data-page="home"] .join-paper {
   body[data-page="home"] .join-section::after { right: 5%; bottom: 12px; }
 }
 
+/* --- 8. 活动面板：媒体框不再横向溢出压住右栏文字 ---------------------------- */
+/* 通用样式是 .event-visual .media-frame{height:100%} 配 .media-frame{aspect-ratio:4/3}，
+   也就是"高度撑满行高、宽度由高度反推"：行高 630px 时算出 840px 宽，直接盖到右边的文字上。
+   这里改成按列宽铺满、由宽度定高度（保持 4:3，整张合照不被裁），并在列内垂直居中。 */
+/* 只在多列（桌面）档覆盖：手机档 styles.css 已经给了
+   .event-visual .media-frame{height:270px;min-height:0;aspect-ratio:auto}，覆盖会把它压成 0 高。 */
+@media (min-width: 641px) {
+  body[data-page="home"] .home-camp .event-visual {
+    display: flex;
+    align-items: center;
+  }
+  body[data-page="home"] .home-camp .event-visual .media-frame {
+    width: 100%;
+    height: auto;
+  }
+}
+/* 带 transform 的 .event-visual 会进入定位层，绘制在普通流文字之上；文字抬一层更保险。 */
+body[data-page="home"] .home-camp .event-copy {
+  position: relative;
+  z-index: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   body[data-page="home"] .join-section::before { animation: none; }
+}
+
+/* --- 7. 首页作品区：横向滚动（卡片数据与滚动参数见 content/home-showcase*.json） --- */
+body[data-page="home"] .projects-scroller {
+  position: relative;
+}
+body[data-page="home"] .projects-track {
+  display: flex;
+  gap: var(--card-gap, 22px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  /* 负外边距抵消内边距：卡片抬起/投影不会被 overflow 裁掉，版式位置也不变 */
+  margin: -10px -2px 0;
+  padding: 10px 2px 14px;
+  /* 注意是 auto：自动滚动每帧直接改 scrollLeft，smooth 会把每帧都变成一段补间动画。
+     箭头手动翻页时由 JS 显式传 behavior:'smooth'。 */
+  scroll-behavior: auto;
+  scrollbar-width: none;
+}
+body[data-page="home"] .projects-track[data-snap] { scroll-snap-type: x mandatory; }
+/* 会自己动的横滑区里滚动条太吵，隐藏掉；hint 文案负责提示可以拖动 */
+body[data-page="home"] .projects-track::-webkit-scrollbar { height: 0; }
+/* 每屏几张由 JSON 的 perView 决定，这里只按断点取对应那个数字 */
+body[data-page="home"] .projects-track > .project-card {
+  flex: 0 0 calc((100% - (var(--per-wide, 3) - 1) * var(--card-gap, 22px)) / var(--per-wide, 3));
+  min-width: 0;
+  scroll-snap-align: start;
+}
+@media (max-width: 1000px) {
+  body[data-page="home"] .projects-track > .project-card {
+    flex-basis: calc((100% - (var(--per-medium, 2) - 1) * var(--card-gap, 22px)) / var(--per-medium, 2));
+  }
+}
+@media (max-width: 640px) {
+  body[data-page="home"] .projects-track > .project-card {
+    flex-basis: calc((100% - (var(--per-narrow, 1) - 1) * var(--card-gap, 22px)) / var(--per-narrow, 1));
+  }
+}
+body[data-page="home"] .scroller-foot {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 20px;
+}
+body[data-page="home"] .scroller-hint {
+  color: #5b7085;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+body[data-page="home"] .scroller-controls {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+body[data-page="home"] .scroller-arrow {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #b9cbe0;
+  border-radius: 50%;
+  background: #fff;
+  color: #245fd6;
+  transition: background .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), transform .25s var(--ease), opacity .25s var(--ease);
+}
+body[data-page="home"] .scroller-arrow svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body[data-page="home"] .scroller-arrow:is(:hover, :focus-visible):not(:disabled) {
+  background: #245fd6;
+  border-color: #245fd6;
+  color: #fff;
+  transform: translateY(-2px);
+}
+body[data-page="home"] .scroller-arrow:disabled { opacity: .35; }
+/* 一屏就放得下时箭头没有意义，projects-scroll.js 会加上 is-static */
+body[data-page="home"] .projects-scroller.is-static .scroller-controls { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="home"] .projects-track { scroll-behavior: auto; }
+  body[data-page="home"] .scroller-arrow:is(:hover, :focus-visible) { transform: none; }
+  /* 不自动滚时，做无缝循环用的那组副本没有意义，直接收掉 */
+  body[data-page="home"] .projects-track > .project-card[aria-hidden="true"] { display: none; }
 }

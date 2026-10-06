@@ -8,6 +8,7 @@ import { partnersPage } from './partners.mjs';
 import { createSearchIndex, searchPage, notFoundPage } from './search.mjs';
 import { recapNavigation } from './recap.mjs';
 import { readyProjects, projectGrid, projectsPage, projectDetailPage, projectPath } from './projects.mjs';
+import { homeShowcase } from './home-showcase.mjs';
 
 const gridProjects = (items = projects, classes = '') => projectGrid(items).replace('class="projects-grid"', `class="projects-grid ${classes}"`);
 const readyMoments = () => moments.filter(item => item.src);
@@ -18,7 +19,7 @@ function home() {
  <section class="section container home-camp" aria-labelledby="event-heading"><div class="section-top"><h2 id="event-heading">一年一次，<br>把想法做出来。</h2></div><div class="event-panel"><div class="event-visual">${event.cover?media({src:event.cover,alt:event.coverAlt || 'minicamp 活动现场',fullSrc:event.coverFull}):'<div class="camp-print" aria-hidden="true"><span>mini<br>camp.</span><small>MEET. BUILD. MAKE SOMETHING TOGETHER.</small></div>'}</div><div class="event-copy"><span class="event-badge">${esc(event.edition)} 届 · ${esc(event.status)}</span><h3>一次相遇，<br>也是新的开始。</h3><p>${esc(event.intro)}</p><div class="event-facts"><span>每年一届</span><span>学生黑客松</span></div>${pageLink('/minicamp/','打开 2026 届活动回顾')}</div></div></section>
  ${ecosystem()}
  <section id="community" class="container community-intro-strip"><h2>一个属于学生创造者的社区。</h2><p>不限专业，也不需要经验，感兴趣就可以来。<br>认识几个人，一起做点小东西。</p><a class="text-link" href="/community/">看看怎么参与</a></section>
- <section class="section container home-archive" aria-labelledby="projects-heading"><div class="section-top"><h2 id="projects-heading">做出来的东西，<br>都放在这里。</h2></div>${readyProjects(projects).length?gridProjects(readyProjects(projects).slice(0,3)):'<div class="archive-links"><a href="/projects/"><span>作品档案</span><h3>每个想法，都值得被看见。</h3><p>作品介绍与 Demo 链接待补充。</p><b>进入作品空间</b></a><a href="/minicamp/#recap"><span>活动回顾</span><h3>记住一起动手的时刻。</h3><p>'+ (readyMoments().length ? '一起回看 2026 届 minicamp 的现场瞬间。' : '2026 届活动照片待补充。') +'</p><b>阅读活动回顾</b></a></div>'}</section>
+ <section class="section container home-archive" aria-labelledby="projects-heading"><div class="section-top"><h2 id="projects-heading">做出来的东西，<br>都放在这里。</h2></div>${homeShowcase() || '<div class="archive-links"><a href="/projects/"><span>作品档案</span><h3>每个想法，都值得被看见。</h3><p>作品介绍与 Demo 链接待补充。</p><b>进入作品空间</b></a><a href="/minicamp/#recap"><span>活动回顾</span><h3>记住一起动手的时刻。</h3><p>'+ (readyMoments().length ? '一起回看 2026 届 minicamp 的现场瞬间。' : '2026 届活动照片待补充。') +'</p><b>阅读活动回顾</b></a></div>'}</section>
  ${homeJoinSection()}`;
 }
 

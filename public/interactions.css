@@ -69,7 +69,10 @@
   }
   body[data-page="home"] .b-recap:is(:hover, :focus-visible)::after { transform: scaleX(1); }
   body[data-page="home"] .b-event { transition: background-color .3s var(--ease), padding-inline .3s var(--ease); }
-  body[data-page="home"] .b-event:is(:hover, :focus-visible) { background: #efeafb; padding-inline: 14px; }
+  /* 底色画在 ::before 上并通到视口两边（见 hero.css），元素自身不留底色，
+     否则会出现一块左右留空的浅色方块。文字仍与正文对齐，hover 时只内移 14px。 */
+  body[data-page="home"] .b-event:is(:hover, :focus-visible) { background: transparent; padding-inline: 14px; }
+  body[data-page="home"] .b-event:is(:hover, :focus-visible)::before { background: #efeafb; }
   body[data-page="home"] .b-event .b-event-open svg { transition: transform .3s var(--ease); }
   body[data-page="home"] .b-event:is(:hover, :focus-visible) .b-event-open svg { transform: translate(3px, -3px); }
 

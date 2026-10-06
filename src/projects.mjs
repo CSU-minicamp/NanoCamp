@@ -36,17 +36,22 @@ function externalButton(href, label, classes = 'button-secondary') {
   return `<a class="button ${esc(classes)}" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span class="button-label">${esc(label)}</span>${arrowIcon(true)}<span class="sr-only">（新标签页打开）</span></a>`;
 }
 
-export function projectCard(project, tone = toneOf(project)) {
-  const detail = projectPath(project);
+// clone=true 时输出"副本卡片"：不带 id（避免同一页面出现重复 id）、不进无障碍树、
+// 链接不参与 Tab 顺序，但仍可点击。首页无缝循环的第二组卡片用它。
+export function projectCard(project, tone = toneOf(project), { clone = false } = {}) {
+  // 首页的作品卡片来自 content/home-showcase.json，可以用 href 指定站内地址；
+  // 没写 href 就按作品本身推导 /projects/<slug>/。
+  const detail = safeUrl(project.href, true) || projectPath(project);
   const demo = safeUrl(project.demoUrl);
   const names = memberNames(project);
-  return `<article id="project-${esc(project.id)}" class="project-card" data-detail-surface data-source="${esc(project.sourceId || '')}">${media({ src: project.cover, alt: project.coverAlt || project.title, label: 'MINICAMP / PROJECT', id: project.id, theme: tone, kind: 'project', fullSrc: project.coverFull, caption: project.title, album: 'projects', albumLabel: '社区作品封面' })}
+  const markup = `<article${clone ? '' : ` id="project-${esc(project.id)}"`} class="project-card" data-detail-surface data-source="${esc(project.sourceId || '')}"${clone ? ' aria-hidden="true"' : ''}>${media({ src: project.cover, alt: project.coverAlt || project.title, label: 'MINICAMP / PROJECT', id: project.id, theme: tone, kind: 'project', fullSrc: project.coverFull, caption: project.title, album: 'projects', albumLabel: '社区作品封面' })}
     <div class="project-meta"><span>${esc(project.theme || '首届 minicamp')}</span><span class="mono">NO. ${esc(project.id)}</span></div>
     <h3><a href="${esc(detail)}">${esc(project.title)}</a></h3><p>${esc(project.description)}</p>
     ${tagList(project.tools, 3)}
     ${names.length ? `<p class="project-members">${names.map(esc).join(' · ')}</p>` : ''}
     <div class="project-links"><a href="${esc(detail)}">查看详情<span class="sr-only">：${esc(project.title)}</span></a>${externalLink(project.repoUrl, 'GitHub 仓库')}${demo ? externalLink(demo, '体验 Demo') : ''}</div>
   </article>`;
+  return clone ? markup.replace(/<a /g, '<a tabindex="-1" ') : markup;
 }
 
 export const projectGrid = (items = projects) => readyProjects(items).length
