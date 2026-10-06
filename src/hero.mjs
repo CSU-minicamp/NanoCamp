@@ -1,5 +1,4 @@
-import { joinButton, logoMark } from './components.mjs';
-import { site } from '../content/site.mjs';
+import { logoMark } from './components.mjs';
 
 const arrow = '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 16 16 4M4 4h12v12"/></svg>';
 const spark = '<svg class="spark" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 0Q58 42 100 50Q58 58 50 100Q42 58 0 50Q42 42 50 0Z" fill="currentColor"/></svg>';
@@ -13,9 +12,3 @@ export function hero() {
 </div></section>`;
 }
 
-// 首页专属的加入区。原本用 components.mjs 里的 joinSection()，但那个函数被其余 13 个
-// 页面共用，放在这里可以让 components.mjs 只保留 <link> 一处改动，降低合并冲突。
-export function homeJoinSection() {
-  const available = Boolean(site.join.qrCode || site.join.contact);
-  return `<section class="join-section" aria-labelledby="join-heading"><div class="container join-inner"><div><h2 id="join-heading">有想做的，<br>就会有人一起。</h2><p>说一句你想做什么，自然会有人接话。</p></div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong><span>${available ? '欢迎每一份好奇心。' : '加入渠道尚未公布，可先阅读参与指南。'}</span>${joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small')}</div></div></section>`;
-}

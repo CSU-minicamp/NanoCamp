@@ -61,10 +61,12 @@ test('用构建产物替换导航：结构不变，且不产生重复节点', ()
 
 test('构建产物的当前项与页面一致（无 JS 也正确）', () => {
   const cases = [
+    ['/', '/', 2],
     ['/projects/', '/projects/', 2],
-    ['/resources/from-idea-to-demo/', '/resources/', 2],
+    ['/resources/from-idea-to-demo/', '/resources/', 0],
     ['/projects/memodot/', '/projects/', 2],
-    ['/about/', '/about/', 2]
+    ['/about/', '/about/', 0],
+    ['/partners/', '/partners/', 2]
   ];
   for (const [route, expectedHref, expectedCount] of cases) {
     const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
@@ -85,6 +87,7 @@ test('每个构建页面都引入了 base.js（先于 app.js）', () => {
 });
 
 test('页脚与浮窗：静态 HTML 无按钮残留，浮窗由 base.js 生成', () => {
+  const reference = /<footer[\s\S]*?<\/footer>/.exec(readFileSync(path.join(dist, 'minicamp/index.html'), 'utf8'))[0];
   for (const route of routePaths) {
     const html = readFileSync(path.join(dist, route, 'index.html'), 'utf8');
     const footer = /<footer[\s\S]*?<\/footer>/.exec(html)[0];
@@ -92,9 +95,9 @@ test('页脚与浮窗：静态 HTML 无按钮残留，浮窗由 base.js 生成',
       assert.equal(footer.includes(forbidden), false, `${route} 的页脚残留了已移除的 ${forbidden}`);
     }
     const slot = /<div data-nav="footer-bottom">/.test(html);
-    if (route === '/community/') {
-      assert.equal(slot, false, '社区页使用极简页脚，没有页脚底部槽位');
-      continue;
+    assert.equal((html.match(/id="join-heading"/g) || []).length, route === '/search/' ? 0 : 1, `${route} 的共用加入区应只出现一次，搜索页除外`);
+    if (route !== '/search/') {
+      assert.equal(footer, reference, `${route} 应使用 minicamp 同款页脚`);
     }
     assert.ok(slot, `${route} 应该有页脚底部槽位`);
     assert.match(footer, /一个属于学生创造者的社区。/, `${route} 的署名应写死在静态 HTML 里`);
