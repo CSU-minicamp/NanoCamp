@@ -8,7 +8,9 @@
   const readiness = builder.querySelector('[data-letter-readiness]');
   const returnButton = builder.querySelector('[data-brief-return]');
   const disclosure = builder.closest('details');
-  if (!form || !output || !letter || !readiness) return;
+  const summary = disclosure?.querySelector(':scope > summary');
+  const draftContent = disclosure?.querySelector('.collab-draft-content');
+  if (!form || !output || !letter || !readiness || !summary || !draftContent) return;
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const animations = new Set();
@@ -22,6 +24,8 @@
   const values = () => Object.fromEntries(names.map(name => [name, form.elements.namedItem(name).value.trim()]));
   const motionAllowed = () => !reduced.matches && !window.NanoCampMotion?.stopped && !document.hidden;
   let previous = null, inkTimer, exportTimer;
+  let panelAnimation = null;
+  let requestedOpen = disclosure.open;
 
   function animate(element, frames, options) {
     if (!element || !motionAllowed() || typeof element.animate !== 'function') return;
@@ -30,11 +34,58 @@
     animation.finished.catch(() => {}).finally(() => animations.delete(animation));
     return animation;
   }
-  function stopMotion() {
+  function stopSheetMotion() {
     clearTimeout(inkTimer);
     animations.forEach(animation => animation.cancel());
     animations.clear();
     fieldAnimations.clear();
+  }
+  function settleDisclosure() {
+    const animation = panelAnimation;
+    panelAnimation = null;
+    animation?.cancel();
+    disclosure.open = requestedOpen;
+    disclosure.style.removeProperty('height');
+    disclosure.removeAttribute('data-brief-transition');
+    summary.removeAttribute('aria-expanded');
+    draftContent.inert = false;
+  }
+  function stopMotion() {
+    stopSheetMotion();
+    if (panelAnimation) settleDisclosure();
+  }
+  function transitionDisclosure(open) {
+    // Read the current frame before cancelling: a second click reverses smoothly.
+    const from = disclosure.getBoundingClientRect().height;
+    const reversing = Boolean(panelAnimation);
+    panelAnimation?.cancel();
+    panelAnimation = null;
+    requestedOpen = open;
+    if (!motionAllowed() || typeof disclosure.animate !== 'function') {
+      settleDisclosure();
+      return;
+    }
+    if (!open && draftContent.contains(document.activeElement)) summary.focus({ preventScroll: true });
+    draftContent.inert = !open;
+    disclosure.dataset.briefTransition = open ? 'opening' : 'closing';
+    summary.setAttribute('aria-expanded', String(open));
+    // Keep native content rendered until the closing transition has finished.
+    disclosure.open = true;
+    disclosure.style.height = 'auto';
+    const style = getComputedStyle(disclosure);
+    const to = open ? disclosure.getBoundingClientRect().height :
+      summary.getBoundingClientRect().height + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    disclosure.style.height = `${from}px`;
+    const animation = disclosure.animate([{ height: `${from}px` }, { height: `${to}px` }], {
+      duration: open ? 520 : 340,
+      easing: 'cubic-bezier(.22,1,.36,1)',
+    });
+    panelAnimation = animation;
+    animation.finished.then(() => {
+      if (panelAnimation === animation) settleDisclosure();
+    }, () => {});
+    if (open && !reversing) unfold();
+    else if (!open) stopSheetMotion();
   }
   function resetExport() {
     clearTimeout(exportTimer);
@@ -79,7 +130,7 @@
     previous = { ...data };
   }
   function unfold() {
-    stopMotion();
+    stopSheetMotion();
     if (!disclosure.open) return;
     const sheets = [form, preview];
     sheets.forEach((sheet, index) => animate(sheet, [
@@ -128,10 +179,29 @@
     preview.scrollIntoView({ block: 'start', behavior: motionAllowed() ? 'smooth' : 'instant' });
     letter.focus({ preventScroll: true });
   });
-  disclosure.addEventListener('toggle', unfold);
+  summary.addEventListener('click', event => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    transitionDisclosure(!requestedOpen);
+  });
+  disclosure.addEventListener('toggle', () => {
+    // A programmatic native toggle must also release any temporary clipping.
+    if (panelAnimation) {
+      if (!disclosure.open) {
+        requestedOpen = false;
+        stopMotion();
+      }
+      return;
+    }
+    requestedOpen = disclosure.open;
+    draftContent.inert = false;
+    if (disclosure.open) unfold();
+    else stopSheetMotion();
+  });
   reduced.addEventListener('change', stopMotion);
   window.NanoCampMotion?.subscribe(() => { if (!motionAllowed()) stopMotion(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopMotion(); });
+  window.addEventListener('resize', () => { if (panelAnimation) stopMotion(); });
   preview.classList.add('is-letter-enhanced');
   readiness.hidden = false;
   const initial = values();

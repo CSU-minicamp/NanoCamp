@@ -1,4 +1,6 @@
 /* A writing desk: two sheets, with the preview typeset as a letter. */
+.collab-draft[data-brief-transition] {overflow:clip;overflow-anchor:none}
+.collab-draft[data-brief-transition=closing] .collab-plus-vertical {transform:rotate(0deg)}
 .collab-draft .brief-workspace {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;padding:12px 8px 24px;perspective:1200px}
 .collab-draft :is(.brief-form,.brief-preview) {padding:32px;transform-origin:50% 12%;box-shadow:0 3px 5px -3px #45365730,0 17px 32px -22px #45365755}
 .collab-draft .brief-form {--sheet:#f2edf8;--sheet-back:#ddd2e9}
@@ -105,8 +107,10 @@
   .brief-letter-subject h3 {font-size:21px}
 }
 @media(prefers-reduced-motion:reduce){
+  .collab-draft .collab-plus-vertical {transition:none}
   .collab-draft .form-field :is(input,select,textarea),.brief-letter [data-letter-for]::after,.collab-draft .brief-export-actions .button {transition:none;transform:none!important}
   .brief-letter-readiness .brief-action-check path {transition:none}
 }
+body.motion-stopped .collab-draft .collab-plus-vertical {transition:none}
 body.motion-stopped .collab-draft .form-field :is(input,select,textarea),body.motion-stopped .brief-letter [data-letter-for]::after,body.motion-stopped .collab-draft .brief-export-actions .button {transition:none;transform:none!important}
 @media print{.brief-letter-readiness,.brief-mobile-preview,.brief-return {display:none}}
