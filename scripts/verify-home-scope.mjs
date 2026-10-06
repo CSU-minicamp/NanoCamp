@@ -61,8 +61,7 @@ routes.forEach(route => {
         ? w.getComputedStyle(d.querySelector('.button'), '::after').display : '-',
       footerNavAfterContent: d.querySelector('.footer-top nav a')
         ? w.getComputedStyle(d.querySelector('.footer-top nav a'), '::after').transform : '-',
-      // 共享件（还原后应全站都在）
-      motionToggle: count('[data-site-motion-toggle]'),
+      // 共享件（还原后应全站都在）；侧边栏分享按钮只在指南/作品详情页
       shareButton: count('[data-share-page]'),
       readingProgress: count('[data-reading-progress]'),
       joinFallbackDisplay: cs(d.querySelector('.header-actions .join-fallback'), 'display'),
@@ -79,7 +78,7 @@ function finish() {
   L.push('首页隔离自检 —— 期望：交互与文案只在 "/"，共享件在每页都在');
   L.push('='.repeat(96));
   L.push('');
-  const cols = ['route','page','hero','heroFloat','homeJoin','int.css','nav::after','btn::after','motionTgl','share','readProg','+rot'];
+  const cols = ['route','page','hero','heroFloat','homeJoin','int.css','nav::after','btn::after','share','readProg','+rot'];
   L.push(cols.map(c => c.padEnd(11)).join(''));
   L.push('-'.repeat(96));
   Object.values(results).forEach(r => {
@@ -88,7 +87,7 @@ function finish() {
       r.hero ? 'yes' : '-', r.heroFloat ? 'yes' : '-', r.homeJoin ? 'yes' : '-',
       r.interactionsLoaded ? 'yes' : '-',
       r.navAfterContent === '""' ? 'empty' : (r.navAfterContent === 'none' ? 'none' : '?'),
-      r.buttonAfterDisplay, r.motionToggle, r.shareButton, r.readingProgress,
+      r.buttonAfterDisplay, r.shareButton, r.readingProgress,
       r.plusRotation === 'none' ? 'none' : r.plusRotation,
     ].map(v => String(v).padEnd(11)).join(''));
   });
@@ -97,7 +96,7 @@ function finish() {
   L.push('  * nav::after 应为 empty（无下划线伪元素）→ 说明交互层没跑到该页');
   L.push('  * btn::after 应为 none（collage.css 的 display:none 生效，未被交互层覆盖）');
   L.push('  * 首页 int.css=yes，其他页也加载但规则被 body[data-page=home] 挡掉');
-  L.push('  * motionTgl / share / readProg 每页都应 >=1（共享件已还原）');
+  L.push('  * share 只在指南/作品详情页 >=1（侧边栏按钮），readProg 每页都应 >=1');
   document.getElementById('out').textContent = L.join('\\n');
 }
 </script></body></html>`;

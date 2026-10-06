@@ -1,0 +1,174 @@
+/* NanoCamp base.css — 站点框架（header 导航、页脚、回到顶部浮窗）的共用样式。
+   与 public/base.js 成对：base.js 负责这些区域的渲染，base.css 负责它们的版式。
+   只放全站共用的骨架规则；页面级外观仍由 collage.css / community.css / recap.css 等覆盖，
+   base.css 在它们之前加载，所以后续文件里的覆盖依然生效。 */
+
+/* --- 顶部栏与品牌 --------------------------------------------------------- */
+.skip-link{position:fixed;left:20px;top:-100px;padding:12px 18px;z-index:100;background:var(--blue);color:white;border-radius:8px}
+.skip-link:focus{top:10px}
+.site-header{height:90px;position:sticky;top:0;z-index:20;background:rgba(250,250,246,.96);border-bottom:1px solid rgba(23,43,54,.07);backdrop-filter:blur(18px)}
+.header-inner{height:100%;display:flex;align-items:center;justify-content:space-between;gap:36px;position:relative}
+.brand{display:inline-flex;align-items:center;flex-shrink:0;line-height:1}
+.wordmark,.brand-fallback{font-size:29px;font-weight:850;letter-spacing:-1.6px}
+.brand-plus{color:var(--blue);font-size:25px;margin-left:4px;font-weight:500;vertical-align:top}
+.brand-image{width:auto;max-width:200px;height:36px;object-fit:contain}
+.brand-asset{display:inline-block;position:relative;vertical-align:middle;mix-blend-mode:multiply;width:188px;line-height:1}
+.brand-asset.brand-cropped{aspect-ratio:var(--crop-ratio);overflow:hidden}
+.brand-asset .brand-image{display:block;width:100%;height:auto;max-width:none}
+.brand-asset.brand-cropped .brand-image{position:absolute;max-width:none;width:var(--image-width);height:auto;left:var(--image-left);top:var(--image-top)}
+.brand-asset .brand-fallback{font-size:26px;display:grid;place-items:center;min-height:40px;color:#356acb;letter-spacing:-1px}
+.brand-asset.brand-cropped .brand-fallback{position:absolute;inset:0}
+.brand-asset.brand-symbol{aspect-ratio:428/430}
+.brand-symbol .brand-fallback{position:absolute;inset:0;font-size:clamp(48px,9vw,110px)}
+.brand-asset .brand-fallback[hidden],.brand-asset .brand-image[hidden]{display:none}
+.site-header .brand-asset{transition:transform .3s ease}
+.site-header .brand:hover .brand-asset{transform:translateY(-2px)}
+.reading-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;pointer-events:none;overflow:hidden}
+.reading-progress > span{display:block;width:100%;height:100%;background:linear-gradient(90deg,#77aaff,#77cfb1 65%,#d5b5ec);transform:scaleX(var(--read-progress,0));transform-origin:left}
+
+/* --- 主导航 --------------------------------------------------------------- */
+.desktop-nav{display:flex;align-items:center;gap:40px;margin-left:auto;margin-right:10px}
+.desktop-nav a{font-size:15px;font-weight:600;padding:10px 0;position:relative}
+.desktop-nav a::after{content:"";position:absolute;left:0;right:0;bottom:4px;height:2px;background:var(--blue);transform:scaleX(0);transition:transform .2s}
+.desktop-nav a:hover,.desktop-nav a[aria-current]{color:var(--blue)}
+.desktop-nav a:hover::after,.desktop-nav a[aria-current]::after{transform:scaleX(1)}
+.nav-search-icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;flex-shrink:0}
+.desktop-nav .nav-search{display:inline-flex;align-items:center;gap:6px}
+.desktop-nav .nav-search .nav-search-label{font-size:13px}
+.header-actions{display:flex;align-items:center;gap:20px}
+.menu-toggle{display:none;border:0;background:none;padding:10px;width:44px;height:44px;position:relative}
+.menu-toggle span{display:block;height:2px;width:22px;background:var(--ink);margin:5px 0;transition:transform .2s}
+.menu-toggle[aria-expanded="true"] span:first-child{transform:translateY(3.5px) rotate(45deg)}
+.menu-toggle[aria-expanded="true"] span:last-child{transform:translateY(-3.5px) rotate(-45deg)}
+
+/* --- 手机导航 ------------------------------------------------------------- */
+.mobile-nav{position:absolute;top:78px;left:0;right:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 18px 40px #172b3612}
+.mobile-nav a{display:block;padding:12px 18px;border-radius:8px}
+.mobile-nav a[aria-current]{color:var(--blue);background:var(--pale-blue)}
+.mobile-nav .nav-search{display:flex;align-items:center;gap:9px}
+
+/* --- 页脚 ----------------------------------------------------------------- */
+.site-footer{padding-top:54px;padding-bottom:27px;background:var(--paper)}
+.footer-top{display:flex;gap:75px;align-items:flex-start;padding-bottom:45px}
+.footer-top .brand{margin-top:5px}
+.footer-top p{font-size:14px;line-height:1.7;color:var(--muted);letter-spacing:-.2px}
+.footer-top nav{margin-left:auto;display:flex;align-items:center;gap:29px;font-size:13px;padding-top:6px}
+.footer-top nav button{border:0;background:transparent;font-size:13px;padding:0}
+.footer-top nav a:hover,.footer-top nav button:hover{color:var(--blue)}
+.footer-bottom{border-top:1px solid var(--line);padding-top:23px;display:flex;justify-content:space-between;gap:25px;font-size:11px;color:var(--muted)}
+.footer-bottom .mono{font-size:10px}
+.footer-bottom a{border-bottom:1px solid #afbbc2}
+
+/* --- 回到顶部浮窗：下滑一定距离后常驻右下角，圆形底、中间向上箭头 --------- */
+/* 显隐一律用 visibility + opacity，不用 display：display:none 会让元素失去盒子，
+   尺寸变 0×0，淡入淡出也会被打断。base.js 的 hidden 属性因此只作为语义与
+   可访问性状态，不参与布局——见下方 [hidden] 规则里的说明。 */
+.back-to-top {
+  position: fixed;
+  right: 30px;
+  bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  z-index: 25;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 1px solid #d4dfe5;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fafaf6;
+  color: #42607a;
+  cursor: pointer;
+  /* 缓出：隐藏时先淡出并回落到下方，过渡结束再移出可访问性树。
+     visibility 的延迟必须 ≥ opacity 时长，否则元素会先消失、看不到淡出。 */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px) scale(.9);
+  box-shadow: 0 12px 28px -16px #24496040;
+  transition:
+    opacity .4s cubic-bezier(.4, 0, .2, 1),
+    transform .4s cubic-bezier(.4, 0, .2, 1),
+    visibility 0s linear .4s,
+    background .25s,
+    border-color .25s,
+    color .25s;
+}
+/* 保留 display（不设 none），否则上面 width/height 失效、按钮以 0×0 出现。 */
+.back-to-top[hidden] { display: grid; opacity: 0; visibility: hidden; }
+/* 缓入：立刻可见，再用较长、明显减速的曲线从下方浮起。
+   位移 16px、起始 scale .9 让"上浮"更可见；曲线末端很慢，落定更有停顿感。 */
+.back-to-top[data-visible] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity .54s cubic-bezier(.16, .9, .24, 1),
+    transform .54s cubic-bezier(.16, .9, .24, 1),
+    visibility 0s,
+    background .25s,
+    border-color .25s,
+    color .25s;
+}
+.back-top-arrow { font-size: 17px; line-height: 1; }
+.back-to-top:is(:hover,:focus-visible) { background: #e6eef8; border-color: #b6cadd; color: #356acb; }
+.back-to-top:focus-visible { outline: 2px solid #467cce; outline-offset: 3px; }
+
+/* --- 细节层：悬停与入场反馈（原先在 details.css） ------------------------- */
+.site-header { transition: background .3s, box-shadow .3s, border-color .3s; }
+.site-header.is-scrolled { background: #fafaf6f5; box-shadow: 0 5px 24px #24496009; border-bottom-color: #dce5e8; }
+.desktop-nav a { isolation: isolate; transition: color .2s; }
+.desktop-nav a::before { content: ""; position: absolute; z-index: -1; inset: 2px -13px; background: #e8eff9; border-radius: 10px; opacity: 0; transform: scale(.85); transition: opacity .25s, transform .4s var(--detail-ease); }
+.desktop-nav a:is(:hover,:focus-visible)::before { opacity: 1; transform: scale(1); }
+.desktop-nav a::after { height: 2px; border-radius: 2px; transform-origin: left; background: linear-gradient(90deg,#467cce,#88cbb1); transition: transform .35s var(--detail-ease); }
+.desktop-nav a[aria-current]::before { background: #eaf1f7; opacity: .65; transform: scale(1); }
+.mobile-nav { border-color: #e0e8ec; box-shadow: 0 15px 45px #2a496715; padding: 10px; }
+.mobile-nav:not([hidden]) { animation: menu-unfold .3s var(--detail-ease) both; transform-origin: top right; }
+.mobile-nav a { position: relative; transition: color .2s, background .2s, padding-left .25s var(--detail-ease); }
+.mobile-nav a::after { content: ""; position: absolute; right: 19px; top: calc(50% - 3px); width: 6px; height: 6px; border-right: 1px solid #8399a7; border-top: 1px solid #8399a7; transform: rotate(45deg); }
+.mobile-nav a:is(:hover,:focus-visible) { background: #eef4fb; color: #356acb; padding-left: 23px; }
+.menu-toggle { border-radius: 10px; transition: background .2s; }
+.menu-toggle:is(:hover,:focus-visible), .menu-toggle[aria-expanded="true"] { background: #e9f0f6; }
+.site-footer { position: relative; border-top: 1px solid #fff5; }
+.footer-top nav a, .footer-top nav button { position: relative; padding-block: 10px; min-height: 44px; display: inline-flex; align-items: center; }
+.footer-top nav a::after, .footer-top nav button::after { content: ""; position: absolute; bottom: 6px; left: 0; right: 0; height: 1px; background: #77bca1; transform: scaleX(0); transform-origin: left; transition: transform .3s var(--detail-ease); }
+.footer-top nav :is(a,button):is(:hover,:focus-visible)::after { transform: scaleX(1); }
+.footer-bottom { align-items: center; flex-wrap: wrap; padding-top: 16px; row-gap: 8px; }
+.footer-signoff { display: inline-flex; align-items: center; gap: 9px; }
+.footer-signoff > i { width: 6px; height: 6px; background: #9acbb6; border-radius: 2px; transform: rotate(45deg); }
+
+/* --- 响应式（由宽到窄） --------------------------------------------------- */
+@media(max-width:1100px){
+  .footer-top{gap:35px}
+  .footer-top nav{gap:21px}
+}
+@media(min-width:861px) and (max-width:1100px){
+  .desktop-nav{gap:15px}
+  .desktop-nav .nav-search-label{display:none}
+  .header-inner{gap:17px}
+}
+@media(max-width:860px){
+  .footer-top{flex-wrap:wrap;gap:30px}
+  .footer-top nav{margin-left:0;width:100%;justify-content:flex-start;gap:32px}
+  .footer-bottom{font-size:10px}
+  .footer-bottom .mono{display:none}
+}
+@media(max-width:640px){
+  .site-header{height:76px}
+  .header-inner{gap:12px}
+  .wordmark,.brand-fallback{font-size:25px;letter-spacing:-1.4px}
+  .brand-plus{font-size:21px;margin-left:2px}
+  .brand-image{max-width:min(36vw,155px)}
+  .desktop-nav{display:none}
+  .header-actions{gap:4px}
+  .header-actions .button{padding:8px 12px;min-height:38px;gap:12px;font-size:12px}
+  .header-actions .button-plus{font-size:19px}
+  .menu-toggle{display:block}
+  .mobile-nav{top:68px}
+  .site-header .brand-asset{width:min(36vw,155px)}
+  .site-footer .brand-asset{width:180px}
+  .footer-bottom { display: block; }
+  .back-to-top { right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); width: 46px; height: 46px; }
+}
+@media(max-width:360px){
+  .header-actions .button-plus{display:none}
+  .wordmark{font-size:23px}
+}
