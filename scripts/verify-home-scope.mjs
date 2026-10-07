@@ -47,12 +47,18 @@ routes.forEach(route => {
     const cs = (el, p) => el ? w.getComputedStyle(el).getPropertyValue(p).trim() : '-';
     const has = sel => !!d.querySelector(sel);
     const count = sel => d.querySelectorAll(sel).length;
+    // 首页首屏的海报是独立的 /intro/ 文档，挂在 .home-hero iframe 里：
+    // 首页专属的样式与动画要跨到那层文档里去取，其他页面则退回本页。
+    const heroFrame = d.querySelector('.home-hero iframe');
+    const heroWin = heroFrame?.contentWindow || w;
+    const heroDoc = heroFrame?.contentDocument || d;
+    const heroStyle = (sel, p) => { const el = heroDoc.querySelector(sel); return el ? heroWin.getComputedStyle(el).getPropertyValue(p).trim() : '-'; };
     const r = {
       route, page,
       interactionsLoaded: [...d.styleSheets].some(s => s.href && s.href.endsWith('/interactions.css')),
       // 首页专属
-      hero: has('[data-brand-hero]'),
-      heroFloat: (cs(d.querySelector('.b-sheet-lilac'), 'animation-name') || '').includes('float-soft'),
+      hero: has('.home-hero iframe') && !!heroDoc.querySelector('[data-brand-hero]'),
+      heroFloat: heroStyle('.b-sheet-lilac', 'animation-name').includes('float-soft'),
       homeJoin: !!d.querySelector('.join-section .join-inner .join-paper'),
       // 只应在首页生效的交互（其他页必须为默认值）
       navAfterContent: d.querySelector('.desktop-nav > a:not(.nav-search)')
@@ -69,7 +75,7 @@ routes.forEach(route => {
     };
     results[route] = r;
     done();
-  }, 1600));
+  }, 2600));
   frames.append(f);
 });
 

@@ -1,0 +1,10 @@
+{
+  "cards": [
+    { "id": "01", "tone": "blue" },
+    { "id": "02", "tone": "orange" },
+    { "id": "03", "tone": "mint" },
+    { "id": "05", "tone": "sand" },
+    { "id": "09", "tone": "blue" },
+    { "id": "16", "tone": "orange" }
+  ]
+}

@@ -1,6 +1,7 @@
 import { partnership } from '../content/partners.mjs';
 import { esc, safeUrl } from './components.mjs';
 import { partnerDraft } from './partner-draft.mjs';
+import { ideasScene, photoAlbumScene, puzzleScene } from './partner-scenes.mjs';
 
 const arrow = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg>';
 const plus = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14"/><path class="collab-plus-vertical" d="M12 5v14"/></svg>';
@@ -55,16 +56,16 @@ export function partnersPage(data = partnership) {
     <div class="collab-case-details">${data.cases.map(caseDetails).join('')}</div>
   </section>
   <section id="possibilities" class="container collab-section collab-formats" aria-labelledby="possibilities-title">
-    <div class="collab-section-intro"><h2 id="possibilities-title">我们接受<br>哪些合作？</h2></div>
-    <div class="collab-format-list">${data.formats.map(item => `<article${item.featured ? ' class="collab-format-featured"' : ''}><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><p class="collab-format-examples">${esc(item.examples)}</p></article>`).join('')}</div>
+    <div class="collab-section-intro"><h2 id="possibilities-title">我们接受<br>哪些合作？</h2>${ideasScene(data.formats)}</div>
+    <div class="collab-format-list">${data.formats.map((item, index) => `<article id="collab-format-${index}" data-idea-section="${index}" tabindex="-1" aria-labelledby="collab-format-title-${index}"${item.featured ? ' class="collab-format-featured"' : ''}><h3 id="collab-format-title-${index}">${esc(item.name)}</h3><p>${esc(item.description)}</p><p class="collab-format-examples">${esc(item.examples)}</p></article>`).join('')}</div>
   </section>
   <section id="what-we-bring" class="collab-offers" aria-labelledby="collab-offers-title"><div class="container collab-section collab-exchange">
-    <div class="collab-section-intro"><h2 id="collab-offers-title">我们能带来什么。</h2></div>${exchangeList(data.offers)}
+    <div class="collab-section-intro"><h2 id="collab-offers-title">我们能带来什么。</h2>${photoAlbumScene()}</div>${exchangeList(data.offers)}
   </div></section>
   <section id="what-we-need" class="container collab-section collab-exchange collab-requests" aria-labelledby="collab-requests-title">
-    <div class="collab-section-intro"><h2 id="collab-requests-title">我们期待什么</h2></div>${exchangeList(data.requests)}
+    <div class="collab-section-intro"><h2 id="collab-requests-title">我们期待什么</h2>${puzzleScene()}</div>${exchangeList(data.requests)}
   </section>
-  <section id="contact" class="container collab-contact" aria-labelledby="collab-contact-title">
+  <section id="contact" class="container collab-contact" aria-labelledby="collab-contact-title" tabindex="-1">
     <div class="collab-contact-intro"><h2 id="collab-contact-title">下一次相遇，<span>从一封信开始。</span></h2></div>
     <details id="brief" class="collab-draft"><summary><span>把合作想法整理成一份草稿</span>${plus}</summary><div class="collab-draft-content"><p class="collab-draft-note">左侧填写要点，右侧实时预览。填写主题后即可复制或下载，内容只保留在当前页面，需要你自行发送。</p>${partnerDraft()}</div></details>
     ${emailContact(data.email)}

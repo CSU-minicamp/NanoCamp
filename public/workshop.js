@@ -131,9 +131,13 @@
   let backup;
   const field = name => form.elements.namedItem(name);
   const value = (name, limit = 1500) => field(name).value.trim().slice(0, limit);
-  function feedback(message, kind = 'info') {
+  function feedback(message, kind = 'info', action = '') {
     status.textContent = message;
     status.dataset.state = kind;
+    if (live) builder.dispatchEvent(new CustomEvent('brief:feedback', { detail: { message, kind, action } }));
+  }
+  function notifyDraft() {
+    if (live) builder.dispatchEvent(new CustomEvent('brief:update', { detail: { values: Object.fromEntries(names.map(name => [name, value(name)])), ready } }));
   }
   function markReady(value, label) {
     ready = value;
@@ -159,6 +163,7 @@
       '这是一份交流草稿，尚未通过官网发送。',
     ].join('\n');
     markReady(Boolean(value('topic', 120)), '草稿已就绪');
+    notifyDraft();
   }
   function edited() {
     field('topic').setCustomValidity('');
@@ -194,6 +199,7 @@
       output.value = backup.output;
       markReady(backup.ready, backup.state);
       clearUndo();
+      notifyDraft();
       feedback('已恢复清空前的内容。', 'success');
       return;
     }
@@ -219,12 +225,16 @@
     copy.disabled = true;
     try {
       await navigator.clipboard.writeText(output.value);
-      if (revision === current) feedback('草稿已复制，可粘贴到自己的文档中。', 'success');
+      if (revision === current) feedback('草稿已复制，可粘贴到自己的文档中。', 'success', 'copy');
     } catch {
       if (revision === current) {
+        if (preview.classList.contains('is-letter-enhanced')) {
+          output.hidden = false;
+          preview.classList.add('is-manual-copy');
+        }
         output.focus();
         output.select();
-        feedback('无法自动复制。草稿已选中，可手动复制或下载。', 'error');
+        feedback('无法自动复制。草稿已选中，可手动复制或下载。', 'error', 'manual');
       }
     } finally { copy.disabled = !ready; }
   });
@@ -238,7 +248,7 @@
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
-    feedback('已发起下载，可在浏览器的下载记录中查看。', 'success');
+    feedback('已发起下载，可在浏览器的下载记录中查看。', 'success', 'download');
   });
   if (live) updateDraft();
   document.querySelector('[data-brief-fallback]').hidden = true;

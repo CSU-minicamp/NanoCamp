@@ -105,7 +105,7 @@ const block = entries.map(entry => {
     id: ${quote(entry.id)}, slug: ${quote(entry.slug)}, title: ${quote(entry.title)},
     description: ${quote(entry.description)},
     problem: ${quote(entry.problem)}, solution: ${quote(entry.solution)},
-    theme: ${quote(entry.theme)}, team: ${quote(entry.team)}, year: '2026',
+    theme: ${quote(entry.theme)}, team: ${quote(entry.team)}, year: '2026', category: 'minicamp',
     tools: [${tools}], members: [${members}],
     cover: ${quote(entry.cover)}, coverAlt: ${quote(`${entry.title} 作品封面`)}, coverFull: null,
     repoUrl: ${quote(entry.repoUrl)}, demoUrl: ${quote(entry.demoUrl)},

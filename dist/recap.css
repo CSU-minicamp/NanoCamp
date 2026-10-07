@@ -458,10 +458,10 @@ body[data-page="minicamp"] .event-theme-item { display: flex; align-items: cente
 body[data-page="minicamp"] .event-theme-item:nth-child(2) { border-color: #c9c0e5; background: linear-gradient(135deg,#f7f2ff,#e7f4ff); box-shadow: 4px 4px 0 #e3dbf4; }
 body[data-page="minicamp"] .event-theme-item:nth-child(3) { border-color: #e6cb8f; background: linear-gradient(135deg,#fff9e7,#e4f5ed); box-shadow: 4px 4px 0 #f3e5bd; }
 body[data-page="minicamp"] .event-theme-item i { color: #2b78a8; font: 700 11px/1 var(--mono); font-style: normal; }
-body[data-page="minicamp"] #camp-projects { position: relative; isolation: isolate; overflow: hidden; }
+body[data-page="minicamp"] #camp-projects { position: relative; isolation: isolate; overflow: hidden; padding-bottom: 16px; }
 body[data-page="minicamp"] #camp-projects::before { content: ""; position: absolute; z-index: -1; inset: 86px -8% 36px; background: linear-gradient(115deg,transparent 0 36%,#e4f2ff 36% 52%,transparent 52%),linear-gradient(165deg,transparent 0 51%,#e1f2e8 51% 76%,transparent 76%),repeating-linear-gradient(90deg,transparent 0 62px,#d3e6ee 62px 63px); opacity: .72; transform: skewY(-2deg); pointer-events: none; }
 body[data-page="minicamp"] #camp-projects::after { content: "BUILT TOGETHER / 2026"; position: absolute; z-index: -1; right: 8%; top: 106px; color: #6b9db0; font: 700 11px/1 var(--mono); letter-spacing: .16em; transform: rotate(90deg); transform-origin: right top; opacity: .7; }
-body[data-page="minicamp"] .minicamp-featured-projects { position: relative; z-index: 1; gap: 22px; padding: 22px; border: 1px solid #b8d8e1; background: #f8fcfbcc; box-shadow: 14px 14px 0 #dceef0; }
+body[data-page="minicamp"] .minicamp-featured-projects { position: relative; z-index: 1; gap: 22px; padding: 22px; border: 1px solid #b8d8e1; background: #f8fcfbcc; box-shadow: none; }
 body[data-page="minicamp"] .minicamp-featured-projects .project-card { overflow: hidden; border-color: #bcd7df; background: #ffffffd9; }
 body[data-page="minicamp"] .minicamp-featured-projects .media-frame { background: linear-gradient(135deg,#dcecff 0 45%,transparent 45%),linear-gradient(315deg,#d9f0e4 0 38%,#f8fbff 38% 100%); }
 body[data-page="minicamp"] .minicamp-featured-projects .media-frame::before { content: ""; position: absolute; inset: 14px; border: 1px solid #ffffffb8; background: repeating-linear-gradient(0deg,transparent 0 21px,#ffffff55 21px 22px); pointer-events: none; }
@@ -490,7 +490,7 @@ body[data-page="minicamp"] .footer-signoff > i { width: 9px; height: 9px; backgr
   body[data-page="minicamp"] .event-theme-label { padding-top: 0; font-size: 12px; }
   body[data-page="minicamp"] .event-theme-list { gap: 8px; }
   body[data-page="minicamp"] .event-theme-item { min-height: 39px; font-size: 14px; }
-  body[data-page="minicamp"] .minicamp-featured-projects { padding: 12px; gap: 18px; box-shadow: 7px 7px 0 #dceef0; }
+  body[data-page="minicamp"] .minicamp-featured-projects { padding: 12px; gap: 18px; box-shadow: none; }
   body[data-page="minicamp"] .minicamp-featured-projects .project-card h3 { font-size: 23px; }
   body[data-page="minicamp"] .minicamp-featured-projects .project-card > p { font-size: 16px; }
   body[data-page="minicamp"] .join-minicamp .join-inner { padding-block: 56px; }
@@ -611,7 +611,7 @@ body[data-page="minicamp"] #camp-projects::before {
 body[data-page="minicamp"] .minicamp-featured-projects {
   border-color: #c0d7df;
   background: #fbfefd;
-  box-shadow: 0 24px 50px -32px #1f506d66, 12px 12px 0 #dceef0;
+  box-shadow: none;
 }
 body[data-page="minicamp"] .minicamp-featured-projects .project-card {
   border-color: #c5dce2;
@@ -638,6 +638,7 @@ body[data-page="minicamp"] .minicamp-featured-projects .project-card:hover .medi
 body[data-page="minicamp"] .minicamp-featured-projects .project-card:focus-within .media-frame::after { transform: translateX(120%); }
 body[data-page="minicamp"] .community-help {
   background: linear-gradient(120deg, #e4f4eb, #e9f2ff 68%, #fff1c7);
+  margin-bottom: 16px;
 }
 body[data-page="minicamp"] .community-help::after {
   content: "";
