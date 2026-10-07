@@ -87,6 +87,9 @@
   .project-section > p { font-size: 16px; }
 }
 @media (max-width: 640px) {
+  .project-tab { font-size: 16px; gap: 4px; }
+  .project-tab .mono { font-size: 12px; }
+  .project-tab i { left: 0; right: 0; }
   .project-group .group-label { padding-top: 22px; padding-bottom: 18px; gap: 10px; }
   .project-group .group-label .mono { font-size: 13px; }
   .project-team { grid-template-columns: minmax(0, 1fr); }
@@ -103,12 +106,24 @@
   .project-card h3 a::after { transition: none; }
 }
 
-/* 作品分类 Tab 与空分类占位 */
-.project-tabs { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 30px; padding-bottom: 6px; }
-.project-tab { font: inherit; font-size: 14px; font-weight: 600; color: #574f6b; background: #f1eee8; border: 1px solid #ddd6cb; border-radius: 999px; padding: 9px 18px; cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
-.project-tab:hover { background: #e9e3d8; }
-.project-tab[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+/* 作品分类导航：直接复用回顾页 .recap-nav 的结构与基础样式（见 recap.css），
+   这里仅为按钮形态的 .project-tab 复刻链接样式（取 minicamp 页的增强参数），并适配本页配色。 */
+body[data-page="projects"] .recap-nav { border-color: #b8d5e0; background: #f7fcfbf2; box-shadow: 0 8px 22px #2c638312; }
+.project-tab { position: relative; display: flex; align-items: center; gap: 12px; font: inherit; font-size: 17px; font-weight: 600; color: #386477; background: none; border: 0; padding: 15px 4px; min-height: 52px; cursor: pointer; transition: color .2s; }
+.project-tab .mono { font-size: 14px; color: #5b8a9d; transition: color .2s; }
+.project-tab i { position: absolute; bottom: 0; left: 4px; right: 4px; height: 3px; background: linear-gradient(90deg, #245fd6, #61b58b); transform: scaleX(0); transform-origin: left; transition: transform .3s; }
+.project-tab:hover, .project-tab[aria-pressed="true"] { color: #245fd6; }
+.project-tab:hover .mono, .project-tab[aria-pressed="true"] .mono { color: #245fd6; }
+.project-tab:hover i, .project-tab[aria-pressed="true"] i { transform: scaleX(1); }
 .project-category[hidden] { display: none; }
+/* 品牌默认封面：铺满媒体框，压在光泽层与标签行之下。 */
+.media-frame.has-art { position: relative; }
+.project-cover { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; font-family: NanoDisplay, 'Microsoft YaHei', Arial, sans-serif; font-weight: 800; letter-spacing: -.02em; }
+.media-frame.has-art .media-label { position: absolute; z-index: 3; }
+/* 作品卡片封面比例：默认封面与实拍封面共用同一框型。 */
+.projects-grid .media-frame { aspect-ratio: 4 / 3; }
+/* 首屏已无 hero，作品列表紧贴分类导航条下方。 */
+.project-categories { padding-top: 6px; }
 .project-empty { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; padding: 46px 0 22px; border-top: 1px solid var(--line); margin-top: 6px; }
 .project-empty h3 { font-size: 20px; line-height: 1.6; }
 .project-empty p { color: #6b6479; font-size: 15px; line-height: 1.8; }
