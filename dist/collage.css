@@ -1140,7 +1140,7 @@ html.community-motion-ready [data-community-reveal].is-visible {opacity:1;transf
 .community-page-hero .page-subtitle {font-size:clamp(18px,2.15vw,26px);margin-top:24px}
 .community-page-hero .portal-actions {margin-top:36px}
 .community-badge {width:100%;margin:0;padding:0;min-height:280px;isolation:isolate}
-.community-badge::before {content:"";position:absolute;z-index:-1;left:12%;right:0;top:60%;height:1px;background:#c4bcea}
+.community-badge::before {display:none}
 .community-paper {flex:0 0 43%;height:auto;aspect-ratio:1/1.08;font-size:clamp(38px,4.4vw,62px);color:#101735;background:#e4dcfa;transform:rotate(-6deg)}
 .community-badge>.community-paper:last-child {font-size:clamp(38px,4.4vw,62px);color:#101735;transform:translateY(22px) rotate(8deg)}
 .community-paper-plus {margin-inline:-2px;font-size:32px}
