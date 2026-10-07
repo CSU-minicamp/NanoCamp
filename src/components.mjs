@@ -52,19 +52,18 @@ export function header(active) {
 // 这里按同一份定义做一份构建期输出，作为首屏内容与无 JS 兜底。
 // 两边由 tests/nav.test.mjs 比对，改动时请同时更新 public/base.js。
 const navLinks = [
-  { key: 'minicamp', href: '/minicamp/', label: 'minicamp', compact: true, more: false },
-  { key: 'activities', href: '/activities/', label: '活动', compact: true, more: false },
-  { key: 'projects', href: '/projects/', label: '作品', compact: true, more: false },
-  { key: 'resources', href: '/resources/', label: '资源', compact: false, more: true, moreLabel: '共创资源' },
-  { key: 'community', href: '/community/', label: '社区', compact: true, more: false },
-  { key: 'partners', href: '/partners/', label: '合作', compact: false, more: true, moreLabel: '交流合作' },
-  { key: 'about', href: '/about/', label: '关于', compact: false, more: true, moreLabel: '关于社区' },
-  { key: 'search', href: '/search/', label: '搜索', compact: false, more: true, moreLabel: '站内搜索', search: true }
+  { key: 'home', href: '/', label: '首页' },
+  { key: 'minicamp', href: '/minicamp/', label: 'minicamp' },
+  { key: 'activities', href: '/activities/', label: '活动' },
+  { key: 'projects', href: '/projects/', label: '作品' },
+  { key: 'community', href: '/community/', label: '社区' },
+  { key: 'partners', href: '/partners/', label: '交流合作' },
+  { key: 'search', href: '/search/', label: '站内搜索', search: true }
 ];
 
 // 属性顺序与 public/base.js 的 DOM 输出保持一致，替换时不会产生无谓的结构差异。
 function navLink(link, active, label = link.label) {
-  const current = active === link.key ? ' aria-current="page"' : '';
+  const current = (active || 'home') === link.key ? ' aria-current="page"' : '';
   if (link.search) {
     return `<a href="${link.href}" class="nav-search" aria-label="站内搜索"${current} data-search-shortcut><svg class="nav-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="nav-search-label">${label}</span></a>`;
   }
@@ -72,15 +71,11 @@ function navLink(link, active, label = link.label) {
 }
 
 function desktopNavigation(active) {
-  return navLinks.filter(link => link.compact).map(link => navLink(link, active)).join('') + moreNavigation(active);
+  return navLinks.map(link => navLink(link, active)).join('');
 }
 
 function mobileNavigation(active) {
   return navLinks.map(link => navLink(link, active)).join('');
-}
-
-function moreNavigation(active) {
-  return `<details class="nav-more"><summary>更多<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="nav-more-panel">${navLinks.filter(link => link.more).map(link => navLink(link, active, link.moreLabel)).join('')}</div></details>`;
 }
 
 export function media({ src, alt = '活动照片', label = '现场照片', id = '01', theme = 'blue', classes = '', kind = 'moment', fullSrc = null, caption = alt, album = 'moments', albumLabel = 'minicamp 现场相册', linkTo = null, coverArt = '' } = {}) {
@@ -98,30 +93,26 @@ export function media({ src, alt = '活动照片', label = '现场照片', id = 
   return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} has-image"><a class="media-open" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image><span class="media-zoom" aria-hidden="true">${zoom}</span></a>${labelRow}</div>`;
 }
 
-export function joinSection(compact = false, active = '') {
+export function joinSection() {
   const available=Boolean(site.join.qrCode || site.join.contact);
-  const pageClass=active === 'minicamp' ? 'join-minicamp' : '';
-  const paperCopy=active === 'minicamp' ? '' : '<span>' + (available ? '欢迎每一份好奇心。' : '加入渠道尚未公布，可先阅读参与指南。') + '</span>';
-  const className='join-section ' + (compact ? 'join-compact ' : '') + pageClass;
   const paperButton=joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small');
-  return '<section class="' + className + '" aria-labelledby="join-heading"><div class="container join-inner"><div><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>' + (available ? joinButton('加入 NanoCamp') : pageLink('/community/','了解参与方式','button-white')) + '</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong>' + paperCopy + paperButton + '</div></div></section>';
+  return '<section class="join-section join-shared" aria-labelledby="join-heading"><div class="container join-inner"><div><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>' + (available ? joinButton('加入 NanoCamp') : pageLink('/community/','了解参与方式','button-white')) + '</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong>' + paperButton + '</div></div></section>';
 }
 
 export function shareButton(label = '复制页面链接') {
   return `<button type="button" class="page-share-button" data-share-page hidden aria-controls="share-manual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 10v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-5M5 13H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"/></svg><span data-share-label>${label}</span></button>`;
 }
 export function footer(active) {
-  if (active === 'minicamp') return minicampFooter();
-  if (active === 'community') return `<footer class="site-footer community-footer"><div class="container community-footer-inner"><a class="brand" href="/" aria-label="NanoCamp 首页">${wordmark()}</a><p>Meet. Build. Make something together.</p></div></footer>`;
+  if (active !== 'search') return sharedFooter();
   return `<footer class="site-footer"><div class="container"><div class="footer-top"><div class="footer-brand"><a class="brand" href="/" aria-label="NanoCamp 首页">${wordmark()}</a><p class="footer-slogan"><span class="brand-blue">Meet. Build.</span><span class="brand-mint">Make something together.</span></p></div><nav aria-label="页脚导航"><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></nav></div><div data-nav="footer-bottom"><div class="footer-bottom"><span class="footer-signoff"><i aria-hidden="true"></i>一个属于学生创造者的社区。</span></div></div></div></footer>`;
 }
 
 // 页脚底部的数据源是 public/base.js：署名同时写死在静态 HTML 里（无 JS 也可见），
 // base.js 载入后用同一份定义原地替换，并由 tests/nav.test.mjs 逐节点比对。
 // 回到顶部浮窗完全由 base.js 在客户端生成，静态 HTML 里没有它的标记。
-function minicampFooter() {
+function sharedFooter() {
   const signoffMark = '<span class="footer-signoff"><span class="footer-signoff-mark" aria-hidden="true">' + logoMark('symbol', '', true) + '</span><span class="footer-signoff-copy"><span class="footer-signoff-kicker mono">WHO WE BUILD WITH</span><span>一个属于学生创造者的社区。</span></span></span>';
-  return '<footer class="site-footer"><div class="container"><div class="footer-top"><a class="brand" href="/" aria-label="NanoCamp 首页">' + wordmark() + '</a><p>Meet. Build.<br>Make something together.</p><nav aria-label="页脚导航"><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></nav></div><div data-nav="footer-bottom"><div class="footer-bottom">' + signoffMark + '</div></div></div></footer>';
+  return '<footer class="site-footer footer-shared"><div class="container"><div class="footer-top"><a class="brand" href="/" aria-label="NanoCamp 首页">' + wordmark() + '</a><p>Meet. Build.<br>Make something together.</p><nav aria-label="页脚导航"><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></nav></div><div data-nav="footer-bottom"><div class="footer-bottom">' + signoffMark + '</div></div></div></footer>';
 }
 
 export function dialogs() {
@@ -134,6 +125,8 @@ export function dialogs() {
 }
 
 export function documentPage({ title, description, active, body, route, noindex = false }) {
+  // 首页保留专属加入区；其余内容页和错误页在这里追加一次共用加入区。
+  if (active && active !== 'search') body += joinSection();
   const fontAssets = '<link rel="preload" href="/fonts/nano-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/fonts/nano-display-ui.woff2" as="font" type="font/woff2" crossorigin>';
   const homeAssets = !active ? '<link rel="stylesheet" href="/hero.css"><link rel="stylesheet" href="/home.css">' : '';
   const partnerAssets = active === 'partners' ? '<script defer src="/partners.js"></script><script defer src="/partner-draft.js"></script><script defer src="/partner-scenes.js"></script>' : '';

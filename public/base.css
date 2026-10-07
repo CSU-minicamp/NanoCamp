@@ -35,6 +35,8 @@
 .nav-search-icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;flex-shrink:0}
 .desktop-nav .nav-search{display:inline-flex;align-items:center;gap:6px}
 .desktop-nav .nav-search .nav-search-label{font-size:13px}
+.site-header .desktop-nav{gap:clamp(16px,2vw,30px);white-space:nowrap}
+.site-header .desktop-nav .nav-search-label{display:inline;font-size:14px}
 .header-actions{display:flex;align-items:center;gap:20px}
 .menu-toggle{display:none;border:0;background:none;padding:10px;width:44px;height:44px;position:relative}
 .menu-toggle span{display:block;height:2px;width:22px;background:var(--ink);margin:5px 0;transition:transform .2s}
@@ -58,6 +60,51 @@
 .footer-bottom{border-top:1px solid var(--line);padding-top:23px;display:flex;justify-content:space-between;gap:25px;font-size:11px;color:var(--muted)}
 .footer-bottom .mono{font-size:10px}
 .footer-bottom a{border-bottom:1px solid #afbbc2}
+
+/* minicamp 同款加入区与页脚，全站共用；搜索页保留简洁底部。 */
+body .join-section.join-shared{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#cfeee0 0 48%,#dcecff 48% 73%,#fce7a8 73% 100%);color:#204f48}
+body .join-shared .join-inner{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);align-items:center;gap:64px;padding-block:76px}
+body .join-shared h2{font-size:clamp(38px,4vw,58px);line-height:1.25;color:#204f48}
+body .join-shared p{max-width:430px;font-size:18px;color:#2d6558}
+body .join-shared .join-paper{position:relative;max-width:none;min-height:245px;display:flex;flex-direction:column;justify-content:space-between;padding:34px;transform:none;border:1px solid #b2913f;background:#ffdc82;box-shadow:12px 12px 0 #b7d8c4}
+body .join-shared .join-paper::before{content:"NANOCAMP / 01";color:#6f5a24;font:700 11px/1 var(--mono);letter-spacing:.12em}
+body .join-shared .join-paper>strong{margin-block:20px auto;font-size:46px}
+body .join-shared .join-paper .button{align-self:flex-start;margin-top:22px}
+.site-footer.footer-shared .footer-top{display:flex;align-items:flex-start;gap:30px;padding-bottom:32px}
+.site-footer.footer-shared .footer-top>p{margin:0;font-size:19px;line-height:1.8;color:#526c85}
+.site-footer.footer-shared .footer-top nav{display:grid;grid-template-columns:repeat(3,max-content);gap:5px 28px;margin-left:auto;padding-top:0}
+.site-footer.footer-shared .footer-top nav a{min-height:44px;font-size:14px;line-height:1.5}
+.site-footer.footer-shared .footer-signoff{position:relative;gap:16px;padding:12px 18px 12px 12px;border:1px solid #b7d8c8;background:linear-gradient(105deg,#effbf4,#edf5ff);color:#295b58;font-size:18px;font-weight:600;letter-spacing:.03em;box-shadow:7px 7px 0 #dcebea}
+.site-footer.footer-shared .footer-signoff-mark{display:grid;place-items:center;width:58px;height:58px;flex:0 0 58px;border-radius:50%;background:#ffffffaa;box-shadow:inset 0 0 0 1px #b7d8c8}
+.site-footer.footer-shared .footer-signoff-mark .brand-asset{width:47px;height:47px;animation:footer-mark 6s ease-in-out infinite}
+.site-footer.footer-shared .footer-signoff-mark .brand-image{width:100%;height:100%;object-fit:contain}
+.site-footer.footer-shared .footer-signoff-copy{display:grid;gap:5px;min-width:0}
+.site-footer.footer-shared .footer-signoff-kicker{color:#65929a;font-size:9px;letter-spacing:.14em}
+@keyframes footer-mark{0%,100%{transform:rotate(-3deg) scale(1)}50%{transform:rotate(4deg) scale(1.08)}}
+@media(min-width:861px) and (max-width:1100px){
+  .site-header .desktop-nav{gap:16px}
+  .site-header .header-inner{gap:18px}
+  .site-header .brand-asset{width:160px}
+}
+@media(max-width:860px){
+  body .join-shared .join-inner{gap:35px}
+  .site-footer.footer-shared .footer-top{display:grid;grid-template-columns:1fr;gap:20px}
+  .site-footer.footer-shared .footer-top .brand{margin:0}
+  .site-footer.footer-shared .footer-top nav{width:100%;margin:4px 0 0;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 14px}
+}
+@media(max-width:640px){
+  body .join-shared .join-inner{grid-template-columns:minmax(0,1fr);padding-block:56px;gap:32px}
+  body .join-shared h2{font-size:34px}
+  body .join-shared p{font-size:16px}
+  body .join-shared .join-paper{min-height:215px;padding:26px}
+  body .join-shared .join-paper>strong{font-size:37px}
+  .site-footer.footer-shared .footer-top>p{font-size:17px}
+  .site-footer.footer-shared .footer-signoff{gap:11px;padding:10px 12px 10px 9px;font-size:15px}
+  .site-footer.footer-shared .footer-signoff-mark{width:49px;height:49px;flex-basis:49px}
+  .site-footer.footer-shared .footer-signoff-mark .brand-asset{width:40px;height:40px}
+  .site-footer.footer-shared .footer-signoff-kicker{font-size:8px}
+}
+@media(prefers-reduced-motion:reduce){.site-footer.footer-shared .footer-signoff-mark .brand-asset{animation:none}}
 
 /* --- 回到顶部浮窗：下滑一定距离后常驻右下角，圆形底、中间向上箭头 --------- */
 /* 显隐一律用 visibility + opacity，不用 display：display:none 会让元素失去盒子，

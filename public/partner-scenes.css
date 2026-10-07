@@ -47,8 +47,6 @@
 .partner-puzzle .puzzle-waiting text {fill:#4c3568}
 .puzzle-waiting {transform-box:fill-box;transform-origin:50% 50%;transform:translate(20px,14px) rotate(-5deg);transition:transform .45s var(--ease)}
 .partner-puzzle:hover .puzzle-waiting,.partner-puzzle:focus-visible .puzzle-waiting {transform:translate(0,0) rotate(0)}
-.puzzle-spark {fill:#c18a30;stroke:none;opacity:0;transform:scale(.65) rotate(-12deg);transform-box:fill-box;transform-origin:center;transition:opacity .2s,transform .4s var(--ease)}
-.partner-puzzle:hover .puzzle-spark,.partner-puzzle:focus-visible .puzzle-spark {opacity:1;transform:scale(1) rotate(8deg)}
 .puzzle-link-label {display:flex;align-items:center;gap:25px;min-height:44px;margin:1px 0 0 25px;font-size:14px;line-height:1.6;text-decoration:underline;text-underline-offset:6px;text-decoration-color:#a594bf}
 .puzzle-link-label svg {width:19px;height:19px;transition:transform .25s var(--ease)}
 .partner-puzzle:hover .puzzle-link-label svg {transform:translate(2px,-2px)}
