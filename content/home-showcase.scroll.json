@@ -1,0 +1,13 @@
+{
+  "perView": { "wide": 3, "medium": 2, "narrow": 1 },
+  "gap": 22,
+  "snap": false,
+  "arrows": true,
+  "hint": "悬停暂停，拖动或用箭头浏览",
+  "autoScroll": {
+    "enabled": true,
+    "speed": 30,
+    "pauseOnHover": true,
+    "loop": true
+  }
+}

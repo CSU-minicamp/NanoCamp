@@ -56,13 +56,15 @@ function logoBadge({ uid, width, height, logo, palette, hash }) {
   return { clip, art: `<g aria-hidden="true">${ring}${disc}${mark}</g>` };
 }
 
-export function projectCover({ id = '', title = '', ratio = '4:3', logo = site.symbol, style = 0 } = {}) {
+// instance 只用于隔离同一作品在同一页面被渲染多次（如首页无缝循环的克隆卡片）时的 DOM id，
+// 不改变配色与版式，因此同一 (id, instance) 组合的渲染结果仍然稳定可复现。
+export function projectCover({ id = '', title = '', ratio = '4:3', logo = site.symbol, style = 0, instance = 0 } = {}) {
   const [width, height] = RATIOS[ratio] || RATIOS['4:3'];
   const hash = fnv1a(`nanocamp|${id}|${title}|${style}`);
   const palette = PALETTES[hash % PALETTES.length];
   const variant = (hash >>> 5) % 4;
   const gridSize = 20 + ((hash >>> 9) % 3) * 10;
-  const uid = `cover-${(hash >>> 0).toString(36)}-${String(id).replace(/[^a-z0-9]+/gi, '') || 'x'}`;
+  const uid = `cover-${(hash >>> 0).toString(36)}-${String(id).replace(/[^a-z0-9]+/gi, '') || 'x'}${instance ? `-i${instance}` : ''}`;
   const type = typography(width, height);
   const pad = Math.round(width * 0.088);
   const echoX = variant % 2 === 0 ? 10 + variant * 3 : -(8 + variant * 3);

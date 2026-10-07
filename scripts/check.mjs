@@ -61,7 +61,7 @@ async function checkLink(href, route) {
   }
 }
 for (const [route,{html}] of pages) {
-  for (const tag of tags(html,'(?:a|link|script|img)')) {
+  for (const tag of tags(html,'(?:a|link|script|img|iframe)')) {
     const href = attr(tag,'href') || attr(tag,'src');
     if (href) await checkLink(href,route);
   }

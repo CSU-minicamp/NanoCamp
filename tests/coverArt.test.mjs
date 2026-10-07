@@ -36,6 +36,16 @@ test('every cover is deterministic, labelled and escapes injected markup', () =>
   assert.doesNotMatch(svg, /&(?!amp;|lt;|gt;|quot;|apos;|#)/);
 });
 
+test('repeat renders on one page keep unique element ids but identical visuals', () => {
+  const base = projectCover({ id: '02', title: '校园雷达' });
+  const clone = projectCover({ id: '02', title: '校园雷达', instance: 1 });
+  const ids = svg => [...svg.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+  const shared = ids(base).filter(id => ids(clone).includes(id));
+  assert.deepEqual(shared, []);
+  const strip = svg => svg.replace(/cover-[a-z0-9]+-[a-z0-9]+(?:-i\d+)?/g, 'cover-uid');
+  assert.equal(strip(base), strip(clone));
+});
+
 test('data uri variant keeps the cover self-contained', () => {
   const uri = projectCoverDataUri({ id: '20', title: 'AI 智能桌宠助手', ratio: '1:1' });
   assert.match(uri, /^data:image\/svg\+xml,/);

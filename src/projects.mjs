@@ -1,6 +1,6 @@
 // 作品列表页与详情页。数据来自 content/site.mjs，由 scripts/sync-minicamp-projects.mjs 从 minicamp 接口整理而来。
 import { projects, communityProjects, personalProjects } from '../content/site.mjs';
-import { esc, safeUrl, media, arrowIcon, joinSection, shareButton } from './components.mjs';
+import { esc, safeUrl, media, eyebrow, arrowIcon, joinSection, shareButton } from './components.mjs';
 import { projectCover } from './coverArt.mjs';
 
 // 占位作品的 title 仍是「项目名称」，不进入列表、详情页路由与站内搜索。
@@ -16,7 +16,8 @@ const toneOf = project => tones[Math.max(0, readyProjects().indexOf(project)) % 
 const hasCover = project => Boolean(String(project?.cover ?? '').trim());
 const coverFirst = items => [...items].sort((a, b) => Number(hasCover(b)) - Number(hasCover(a)));
 // 没有实拍封面的作品改用品牌字形默认封面：按作品 ID 确定性生成，比例按展示位指定。
-const defaultCover = (project, ratio = '4:3') => hasCover(project) ? '' : projectCover({ id: project.id, title: project.title, ratio });
+// 同一作品被渲染多次（首页克隆卡片）时用 instance 隔离封面内部的 DOM id。
+const defaultCover = (project, ratio = '4:3', options = {}) => hasCover(project) ? '' : projectCover({ id: project.id, title: project.title, ratio, ...options });
 
 const memberNames = project => (project.members || []).map(member => member.name).filter(Boolean);
 // problem / solution 是人工填写的自由文本，换行表示分段。
@@ -67,17 +68,23 @@ function externalButton(href, label, classes = 'button-secondary') {
   return `<a class="button ${esc(classes)}" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span class="button-label">${esc(label)}</span>${arrowIcon(true)}<span class="sr-only">（新标签页打开）</span></a>`;
 }
 
-export function projectCard(project, tone = toneOf(project)) {
-  const detail = projectPath(project);
+// clone=true 时输出"副本卡片"：不带 id（避免同一页面出现重复 id）、不进无障碍树、
+// 链接不参与 Tab 顺序，但仍可点击。首页无缝循环的第二组卡片用它。
+export function projectCard(project, tone = toneOf(project), { clone = false } = {}) {
+  // 首页的作品卡片来自 content/home-showcase.json，可以用 href 指定站内地址；
+  // 没写 href 就按作品本身推导 /projects/<slug>/。
+  const detail = safeUrl(project.href, true) || projectPath(project);
   const demo = safeUrl(project.demoUrl);
   const names = memberNames(project);
-  return `<article id="project-${esc(project.id)}" class="project-card" data-detail-surface data-source="${esc(project.sourceId || '')}">${media({ src: project.cover, alt: project.coverAlt || project.title, label: 'MINICAMP / PROJECT', id: project.id, theme: tone, kind: 'project', fullSrc: project.coverFull, caption: project.title, linkTo: detail, album: 'projects', albumLabel: '社区作品封面', coverArt: defaultCover(project) })}
+  const optionalInfo = [tagList(project.tools, 3), names.length ? `<p class="project-members">${names.map(esc).join(' · ')}</p>` : ''].filter(Boolean).join('\n    ');
+  // 两边改动互不冲突，一起保留：homepage 加了 clone（副本卡片不带 id、不进无障碍树、不参与 Tab），
+  // main 给封面加了 linkTo（点封面直接进详情页）。
+  const markup = `<article${clone ? '' : ` id="project-${esc(project.id)}"`} class="project-card" data-detail-surface data-source="${esc(project.sourceId || '')}"${clone ? ' aria-hidden="true"' : ''}>${media({ src: project.cover, alt: project.coverAlt || project.title, label: 'MINICAMP / PROJECT', id: project.id, theme: tone, kind: 'project', fullSrc: project.coverFull, caption: project.title, linkTo: detail, album: 'projects', albumLabel: '社区作品封面', coverArt: defaultCover(project, '4:3', { instance: clone ? 1 : 0 }) })}
     <div class="project-meta"><span>${esc(project.theme || '首届 minicamp')}</span><span class="mono">NO. ${esc(project.id)}</span></div>
-    <h3><a href="${esc(detail)}">${esc(project.title)}</a></h3><p>${esc(project.description)}</p>
-    ${tagList(project.tools, 3)}
-    ${names.length ? `<p class="project-members">${names.map(esc).join(' · ')}</p>` : ''}
+    <h3><a href="${esc(detail)}">${esc(project.title)}</a></h3><p>${esc(project.description)}</p>${optionalInfo ? `\n    ${optionalInfo}` : ''}
     <div class="project-links"><a href="${esc(detail)}">查看详情<span class="sr-only">：${esc(project.title)}</span></a>${externalLink(project.repoUrl, 'GitHub 仓库')}${demo ? externalLink(demo, '体验 Demo') : ''}</div>
   </article>`;
+  return clone ? markup.replace(/<a /g, '<a tabindex="-1" ') : markup;
 }
 
 export function projectGrid(items = projects) {
