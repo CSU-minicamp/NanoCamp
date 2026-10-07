@@ -58,14 +58,14 @@ npm run dev
 
 ## 文件说明
 
-- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；构建期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 在所有页面（含子页面与 404）末尾统一追加 minicamp 同款加入区和页脚，站内搜索保留简洁页脚且不追加加入区。
+- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；构建期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索保留简洁页脚且不追加加入区。
 - `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、交流合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。静态模板与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
-- `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、全站共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；共用底部通过 `join-shared` 与 `footer-shared` 保持各页一致，搜索页除外。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。
+- `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；内容页的加入区使用 `join-shared`，首页保留专属加入区与 `home.css` 样式；页脚通过 `footer-shared` 保持各页一致，搜索页除外。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
 - `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
 - `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
 - `scripts/sync-minicamp-projects.mjs`：从 minicamp 官方接口 `https://minicamp.flipperusc.work/api/projects` 拉取已发布作品，按主题、队伍、编号排序后生成 `projects` 数组片段，加 `--write-images` 会把接口内嵌的 base64 封面导出到 `public/images/projects/`。默认只打印结果，不改动 `content/site.mjs`。
-- `src/hero.mjs`：首页品牌舞台；首页底部与其余页面一起由 `src/components.mjs` 的共用组件生成。
+- `src/hero.mjs`：首页品牌舞台与首页专属加入区；`homeJoinSection()` 保留首页邀请文案与加入渠道提示，首页只渲染一次加入区。
 - `public/hero.css`、`public/hero.js`：B 版首屏海报与入场动效，仅在首页加载。
 - `public/interactions.css`：**首页专属**的鼠标交互层（导航下划线、按钮柔光、卡片抬起、封面推近等 15 项）。所有规则都限定在 `body[data-page="home"]`，其他页面不受影响。由 `documentPage()` 用 `<link>` 引入，**不要改成 `collage.css` 里的 `@import`**：该文件开头已有 `@font-face`，而 CSS 规定 `@import` 必须位于所有规则之前，否则整条被浏览器丢弃，交互会静默失效。规则包在 `@media(hover:hover) and (pointer:fine)` 内，只用 transform / 颜色 / 阴影 / 伪元素，不改变布局。
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。

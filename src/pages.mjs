@@ -1,6 +1,6 @@
 import { site, event, projects, featuredProjects, moments } from '../content/site.mjs';
 import { esc, safeUrl, documentPage, eyebrow, joinButton, pageLink, media, logoMark } from './components.mjs';
-import { heroEmbed } from './hero.mjs';
+import { heroEmbed, homeJoinSection } from './hero.mjs';
 import { ecosystem, activitiesPage, communityPage, faqPage } from './community.mjs';
 import { guides } from '../content/guides.mjs';
 import { resourcesPage, guidePage, guidePath } from './learning.mjs';
@@ -20,7 +20,7 @@ function home() {
  ${ecosystem()}
  <section id="community" class="container community-intro-strip"><h2>一个属于学生创造者的社区。</h2><p>不限专业，也不需要经验，感兴趣就可以来。<br>认识几个人，一起做点小东西。</p><a class="text-link" href="/community/">看看怎么参与</a></section>
  <section class="section container home-archive" aria-labelledby="projects-heading"><div class="section-top"><h2 id="projects-heading">做出来的东西，<br>都放在这里。</h2></div>${homeShowcase() || '<div class="archive-links"><a href="/projects/"><span>作品档案</span><h3>每个想法，都值得被看见。</h3><p>作品介绍与 Demo 链接待补充。</p><b>进入作品空间</b></a><a href="/minicamp/#recap"><span>活动回顾</span><h3>记住一起动手的时刻。</h3><p>'+ (readyMoments().length ? '一起回看 2026 届 minicamp 的现场瞬间。' : '2026 届活动照片待补充。') +'</p><b>阅读活动回顾</b></a></div>'}</section>
- `;
+ ${homeJoinSection()}`;
 }
 
 function minicamp() {

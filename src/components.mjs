@@ -125,8 +125,8 @@ export function dialogs() {
 }
 
 export function documentPage({ title, description, active, body, route, noindex = false }) {
-  // 页面末尾只在这里追加一次共用加入区，确保所有子页面也一致。
-  if (active !== 'search') body += joinSection();
+  // 首页保留专属加入区；其余内容页和错误页在这里追加一次共用加入区。
+  if (active && active !== 'search') body += joinSection();
   const fontAssets = '<link rel="preload" href="/fonts/nano-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/fonts/nano-display-ui.woff2" as="font" type="font/woff2" crossorigin>';
   const homeAssets = !active ? '<link rel="stylesheet" href="/hero.css"><link rel="stylesheet" href="/home.css">' : '';
   const partnerAssets = active === 'partners' ? '<script defer src="/partners.js"></script><script defer src="/partner-draft.js"></script><script defer src="/partner-scenes.js"></script>' : '';
