@@ -1,5 +1,5 @@
 // NanoCamp base.js
-// 站点框架（nav，未来含页脚）的唯一数据源与渲染入口。
+// 站点框架（导航、页脚底部与回到顶部）的统一数据源与渲染入口。
 //
 // 工作方式：HTML 里保留构建期渲染好的 nav 作为首屏内容与无 JS 兜底；
 // base.js 用同一份配置在客户端重新渲染并替换掉原节点，保证 nav 结构
@@ -15,22 +15,22 @@
   const doc = window.document;
 
   const NAV_LINKS = Object.freeze([
-    Object.freeze({ key: 'minicamp', href: '/minicamp/', label: 'minicamp', compact: true, more: false, footer: true, footerLabel: '年度 minicamp' }),
-    Object.freeze({ key: 'activities', href: '/activities/', label: '活动', compact: true, more: false, footer: true, footerLabel: '活动总览' }),
-    Object.freeze({ key: 'projects', href: '/projects/', label: '作品', compact: true, more: false, footer: true, footerLabel: '社区作品' }),
-    Object.freeze({ key: 'resources', href: '/resources/', label: '资源', compact: false, more: true, moreLabel: '共创资源', footer: true, footerLabel: '共创资源' }),
-    Object.freeze({ key: 'community', href: '/community/', label: '社区', compact: true, more: false, footer: true, footerLabel: '参与指南' }),
-    Object.freeze({ key: 'partners', href: '/partners/', label: '合作', compact: false, more: true, moreLabel: '交流合作', footer: true, footerLabel: '交流合作' }),
-    Object.freeze({ key: 'about', href: '/about/', label: '关于', compact: false, more: true, moreLabel: '关于社区', footer: true, footerLabel: '关于我们' }),
-    Object.freeze({ key: 'search', href: '/search/', label: '搜索', compact: false, more: true, moreLabel: '站内搜索', footer: true, footerLabel: '站内搜索', search: true }),
+    Object.freeze({ key: 'home', href: '/', label: '首页', compact: true, footer: false }),
+    Object.freeze({ key: 'minicamp', href: '/minicamp/', label: 'minicamp', compact: true, footer: true, footerLabel: '年度 minicamp' }),
+    Object.freeze({ key: 'activities', href: '/activities/', label: '活动', compact: true, footer: true, footerLabel: '活动总览' }),
+    Object.freeze({ key: 'projects', href: '/projects/', label: '作品', compact: true, footer: true, footerLabel: '社区作品' }),
+    Object.freeze({ key: 'resources', href: '/resources/', label: '资源', compact: false, footer: true, footerLabel: '共创资源', footerOnly: true }),
+    Object.freeze({ key: 'community', href: '/community/', label: '社区', compact: true, footer: true, footerLabel: '参与指南' }),
+    Object.freeze({ key: 'partners', href: '/partners/', label: '交流合作', compact: true, footer: true, footerLabel: '交流合作' }),
+    Object.freeze({ key: 'about', href: '/about/', label: '关于', compact: false, footer: true, footerLabel: '关于我们', footerOnly: true }),
+    Object.freeze({ key: 'search', href: '/search/', label: '站内搜索', compact: true, footer: true, footerLabel: '站内搜索', search: true }),
     // 页脚专有项：主导航里没有，页脚渲染器接管时使用。
-    Object.freeze({ key: 'faq', href: '/faq/', label: '常见问题', compact: false, more: false, footer: true, footerLabel: '常见问题', footerOnly: true })
+    Object.freeze({ key: 'faq', href: '/faq/', label: '常见问题', compact: false, footer: true, footerLabel: '常见问题', footerOnly: true })
   ]);
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   let warned = false;
   let unbindMenu = () => {};
-  let unbindMoreMenu = () => {};
   const backToTopBindings = new WeakSet();
 
   function warn(message) {
@@ -67,10 +67,6 @@
     return svgPath(node, 'm16 16 5 5');
   }
 
-  function caretIcon() {
-    return svgPath(svg(svgEl('svg'), '0 0 16 16'), 'm4 6 4 4 4-4');
-  }
-
   function linkNode(link, active, label = link.label) {
     const node = doc.createElement('a');
     node.setAttribute('href', link.href);
@@ -91,36 +87,19 @@
     return node;
   }
 
-  function navLinks(active, compact) {
-    // footerOnly 的条目（如常见问题）只属于页脚，不进入头部导航。
-    const links = NAV_LINKS.filter(link => !link.footerOnly);
-    return (compact ? links.filter(link => link.compact) : links).map(link => linkNode(link, active));
-  }
-
-  // 桌面端的「更多」用原生 details，无 JS 也能展开。
-  function navMore(active) {
-    const details = doc.createElement('details');
-    details.setAttribute('class', 'nav-more');
-    const summary = doc.createElement('summary');
-    summary.append(doc.createTextNode('更多'), caretIcon());
-    details.append(summary);
-    const panel = doc.createElement('div');
-    panel.setAttribute('class', 'nav-more-panel');
-    NAV_LINKS.filter(link => link.more).forEach(link => panel.append(linkNode(link, active, link.moreLabel || link.label)));
-    details.append(panel);
-    return details;
+  function navLinks(active) {
+    return NAV_LINKS.filter(link => !link.footerOnly).map(link => linkNode(link, active));
   }
 
   function desktopNav(active = navActive()) {
     const fragment = doc.createDocumentFragment();
-    navLinks(active, true).forEach(node => fragment.append(node));
-    fragment.append(navMore(active));
+    navLinks(active).forEach(node => fragment.append(node));
     return fragment;
   }
 
   function mobileNav(active = navActive()) {
     const fragment = doc.createDocumentFragment();
-    navLinks(active, false).forEach(node => fragment.append(node));
+    navLinks(active).forEach(node => fragment.append(node));
     return fragment;
   }
 
@@ -138,12 +117,12 @@
 
   // --- 页脚底部（数据源在这里，构建期会按同一份定义输出一份静态 HTML）---
 
-  // 页脚署名：普通页面是菱形点 + 文字，minicamp 页用图形标志加说明。
+  // 搜索页保留简洁署名，其余页面统一使用图形标志加说明。
   // 这行文字同时写死在静态 HTML 里（见 src/components.mjs），无 JS 时也可见。
   function signoff() {
     const wrapper = doc.createElement('span');
     wrapper.setAttribute('class', 'footer-signoff');
-    if (navActive() !== 'minicamp') {
+    if (navActive() === 'search') {
       const dot = doc.createElement('i');
       dot.setAttribute('aria-hidden', 'true');
       wrapper.append(dot, doc.createTextNode('一个属于学生创造者的社区。'));
@@ -265,9 +244,9 @@
     'footer-bottom': footerBottom
   });
 
-  // 当前页以 <body data-page="..."> 为准；home 与 404 页没有对应的 nav 项。
+  // 当前页以 <body data-page="..."> 为准；首页缺省为 home，404 不高亮。
   function navActive() {
-    return doc.body ? doc.body.getAttribute('data-page') || '' : '';
+    return doc.body ? doc.body.getAttribute('data-page') || 'home' : 'home';
   }
 
   function navSlots() {
@@ -283,7 +262,6 @@
       slot.replaceChildren(render(active));
     });
     bindMenu();
-    bindMoreMenu();
     mountBackToTop();
   }
 
@@ -332,29 +310,6 @@
       doc.removeEventListener('focusin', outside);
       doc.removeEventListener('click', outside);
       if (mobile) mobile.removeEventListener('change', resize);
-    };
-  }
-
-  // 桌面端「更多」的收尾：点击外部、失焦、Esc 时收起。原生 details 自身负责开合。
-  function bindMoreMenu() {
-    unbindMoreMenu();
-    const more = doc.querySelector('.nav-more');
-    if (!more) return;
-    const close = () => { more.open = false; };
-    const outside = event => { if (!more.contains(event.target)) close(); };
-    const escape = event => {
-      if (event.key !== 'Escape' || !more.open) return;
-      close();
-      const summary = more.querySelector('summary');
-      if (summary) summary.focus();
-    };
-    doc.addEventListener('click', outside);
-    doc.addEventListener('focusin', outside);
-    doc.addEventListener('keydown', escape);
-    unbindMoreMenu = () => {
-      doc.removeEventListener('click', outside);
-      doc.removeEventListener('focusin', outside);
-      doc.removeEventListener('keydown', escape);
     };
   }
 

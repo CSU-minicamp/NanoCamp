@@ -1,6 +1,6 @@
 // 作品列表页与详情页。数据来自 content/site.mjs，由 scripts/sync-minicamp-projects.mjs 从 minicamp 接口整理而来。
 import { projects, communityProjects, personalProjects } from '../content/site.mjs';
-import { esc, safeUrl, media, eyebrow, arrowIcon, joinSection, shareButton } from './components.mjs';
+import { esc, safeUrl, media, eyebrow, arrowIcon, shareButton } from './components.mjs';
 import { projectCover } from './coverArt.mjs';
 
 // 占位作品的 title 仍是「项目名称」，不进入列表、详情页路由与站内搜索。
@@ -128,7 +128,7 @@ export function projectsPage() {
   // 直接复用 minicamp 回顾页章节导航（recap-nav）的结构与样式，仅把链接换成分类切换按钮。
   const tabs = projectCategories.map((cat, index) => `<button type="button" class="project-tab" data-project-tab="${esc(cat.key)}" aria-pressed="${index === 0}"><span class="mono" aria-hidden="true">0${index + 1}</span><span>${esc(cat.label)}</span><i aria-hidden="true"></i></button>`).join('');
   const panels = projectCategories.map(cat => `<div class="project-category" data-project-panel="${esc(cat.key)}" ${cat.key === 'minicamp' ? '' : 'hidden'}>${categoryPanel(cat.key)}</div>`).join('');
-  return `<nav class="recap-nav project-recap-nav" aria-label="作品分类"><div class="container recap-nav-inner"><span class="recap-nav-note mono"><i aria-hidden="true"></i>CATEGORY</span><div class="recap-nav-links">${tabs}</div></div></nav><h1 class="sr-only">社区作品</h1><div class="container project-categories">${panels}</div><div class="container project-closing"><span class="mono">STILL MAKING. STILL EXPLORING.</span><p>从一个能演示的版本开始，让想法慢慢长大。</p></div>${joinSection(true)}`;
+  return `<nav class="recap-nav project-recap-nav" aria-label="作品分类"><div class="container recap-nav-inner"><span class="recap-nav-note mono"><i aria-hidden="true"></i>CATEGORY</span><div class="recap-nav-links">${tabs}</div></div></nav><h1 class="sr-only">社区作品</h1><div class="container project-categories">${panels}</div><div class="container project-closing"><span class="mono">STILL MAKING. STILL EXPLORING.</span><p>从一个能演示的版本开始，让想法慢慢长大。</p></div>`;
 }
 
 function teamList(members) {
@@ -159,5 +159,5 @@ export function projectDetailPage(project, siblings = readyProjects()) {
     <section id="tools" class="project-section"><span class="guide-section-index mono">03</span><h2>用到的工具。</h2>${tagList(project.tools) || pending('工具', '开发中使用的 AI 工具与技术，会整理在这里。')}</section>
     <section id="team" class="project-section"><span class="guide-section-index mono">04</span><h2>参与的同学。</h2>${teamList(project.members)}</section>
   </article></div>
-  ${previous && next ? `<section class="container project-detail-next"><span class="mono">继续浏览</span><div><h2>下一个作品，也在路上。</h2><div class="project-detail-next-links"><a href="${esc(projectPath(previous))}"><span aria-hidden="true">←</span>${esc(previous.title)}</a><a href="${esc(projectPath(next))}">${esc(next.title)}<span aria-hidden="true">→</span></a></div></div></section>` : ''}${joinSection(true)}`;
+  ${previous && next ? `<section class="container project-detail-next"><span class="mono">继续浏览</span><div><h2>下一个作品，也在路上。</h2><div class="project-detail-next-links"><a href="${esc(projectPath(previous))}"><span aria-hidden="true">←</span>${esc(previous.title)}</a><a href="${esc(projectPath(next))}">${esc(next.title)}<span aria-hidden="true">→</span></a></div></div></section>` : ''}`;
 }

@@ -85,12 +85,12 @@ test('back-to-top mounts one button and one click action after repeated calls', 
   assert.equal(buttons[0].hasAttribute('data-visible'), false);
 });
 
-test('remounted More navigation closes on Escape and returns keyboard focus', () => {
+test('remounted navigation keeps cooperation and search available without a More menu', () => {
   const { api, document } = fixture();
   api.mount();
-  const more = document.querySelector('.nav-more');
-  more.open = true;
-  document.dispatchEvent({ type: 'keydown', key: 'Escape' });
-  assert.equal(more.open, false);
-  assert.equal(more.querySelector('summary').focused, true);
+  const links = document.querySelector('[data-nav="desktop"]').children;
+  assert.equal(document.querySelector('.nav-more'), null);
+  assert.equal(links[5].getAttribute('href'), '/partners/');
+  assert.equal(links[6].getAttribute('href'), '/search/');
+  assert.equal(links[6].getAttribute('data-search-shortcut'), '');
 });

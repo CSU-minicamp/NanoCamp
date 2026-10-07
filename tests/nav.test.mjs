@@ -30,7 +30,7 @@ function loadBase({ page = '' } = {}) {
   document.body.append(headerNode);
 
   const footerNode = element('footer', { class: 'site-footer' });
-  if (page !== 'community') footerNode.append(element('div', { 'data-nav': 'footer-bottom' }));
+  footerNode.append(element('div', { 'data-nav': 'footer-bottom' }));
   document.body.append(footerNode);
 
   const api = runBase(baseSource, document);
@@ -80,7 +80,7 @@ test('base.js 暴露统一渲染入口', () => {
   assert.deepEqual(Object.keys(api.nav).sort(), ['desktop', 'footer', 'footer-bottom', 'mobile']);
   assert.equal(typeof api.mount, 'function');
   assert.equal(typeof api.backToTop, 'function');
-  assert.equal(api.links.length, 9);
+  assert.equal(api.links.length, 10);
 });
 
 test('构建期输出与 base.js 的渲染逐节点一致', () => {
@@ -90,7 +90,7 @@ test('构建期输出与 base.js 的渲染逐节点一致', () => {
     mobile: ' aria-label="手机导航" class="mobile-nav" data-nav="mobile" hidden id="mobile-nav"',
     'footer-bottom': ' data-nav="footer-bottom"'
   };
-  for (const active of ['', 'minicamp', 'projects', 'resources', 'search']) {
+  for (const active of ['', 'home', 'minicamp', 'projects', 'community', 'resources', 'search']) {
     for (const slot of ['desktop', 'mobile', 'footer-bottom']) {
       assert.equal(
         pageSlotHtml(active, slot, attributes[slot]),
@@ -101,34 +101,31 @@ test('构建期输出与 base.js 的渲染逐节点一致', () => {
   }
 });
 
-test('桌面导航：4 个常显项 + 原生 details「更多」', () => {
+test('桌面导航：首页在最左侧，合作与搜索直接可达', () => {
   const { document } = loadBase({ page: 'projects' });
   const links = slotOf(document, 'desktop').children;
   assert.deepEqual(links.map(node => node.getAttribute('href')), [
-    '/minicamp/', '/activities/', '/projects/', '/community/', null
+    '/', '/minicamp/', '/activities/', '/projects/', '/community/', '/partners/', '/search/'
   ]);
-  const details = links[4];
-  assert.equal(details.nodeName, 'details');
-  assert.equal(details.getAttribute('class'), 'nav-more');
-  const panel = details.children[1];
-  assert.equal(panel.getAttribute('class'), 'nav-more-panel');
-  assert.deepEqual(panel.children.map(node => node.text), ['共创资源', '交流合作', '关于社区', '']);
-  assert.equal(links[2].getAttribute('aria-current'), 'page');
+  assert.equal(findFirst(document.body, '.nav-more'), null);
+  assert.equal(links[0].text, '首页');
+  assert.equal(links[5].text, '交流合作');
+  assert.equal(links[3].getAttribute('aria-current'), 'page');
   assert.equal(links[0].getAttribute('aria-current'), null);
 });
 
-test('手机导航：全部 8 项，搜索项带图标与快捷键钩子', () => {
+test('手机导航：与桌面相同的 7 项，搜索保留图标与快捷键钩子', () => {
   const { document } = loadBase({ page: 'search' });
   const links = slotOf(document, 'mobile').children;
-  assert.equal(links.length, 8);
-  const search = links[7];
+  assert.equal(links.length, 7);
+  const search = links[6];
   assert.equal(search.text, '');
   assert.equal(search.getAttribute('class'), 'nav-search');
   assert.equal(search.getAttribute('aria-label'), '站内搜索');
   assert.equal(search.getAttribute('data-search-shortcut'), '');
   assert.equal(search.getAttribute('aria-current'), 'page');
   assert.deepEqual(search.children.map(node => node.nodeName), ['svg', 'span']);
-  assert.equal(search.children[1].text, '搜索');
+  assert.equal(search.children[1].text, '站内搜索');
 });
 
 test('data-page 决定当前项，未知页面不高亮任何链接', () => {
@@ -137,7 +134,7 @@ test('data-page 决定当前项，未知页面不高亮任何链接', () => {
     .map(node => node.getAttribute('aria-current'))
     .filter(Boolean).length;
   assert.equal(marked('projects'), 1);
-  assert.equal(marked('home'), 0);
+  assert.equal(marked('home'), 1);
   assert.equal(marked('missing'), 0);
 });
 
@@ -148,9 +145,9 @@ test('mount 替换槽位内原有的构建期内容', () => {
   api.mount();
   assert.deepEqual(
     slot.children.map(node => node.getAttribute('href')),
-    ['/minicamp/', '/activities/', '/projects/', '/community/', null]
+    ['/', '/minicamp/', '/activities/', '/projects/', '/community/', '/partners/', '/search/']
   );
-  assert.equal(slot.children[1].getAttribute('aria-current'), 'page');
+  assert.equal(slot.children[2].getAttribute('aria-current'), 'page');
 });
 
 test('页脚底部只有署名：没有动效开关、分享按钮或分享状态区', () => {

@@ -58,14 +58,14 @@ npm run dev
 
 ## 文件说明
 
-- `src/components.mjs`：卡片、媒体、弹窗、页脚与文档外壳；头部导航与页脚底部（`data-nav="footer-bottom"` 槽位）按 `public/base.js` 的数据源做一份构建期输出。页脚署名「一个属于学生创造者的社区。」同时写死在静态 HTML 里，无 JS 时也可见。
-- `public/base.js`：**站点框架（header 导航 + 页脚底部）的唯一数据源与客户端渲染入口**。导航项定义在 `NAV_LINKS`：`compact` 决定是否常显在桌面端、`more` 决定是否进入桌面「更多」下拉、`footer`/`footerOnly` 供页脚使用。构建期把同一份定义渲染进 HTML 作为首屏内容与无 JS 兜底，`base.js` 载入后用 `data-nav` 槽位原地替换，并接管手机菜单开合、「更多」下拉收尾、页脚署名，以及回到顶部浮窗（静态 HTML 里完全没有浮窗与 `footer-tools` 的标记，`base.js` 用 `mountBackToTop()` 生成并在下滑 `max(240px, 视口一半)` 后加 `data-visible`；minicamp 与社区页不生成）。改导航或页脚只需改 `base.js`，再同步 `src/components.mjs` 的对应输出——`tests/nav.test.mjs` 会逐节点比对两边，不一致就会失败，`tests/nav-build.test.mjs` 还会拿真实 `dist` 产物验证替换前后结构完全一致。
-- `public/base.css`：与 `base.js` 成对的站点框架样式——顶部栏与品牌、桌面/手机导航、「更多」面板、页脚版式、回到顶部浮窗（缓入/缓出过渡与 `:hover`/`:focus-visible`）。在 `styles.css` 之后、其余皮肤文件之前加载，所以 `collage.css` 等页面级覆盖仍然生效；浮窗的显隐由 `data-visible` 驱动，`details.js` 只负责判断滚动距离。
+- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；构建期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 在所有页面（含子页面与 404）末尾统一追加 minicamp 同款加入区和页脚，站内搜索保留简洁页脚且不追加加入区。
+- `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、交流合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。静态模板与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
+- `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、全站共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；共用底部通过 `join-shared` 与 `footer-shared` 保持各页一致，搜索页除外。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
 - `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
 - `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
 - `scripts/sync-minicamp-projects.mjs`：从 minicamp 官方接口 `https://minicamp.flipperusc.work/api/projects` 拉取已发布作品，按主题、队伍、编号排序后生成 `projects` 数组片段，加 `--write-images` 会把接口内嵌的 base64 封面导出到 `public/images/projects/`。默认只打印结果，不改动 `content/site.mjs`。
-- `src/hero.mjs`：首页品牌舞台，以及首页专属的加入区 `homeJoinSection()`。
+- `src/hero.mjs`：首页品牌舞台；首页底部与其余页面一起由 `src/components.mjs` 的共用组件生成。
 - `public/hero.css`、`public/hero.js`：B 版首屏海报与入场动效，仅在首页加载。
 - `public/interactions.css`：**首页专属**的鼠标交互层（导航下划线、按钮柔光、卡片抬起、封面推近等 15 项）。所有规则都限定在 `body[data-page="home"]`，其他页面不受影响。由 `documentPage()` 用 `<link>` 引入，**不要改成 `collage.css` 里的 `@import`**：该文件开头已有 `@font-face`，而 CSS 规定 `@import` 必须位于所有规则之前，否则整条被浏览器丢弃，交互会静默失效。规则包在 `@media(hover:hover) and (pointer:fine)` 内，只用 transform / 颜色 / 阴影 / 伪元素，不改变布局。
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。
@@ -119,7 +119,6 @@ npm run dev
 - `src/search.mjs` 生成索引和无脚本目录；`public/search-core.js` 提供规范化、多词共同匹配、排序及摘要；`public/search.js` 渐进增强查询、分类、分页及安全高亮。所有结果文本使用 DOM 文本节点。
 - 搜索使用 `?q=关键词&type=guide`；空格分隔的词共同匹配，支持全角字符。无 JavaScript 或索引无法读取时回退为公开页面目录。
 - 主导航搜索入口支持 Ctrl / Command + K，输入控件或打开的弹窗内不会触发。不会绑定纯字符快捷键。
-- 导航的「更多」面板使用 `::details-content` 配合 `@starting-style` 与 `transition-behavior: allow-discrete` 实现缓入缓出；不支持这些特性的浏览器直接显示/隐藏面板，功能不受影响。精确指针设备上悬停即展开，键盘仍通过点击或 Enter 切换。
 - `site.url` 是网站的正式公开地址，更换域名后需修改并重新构建。`src/metadata.mjs` 生成 canonical、Open Graph、社交卡片和基于真实页面内容的结构化数据。
 - `design/social-card.html` 是分享预览图的原始排版，`public/images/nanocamp-social.png` 为 1200 × 630 输出。原始两张 Logo 不修改。
 - `design/animation-lab.html` 是首页动效选型页（16 个纯 CSS 候选，按板块分组，右上角可重播或定格）。它不是站点页面，`npm run build` 不会生成；本地查看时执行 `Copy-Item design\animation-lab.html dist\`，再打开 `/animation-lab.html`。选定动效后，把对应 CSS 与标记并入正式样式与 `src/`。

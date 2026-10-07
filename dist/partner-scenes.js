@@ -8,7 +8,7 @@
   const papers = [...document.querySelectorAll('[data-idea-paper]')];
   const articles = [...document.querySelectorAll('[data-idea-section]')];
   const desk = document.querySelector('.partner-ideas');
-  let shownIndex = null, locationIndex = '0', followFrame = 0, readingVisible = true;
+  let shownIndex = null, hoverIndex = null, followFrame = 0, readingVisible = true;
 
   function select(index, preview = false) {
     if (!papers.some(paper => paper.dataset.ideaPaper === index)) return;
@@ -18,12 +18,26 @@
     }
     links.forEach(link => {
       link.classList.toggle('is-preview', preview && link.dataset.ideaNav === index);
-      if (!preview && locationIndex !== index) {
-        if (link.dataset.ideaNav === index) link.setAttribute('aria-current', 'location');
-        else link.removeAttribute('aria-current');
-      }
+      if (link.dataset.ideaNav === index) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
     });
-    if (!preview) locationIndex = index;
+  }
+
+  function bindPreview(element, index) {
+    element.addEventListener('pointerenter', event => {
+      if (event.pointerType !== 'mouse') return;
+      hoverIndex = index;
+      select(index, true);
+    });
+    element.addEventListener('pointerleave', event => {
+      if (event.pointerType !== 'mouse' || hoverIndex !== index) return;
+      hoverIndex = null;
+      scheduleFollow();
+    });
+    element.addEventListener('focusin', () => select(index, true));
+    element.addEventListener('focusout', event => {
+      if (!element.contains(event.relatedTarget)) scheduleFollow();
+    });
   }
 
   function navigate(event, target) {
@@ -35,10 +49,10 @@
     return true;
   }
   links.forEach(link => {
-    link.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') select(link.dataset.ideaNav, true); });
-    link.addEventListener('focus', () => select(link.dataset.ideaNav, true));
+    bindPreview(link, link.dataset.ideaNav);
     link.addEventListener('click', event => { if (navigate(event, document.getElementById(link.hash.slice(1)))) select(link.dataset.ideaNav); });
   });
+  articles.forEach(article => bindPreview(article, article.dataset.ideaSection));
   document.querySelector('.partner-puzzle')?.addEventListener('click', event => navigate(event, document.getElementById('contact')));
 
   function stopMotion() {
@@ -62,7 +76,7 @@
   // Cached observer ratios can otherwise select the article we just scrolled past.
   function followReading() {
     followFrame = 0;
-    if (document.hidden || !readingVisible || desk?.contains(document.activeElement)) return;
+    if (document.hidden || !readingVisible || hoverIndex !== null || desk?.contains(document.activeElement)) return;
     const headerBottom = document.querySelector('.site-header')?.getBoundingClientRect().bottom || 88;
     const line = Math.max(headerBottom + 30, Math.min(innerHeight * .3, 250));
     const visible = articles.map(article => ({article, rect: article.getBoundingClientRect()})).filter(({rect}) => rect.bottom > headerBottom && rect.top < innerHeight);
@@ -75,7 +89,6 @@
   window.addEventListener('scroll', scheduleFollow, {passive: true});
   window.addEventListener('resize', scheduleFollow, {passive: true});
   window.addEventListener('hashchange', scheduleFollow);
-  desk?.addEventListener('focusout', scheduleFollow);
   if (typeof IntersectionObserver === 'function') {
     const section = document.getElementById('possibilities');
     if (section) {
