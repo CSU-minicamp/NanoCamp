@@ -1,7 +1,7 @@
 import { programs, faqs, faqCategories, communityFounders, communityChannels, communityContact } from '../content/community.mjs';
-import { esc, eyebrow, pageLink, joinButton, logoMark } from './components.mjs';
+import { esc, eyebrow, pageLink, joinButton, logoMark, media } from './components.mjs';
+import { event } from '../content/site.mjs';
 
-const arrows = '<span aria-hidden="true" class="card-arrow">↗</span>';
 export function programIcon(kind) {
   const paths = {
     camp: '<path d="m6 32 14-24 14 24H6Z"/><path d="m14 32 6-13 6 13M28 8l2-4m4 10 4-1M7 14l-4-2"/>',
@@ -12,13 +12,19 @@ export function programIcon(kind) {
   return `<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[kind] || paths.camp}</svg>`;
 }
 
-function programCard(program, index, compact = false) {
-  return `<article class="program-card program-${program.tone} ${compact ? 'program-compact' : ''}" data-category="${program.category}" data-filter-item data-detail-surface>
-    <span class="program-ghost-num" aria-hidden="true">0${index + 1}</span><div class="program-top"><span class="program-icon">${programIcon(program.icon)}</span><span class="mono">0${index + 1} / ${esc(program.en)}</span></div>
-    <div class="program-label">${esc(program.label)}<span>${esc(program.status)}</span></div>
-    <h3><a href="${program.href}">${esc(program.name)}${arrows}</a></h3><p>${esc(program.description)}</p>
-${compact ? '' : `<ul class="tag-list" aria-label="活动关键词">${program.tags.map(tag => `<li>${esc(tag)}</li>`).join('')}</ul>`}
-    <a class="text-link program-link" href="${program.href}">${esc(program.action)}</a>
+function activityCard(program, index) {
+  const featured = program.id === 'minicamp';
+  const descriptions = {
+    sharing: '一个好用的工具，一次踩坑的经历。把你的发现，变成彼此的下一步。',
+    building: '约几个伙伴，从一个小问题开始，一起做出能体验的小作品。',
+    exchange: '和校园社群、行业实践者聊一聊，让不同的视角碰在一起。',
+  };
+  return `<article class="act-card act-card-${program.tone} ${featured ? 'act-feature' : 'act-mini'}" id="format-${esc(program.id)}">
+    <div class="act-card-top"><span class="act-type">${esc(program.label)}</span><span class="act-card-number" aria-hidden="true">0${index + 1}</span></div>
+    ${featured ? '<div class="act-camp-word" aria-hidden="true">mini<br>camp<span>✳</span></div>' : `<span class="act-icon" aria-hidden="true">${programIcon(program.icon)}</span>`}
+    <div class="act-card-copy"><h3>${featured ? '一年一次，把想法做出来。' : esc(program.name)}</h3><p>${esc(descriptions[program.id] || program.description)}</p></div>
+${featured ? `<ul class="act-tags" aria-label="活动关键词">${program.tags.map(tag => `<li>${esc(tag)}</li>`).join('')}</ul><span class="act-availability">${esc(program.status)} · 回顾已上线</span>` : ''}
+    <a class="act-card-link" href="${esc(program.href)}">${esc(program.action)}<span aria-hidden="true">↗</span></a>
   </article>`;
 }
 
@@ -31,9 +37,13 @@ export function ecosystem() {
 }
 
 export function activitiesPage() {
-  return `<section class="page-hero container portal-hero"><div>${eyebrow('MEET MORE. MAKE MORE.')}<h1>有趣的事，<br>不止发生<span class="blue-text">一次。<svg class="doodle-ring" viewBox="0 0 140 46" aria-hidden="true"><path d="M12 24 C 28 8, 72 4, 102 9 C 126 13, 136 22, 131 30 C 125 40, 82 43, 48 39 C 22 36, 8 32, 11 22" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></span></h1><p class="page-subtitle">年度 minicamp，把大家聚在一起。<br>日常分享与共创，让每一次相遇都有下一步。</p><a href="#formats" class="text-link">探索社区的活动形式</a></div><div class="activity-art" aria-hidden="true"><div class="activity-art-grid"></div><span class="art-label mono">THE COMMUNITY LOOP</span><div class="activity-orbit"></div><div class="activity-hub">${logoMark('symbol')}<span>NanoCamp</span></div><span class="activity-node node-meet">相遇 <b>+</b></span><span class="activity-node node-share">分享 <b>↗</b></span><span class="activity-node node-build">创造 <b>✳</b></span><span class="art-note mono">ALWAYS A NEW BEGINNING.</span><svg class="doodle-arrow arrow-meet" viewBox="0 0 80 60" aria-hidden="true"><path d="M10 8 C 32 14, 52 28, 66 46 M66 46 l -11 -2 M66 46 l -3 -11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg><svg class="doodle-arrow arrow-share" viewBox="0 0 80 60" aria-hidden="true"><path d="M8 10 C 30 16, 50 28, 64 46 M64 46 l -11 -1 M64 46 l -2 -11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div></section>
-  <section id="formats" class="container section formats-section" data-directory="formats" aria-labelledby="formats-title"><div class="section-top"><div>${eyebrow('FIND YOUR NEXT THING', '01')}<h2 id="formats-title">找到你想参与的那一种。</h2></div><p class="section-description">年度 minicamp，以及分享、共创、校企交流。<br>具体场次、日期和参与方式以正式公告为准。</p></div>${filterBar([['all','全部形式'], ...programs.map(p => [p.category,p.label])], '筛选活动形式')}<p class="filter-status" role="status" aria-live="polite" data-filter-status hidden></p><div class="program-grid">${programs.map((p,i) => programCard(p,i)).join('')}</div></section>
-  <section class="container section activity-records" aria-labelledby="records-title"><div class="section-top"><div>${eyebrow('THE CHAPTERS SO FAR', '02')}<h2 id="records-title">已经发生的相遇。</h2></div><span class="record-caption mono">OUR FIRST CHAPTER</span></div><article class="record-ticket"><div class="ticket-number"><span class="mono">CHAPTER</span><strong>01</strong></div><div class="ticket-main"><span class="status-pill"><i aria-hidden="true"></i>已结束</span><h3>首届 minicamp 黑客松</h3><p>从一场黑客松开始，记录共同创造的作品与相遇的瞬间。</p><div class="ticket-links"><a class="text-link" href="/minicamp/">阅读活动回顾</a><a class="text-link" href="/projects/">浏览作品</a></div></div><div class="ticket-cut" aria-hidden="true"><span>MEET.</span><span>BUILD.</span><span>TOGETHER.</span></div></article><article class="record-ticket ticket-ghost"><div class="ticket-number"><span class="mono">CHAPTER</span><strong>02</strong></div><div class="ticket-main"><span class="status-pill status-planned"><i aria-hidden="true"></i>筹备中</span><h3>带着一个主题，开启下一次相遇。</h3><p>后续场次确认后会公布。也欢迎带着想分享的经验、想共创的问题，先来认识社区。</p><div class="ticket-links"><a href="/community/" class="text-link">我可以怎样参与</a></div></div><div class="ticket-cut" aria-hidden="true"><span>MEET.</span><span>BUILD.</span><span>TOGETHER.</span></div></article></section>`;
+  const photo = media({ src: event.cover, alt: event.coverAlt || 'minicamp 活动现场合照', fullSrc: event.coverFull, caption: 'minicamp 2026 · 我们的第一次相遇', label: 'MINICAMP / FIELD NOTES', id: '01', classes: 'act-photo' });
+  return `<section class="page-hero container act-hero" aria-labelledby="activities-title">
+    <div class="act-hero-copy"><p class="act-kicker"><span aria-hidden="true">✳</span> NANOCAMP / 活动</p><h1 id="activities-title">有趣的事，<br>不止发生<span class="act-highlight">一次。<svg viewBox="0 0 170 60" aria-hidden="true"><path d="M12 31C29 9 113 6 148 17S170 47 126 51S22 54 12 36"/></svg></span></h1><p class="page-subtitle">年度 minicamp，把大家聚在一起。<br>日常分享与共创，让相遇有下一步。</p><div class="act-hero-actions"><a class="act-button" href="#formats">找到你的下一次相遇 <span aria-hidden="true">↗</span></a><a class="text-link" href="#records">看看已经发生的故事</a></div><p class="act-hero-footnote">不限专业，带着好奇心来。</p></div>
+    <div class="act-photo-stage"><span class="act-photo-star" aria-hidden="true">✳</span><figure class="act-photo-paper">${photo}<figcaption><span>我们的第一次相遇。</span></figcaption></figure><div class="act-date-sticker"><span>相遇的两天</span><strong>${esc(event.date || '日期待补充')}</strong><span>MEET. BUILD. TOGETHER.</span></div></div>
+  </section>
+  <section id="formats" class="container section act-formats" aria-labelledby="formats-title"><div class="act-section-heading"><div><p class="act-section-index">01 / 一起做点什么</p><h2 id="formats-title">找到你想参与的那一种。</h2></div><p class="act-section-note">一次集中共创，或一次日常交流。<br>具体场次与参与方式，以正式公告为准。</p></div><div class="act-programs">${programs.map(activityCard).join('')}</div></section>
+  <section id="records" class="container section act-records" aria-labelledby="records-title"><div class="act-section-heading"><div><p class="act-section-index">02 / 相遇留下的记录</p><h2 id="records-title">把一起动手的时刻，留下来。</h2></div><span class="act-archive-label mono">THE FIRST CHAPTER ↘</span></div><article class="act-ticket"><div class="act-ticket-number"><span class="mono">CHAPTER</span><strong>01</strong><span class="act-ticket-year">2026</span></div><div class="act-ticket-main"><span class="act-ticket-status">已结束 · 可回顾</span><h3>${esc(event.title)} 黑客松</h3><dl class="act-ticket-facts"><div><dt>时间</dt><dd>${esc(event.date || '日期待补充')}</dd></div><div><dt>地点</dt><dd>${esc(event.location || '地点待补充')}</dd></div></dl><div class="act-ticket-links"><a class="text-link" href="/minicamp/">阅读活动回顾</a><a class="text-link" href="/projects/">浏览社区作品</a></div></div><div class="act-ticket-stub" aria-hidden="true"><span>GOOD<br>THINGS<br>HAPPEN<br>TOGETHER.</span><i></i><small>NC / 2026 / 01</small></div></article><article class="act-ticket act-ticket-ghost" aria-labelledby="next-event-title"><div class="act-ticket-number"><span class="mono">CHAPTER</span><strong>02</strong><span class="act-ticket-year">待开启</span></div><div class="act-ticket-main"><span class="act-ticket-status">尚未举办</span><h3 id="next-event-title">下一场活动，敬请期待。</h3><dl class="act-ticket-facts"><div><dt>时间</dt><dd>待公布</dd></div><div><dt>地点</dt><dd>待公布</dd></div></dl><p class="act-ticket-pending">活动主题与安排确认后，会在这里公布。</p></div><div class="act-ticket-stub" aria-hidden="true"><span>NEXT<br>CHAPTER<br>TO BE<br>WRITTEN.</span><i></i><small>NC / NEXT / 02</small></div></article><div class="act-next"><span class="act-next-plus" aria-hidden="true">+</span><div><h3>下一次相遇，也许从你的想法开始。</h3><p>后续场次确认后公布。想分享经验，或找伙伴共创？先来认识社区。</p></div><a class="text-link" href="/community/">看看怎样参与</a></div></section>`;
 }
 
 function communityHistory() {

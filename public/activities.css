@@ -1,0 +1,221 @@
+/* Activities page: a field-notes poster, with one annual camp and everyday ways to meet. */
+body[data-page="activities"] {
+  --act-blue:#414fa8; --act-ink:#24322f; --act-muted:#65716c;
+  --act-paper:#fbfaf5; --act-line:#dbded3;
+  background-color:var(--act-paper);
+}
+body[data-page="activities"] .act-hero {
+  display:grid;grid-template-columns:1fr 1.04fr;gap:64px;align-items:center;
+  padding-top:76px;padding-bottom:82px;min-height:560px;
+}
+body[data-page="activities"] .act-kicker {
+  display:flex;align-items:center;gap:11px;font-size:12px;letter-spacing:.12em;color:var(--act-muted);margin:0 0 24px;
+}
+body[data-page="activities"] .act-kicker>span {font-size:24px;color:var(--act-blue);line-height:1}
+body[data-page="activities"] .act-hero h1 {font-size:clamp(44px,4.6vw,66px);line-height:1.35;letter-spacing:-.045em;color:var(--act-ink)}
+body[data-page="activities"] .act-highlight {position:relative;display:inline-block;color:var(--act-blue);white-space:nowrap}
+body[data-page="activities"] .act-highlight svg {position:absolute;width:116%;height:1em;bottom:-.11em;left:-9%;overflow:visible;pointer-events:none}
+body[data-page="activities"] .act-highlight path {fill:none;stroke:#efb946;stroke-width:4;stroke-linecap:round}
+body[data-page="activities"] .act-hero .page-subtitle {font-size:16px;line-height:1.95;color:var(--act-muted);margin-top:25px}
+body[data-page="activities"] .act-hero-actions {display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:28px}
+body[data-page="activities"] .act-button {
+  display:inline-flex;align-items:center;justify-content:space-between;gap:22px;min-height:48px;
+  padding:12px 20px;background:var(--act-blue);color:white;font-size:14px;border:1px solid var(--act-blue);border-radius:3px;
+  transition:background .2s,transform .2s;
+}
+body[data-page="activities"] .act-button:hover {background:#33418f;transform:translateY(-2px)}
+body[data-page="activities"] .act-button>span {font-size:20px;line-height:1}
+body[data-page="activities"] .act-hero-actions .text-link {font-size:13px;color:var(--act-blue);text-decoration-color:#a8afce}
+body[data-page="activities"] .act-hero-footnote {font-size:12px;color:var(--act-muted);margin-top:18px}
+body[data-page="activities"] .act-photo-stage {position:relative;padding:12px 8px 38px 0;min-width:0}
+body[data-page="activities"] .act-photo-stage::before {content:"";position:absolute;inset:28px 0 38px 12px;background:#dbeadd;transform:rotate(3deg);border:1px solid #c5d9ca}
+body[data-page="activities"] .act-photo-paper {position:relative;margin:0;padding:12px 12px 0;background:white;border:1px solid #d9d9cf;transform:rotate(-3deg);box-shadow:0 14px 30px -20px #38423d70}
+body[data-page="activities"] .act-photo-paper::before {content:"";position:absolute;left:40%;top:-13px;width:96px;height:26px;background:#edbf5790;transform:rotate(5deg);z-index:2}
+body[data-page="activities"] .act-photo {aspect-ratio:3/2;border:0;border-radius:0;box-shadow:none;background:#e9ede4}
+body[data-page="activities"] .act-photo .media-label {display:none}
+body[data-page="activities"] .act-photo .media-open img {object-fit:cover;object-position:center;width:100%;height:100%}
+body[data-page="activities"] .act-photo-paper figcaption {display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 3px 18px;font-size:13px;color:var(--act-ink)}
+body[data-page="activities"] .act-photo-paper figcaption .mono {font-size:10px;letter-spacing:.08em;color:var(--act-muted)}
+body[data-page="activities"] .act-photo-star {position:absolute;right:-12px;top:-15px;z-index:3;font:72px/1 var(--latin);color:var(--act-blue);transform:rotate(12deg);pointer-events:none}
+body[data-page="activities"] .act-date-sticker {position:absolute;right:-9px;bottom:-4px;z-index:2;display:grid;gap:7px;padding:15px 20px;background:#ffe299;border:1px solid #d3b75e;transform:rotate(4deg);box-shadow:3px 4px 0 #ddd0a260;color:#454230}
+body[data-page="activities"] .act-date-sticker>span {font-size:10px;letter-spacing:.08em}
+body[data-page="activities"] .act-date-sticker strong {font-size:16px;font-weight:700}
+body[data-page="activities"] :is(.act-formats,.act-records) {padding-block:50px}
+body[data-page="activities"] .act-formats {border-top:1px solid var(--act-line);scroll-margin-top:110px}
+body[data-page="activities"] .act-section-heading {display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:28px}
+body[data-page="activities"] .act-section-index {font-size:11px;letter-spacing:.08em;color:var(--act-muted);margin:0 0 13px}
+body[data-page="activities"] .act-section-heading h2 {font-size:34px;line-height:1.4;color:var(--act-ink)}
+body[data-page="activities"] .act-section-note {font-size:13px;line-height:1.9;color:var(--act-muted);flex-shrink:0}
+body[data-page="activities"] .act-programs {display:grid;grid-template-columns:1fr 1.08fr;grid-template-rows:repeat(3,auto);gap:16px 24px}
+body[data-page="activities"] .act-card {position:relative;min-width:0;border:1px solid transparent;border-radius:4px;scroll-margin-top:110px}
+body[data-page="activities"] .act-card-top {display:flex;justify-content:space-between;align-items:center;gap:16px}
+body[data-page="activities"] .act-type {font-size:12px;letter-spacing:.025em}
+body[data-page="activities"] .act-card-number {font:500 20px/1 var(--latin);opacity:.45}
+body[data-page="activities"] .act-card-copy h3 {font-size:23px;line-height:1.45;letter-spacing:-.02em}
+body[data-page="activities"] .act-card-copy p {font-size:14px;line-height:1.9;margin-top:10px}
+body[data-page="activities"] .act-card-link {display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;font-size:13px;font-weight:600;margin-top:14px}
+body[data-page="activities"] .act-card-link>span {font-size:21px;font-weight:400;transition:transform .2s}
+body[data-page="activities"] .act-card-link:hover>span {transform:translate(3px,-3px)}
+body[data-page="activities"] .act-feature {grid-row:span 3;display:flex;flex-direction:column;padding:30px 34px;background:var(--act-blue);color:#fff;overflow:hidden;isolation:isolate}
+body[data-page="activities"] .act-feature::before {content:"";position:absolute;width:320px;height:320px;border:1px solid #ffffff20;border-radius:50%;right:-140px;top:100px;z-index:-1;box-shadow:0 0 0 35px #ffffff05,0 0 0 70px #ffffff04}
+body[data-page="activities"] .act-camp-word {position:relative;font:800 88px/.83 var(--latin);letter-spacing:-.065em;margin:34px 0 29px;color:#fff8de}
+body[data-page="activities"] .act-camp-word>span {position:absolute;font-size:70px;letter-spacing:0;color:#ffda82;top:15px;right:12px;transform:rotate(12deg)}
+body[data-page="activities"] .act-feature .act-card-copy h3 {font-size:24px;color:white}
+body[data-page="activities"] .act-feature .act-card-copy p {color:#e1e5f5;max-width:380px}
+body[data-page="activities"] .act-tags {list-style:none;padding:0;margin:20px 0;display:flex;gap:8px;flex-wrap:wrap}
+body[data-page="activities"] .act-tags li {font-size:11px;padding:5px 9px;border:1px solid #ffffff45;border-radius:2px;color:#edf0ff}
+body[data-page="activities"] .act-availability {font-size:11px;color:#ffdf94;margin-top:auto}
+body[data-page="activities"] .act-feature .act-card-link {margin-top:10px;border-top:1px solid #ffffff35;padding-top:13px;color:white}
+body[data-page="activities"] .act-mini {display:grid;grid-template-columns:42px 1fr;gap:8px 17px;padding:22px 26px;background:#e7f0e8;color:#31584a}
+body[data-page="activities"] .act-mini.act-card-lilac {background:#eeedf5;color:#55477e}
+body[data-page="activities"] .act-mini.act-card-amber {background:#f7efd8;color:#6b5732}
+body[data-page="activities"] .act-mini .act-card-top {grid-column:1/-1}
+body[data-page="activities"] .act-icon {display:flex;align-items:flex-start;padding-top:3px}
+body[data-page="activities"] .act-icon svg {width:34px;height:34px}
+body[data-page="activities"] .act-mini .act-card-copy p {font-size:13px;line-height:1.8;opacity:.85;margin-top:7px}
+body[data-page="activities"] .act-mini .act-card-link {grid-column:2;margin:0;min-height:44px}
+body[data-page="activities"] .act-archive-label {font-size:11px;letter-spacing:.04em;color:var(--act-muted)}
+body[data-page="activities"] .act-records {scroll-margin-top:110px;padding-top:42px;padding-bottom:76px}
+body[data-page="activities"] .act-ticket {position:relative;display:grid;grid-template-columns:140px 1fr 190px;background:#f0f2e7;border:1px solid #d5dac7;border-radius:4px;color:var(--act-ink)}
+body[data-page="activities"] .act-ticket-number {display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;margin-block:25px;border-right:1px dashed #b7c4ae;color:#456650}
+body[data-page="activities"] .act-ticket-number>.mono {font-size:10px;letter-spacing:.08em}
+body[data-page="activities"] .act-ticket-number strong {font:800 66px/1 var(--latin);letter-spacing:-.065em}
+body[data-page="activities"] .act-ticket-year {font-size:12px}
+body[data-page="activities"] .act-ticket-main {padding:30px 34px}
+body[data-page="activities"] .act-ticket-status {display:inline-block;font-size:11px;color:#446452;margin-bottom:10px}
+body[data-page="activities"] .act-ticket-status::before {content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#668572;margin-right:7px}
+body[data-page="activities"] .act-ticket-main h3 {font-size:25px;line-height:1.4}
+body[data-page="activities"] .act-ticket-facts {display:grid;gap:6px;margin:15px 0 0;font-size:13px;color:#5b685b}
+body[data-page="activities"] .act-ticket-facts>div {display:flex;gap:15px}
+body[data-page="activities"] .act-ticket-facts dt {flex-shrink:0;color:#7c8577}
+body[data-page="activities"] .act-ticket-facts dd {margin:0}
+body[data-page="activities"] .act-ticket-links {display:flex;gap:24px;flex-wrap:wrap;margin-top:20px}
+body[data-page="activities"] .act-ticket-links .text-link {font-size:13px;color:#3a5945;text-decoration-color:#a2bba4}
+body[data-page="activities"] .act-ticket-stub {position:relative;display:flex;flex-direction:column;justify-content:center;padding:25px 27px;border-left:1px dashed #a9baa0;background:#dce9ce;color:#456650}
+body[data-page="activities"] .act-ticket-stub::before,body[data-page="activities"] .act-ticket-stub::after {content:"";position:absolute;left:-9px;width:16px;height:16px;background:var(--act-paper);border-radius:50%}
+body[data-page="activities"] .act-ticket-stub::before {top:-9px}
+body[data-page="activities"] .act-ticket-stub::after {bottom:-9px}
+body[data-page="activities"] .act-ticket-stub>span {font:750 22px/1.2 var(--latin);letter-spacing:-.025em}
+body[data-page="activities"] .act-ticket-stub i {display:block;width:100%;height:20px;margin-top:18px;background:repeating-linear-gradient(90deg,#678266 0 2px,transparent 2px 5px)}
+body[data-page="activities"] .act-ticket-stub small {font-size:9px;letter-spacing:.06em;margin-top:6px}
+/* The next chapter is an invitation, not a confirmed event listing. */
+body[data-page="activities"] .act-ticket-ghost {margin-top:18px;background:#f3f3ef;border:1px dashed #c6cbcc;color:#646c70}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-number {color:#7a8285;border-color:#c6cbcc}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-status {color:#697176}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-status::before {background:transparent;border:1px solid currentColor}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-main h3 {color:#626b70}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-facts {color:#697176}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-facts dt {color:#757d80}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-stub {background:#e7e9e6;color:#7c8588;border-color:#c6cbcc}
+body[data-page="activities"] .act-ticket-ghost .act-ticket-stub i {background:repeating-linear-gradient(90deg,#9da4a5 0 2px,transparent 2px 5px)}
+body[data-page="activities"] .act-ticket-pending {margin-top:20px;font-size:13px;line-height:1.8;color:#727a7d}
+body[data-page="activities"] .act-next {display:flex;align-items:center;gap:22px;padding:26px 0 0;margin-top:26px;border-top:1px solid var(--act-line)}
+body[data-page="activities"] .act-next-plus {font:300 36px/1 var(--latin);color:#85977e}
+body[data-page="activities"] .act-next>div {flex:1}
+body[data-page="activities"] .act-next h3 {font-size:17px;line-height:1.55;color:var(--act-ink)}
+body[data-page="activities"] .act-next p {font-size:13px;color:var(--act-muted);margin-top:6px;line-height:1.8}
+body[data-page="activities"] .act-next .text-link {font-size:13px;flex-shrink:0;color:var(--act-blue)}
+@media (max-width:1100px) {
+  body[data-page="activities"] .act-hero {gap:35px;padding-block:58px 72px;min-height:0}
+  body[data-page="activities"] .act-hero h1 {font-size:48px}
+  body[data-page="activities"] .act-camp-word {font-size:76px}
+  body[data-page="activities"] .act-camp-word>span {font-size:52px;right:0}
+  body[data-page="activities"] .act-feature {padding:28px}
+  body[data-page="activities"] .act-mini {padding:20px;gap:8px 12px}
+  body[data-page="activities"] .act-mini .act-card-copy h3 {font-size:21px}
+  body[data-page="activities"] .act-section-heading h2 {font-size:30px}
+  body[data-page="activities"] .act-ticket {grid-template-columns:110px 1fr 160px}
+  body[data-page="activities"] .act-ticket-main {padding:28px}
+  body[data-page="activities"] .act-ticket-stub {padding-inline:20px}
+  body[data-page="activities"] .act-ticket-stub>span {font-size:20px}
+}
+@media (max-width:860px) {
+  body[data-page="activities"] .act-hero {grid-template-columns:1fr;gap:36px;padding-top:40px;padding-bottom:60px}
+  body[data-page="activities"] .act-hero h1 {font-size:52px}
+  body[data-page="activities"] .act-photo-stage {width:100%;max-width:560px;justify-self:center;margin-top:8px;padding-bottom:36px}
+  body[data-page="activities"] .act-section-heading {align-items:flex-start;flex-direction:column;gap:14px}
+  body[data-page="activities"] .act-section-note br {display:none}
+  body[data-page="activities"] .act-programs {grid-template-columns:1fr;grid-template-rows:auto;gap:14px}
+  body[data-page="activities"] .act-feature {grid-row:auto;display:grid;grid-template-columns:1fr 1fr;gap:0 26px;padding:28px}
+  body[data-page="activities"] .act-feature .act-card-top {grid-column:1/-1}
+  body[data-page="activities"] .act-camp-word {grid-column:1;grid-row:2/5;font-size:72px;margin:27px 0 10px}
+  body[data-page="activities"] .act-camp-word>span {right:12px;top:24px;font-size:40px}
+  body[data-page="activities"] .act-feature .act-card-copy {padding-top:22px}
+  body[data-page="activities"] .act-feature .act-card-copy h3 {font-size:21px}
+  body[data-page="activities"] .act-tags {margin-block:14px}
+  body[data-page="activities"] .act-availability {margin-top:4px}
+  body[data-page="activities"] .act-feature .act-card-link {grid-column:1/-1;margin-top:20px}
+  body[data-page="activities"] .act-mini {padding:22px 26px;gap:6px 16px}
+  body[data-page="activities"] .act-ticket {grid-template-columns:90px 1fr}
+  body[data-page="activities"] .act-ticket-number strong {font-size:50px}
+  body[data-page="activities"] .act-ticket-main {padding:25px}
+  body[data-page="activities"] .act-ticket-stub {display:none}
+  body[data-page="activities"] .act-next {flex-wrap:wrap;gap:14px}
+  body[data-page="activities"] .act-next>div {flex-basis:calc(100% - 52px)}
+  body[data-page="activities"] .act-next .text-link {margin-left:50px}
+}
+@media (max-width:540px) {
+  body[data-page="activities"] .act-hero {padding-top:30px;padding-bottom:48px;gap:28px}
+  body[data-page="activities"] .act-kicker {font-size:10px;gap:8px;margin-bottom:17px}
+  body[data-page="activities"] .act-kicker>span {font-size:20px}
+  body[data-page="activities"] .act-hero h1 {font-size:38px;line-height:1.4}
+  body[data-page="activities"] .act-hero .page-subtitle {font-size:14px;margin-top:20px;line-height:1.9}
+  body[data-page="activities"] .act-hero-actions {gap:15px;margin-top:23px}
+  body[data-page="activities"] .act-button {min-height:46px;font-size:13px;padding-inline:16px}
+  body[data-page="activities"] .act-hero-actions .text-link {font-size:12px}
+  body[data-page="activities"] .act-hero-footnote {font-size:11px;margin-top:13px}
+  body[data-page="activities"] .act-photo-stage {padding-right:5px;padding-bottom:35px}
+  body[data-page="activities"] .act-photo-paper {padding:8px 8px 0;transform:rotate(-2deg)}
+  body[data-page="activities"] .act-photo-paper figcaption {font-size:11px;padding-block:12px 14px;gap:8px}
+  body[data-page="activities"] .act-photo-paper figcaption .mono {font-size:8px;letter-spacing:.03em}
+  body[data-page="activities"] .act-photo-star {font-size:48px;right:-3px;top:-15px}
+  body[data-page="activities"] .act-photo-paper::before {width:68px;height:20px;top:-9px}
+  body[data-page="activities"] .act-date-sticker {padding:11px 14px;gap:5px;right:0;bottom:0}
+  body[data-page="activities"] .act-date-sticker strong {font-size:13px}
+  body[data-page="activities"] .act-date-sticker>span {font-size:8px}
+  body[data-page="activities"] :is(.act-formats,.act-records) {padding-block:34px}
+  body[data-page="activities"] .act-section-heading {gap:11px;margin-bottom:22px}
+  body[data-page="activities"] .act-section-index {font-size:10px;margin-bottom:10px}
+  body[data-page="activities"] .act-section-heading h2 {font-size:26px;line-height:1.5}
+  body[data-page="activities"] .act-section-note {font-size:12px}
+  body[data-page="activities"] .act-feature {display:flex;padding:24px}
+  body[data-page="activities"] .act-camp-word {font-size:70px;line-height:.86;margin:25px 0 22px}
+  body[data-page="activities"] .act-camp-word>span {font-size:60px;right:10px;top:15px}
+  body[data-page="activities"] .act-feature .act-card-copy {padding:0}
+  body[data-page="activities"] .act-feature .act-card-copy h3 {font-size:21px}
+  body[data-page="activities"] .act-feature .act-card-copy p {font-size:13px;line-height:1.85}
+  body[data-page="activities"] .act-feature .act-card-link {margin-top:14px}
+  body[data-page="activities"] .act-tags {gap:6px;margin-block:15px}
+  body[data-page="activities"] .act-tags li {font-size:10px;padding:4px 7px}
+  body[data-page="activities"] .act-mini {grid-template-columns:30px 1fr;padding:20px;gap:7px 12px}
+  body[data-page="activities"] .act-icon svg {width:28px;height:28px}
+  body[data-page="activities"] .act-mini .act-card-copy h3 {font-size:20px}
+  body[data-page="activities"] .act-mini .act-card-copy p {font-size:12px;line-height:1.85}
+  body[data-page="activities"] .act-card-link {font-size:12px}
+  body[data-page="activities"] .act-type {font-size:11px}
+  body[data-page="activities"] .act-card-number {font-size:17px}
+  body[data-page="activities"] .act-archive-label {display:none}
+  body[data-page="activities"] .act-ticket {grid-template-columns:1fr}
+  body[data-page="activities"] .act-ticket-number {flex-direction:row;justify-content:flex-start;margin:0;padding:15px 21px;border-right:0;border-bottom:1px dashed #bbc7b2;gap:12px}
+  body[data-page="activities"] .act-ticket-number strong {font-size:30px}
+  body[data-page="activities"] .act-ticket-year {margin-left:auto}
+  body[data-page="activities"] .act-ticket-main {padding:22px}
+  body[data-page="activities"] .act-ticket-main h3 {font-size:22px}
+  body[data-page="activities"] .act-ticket-facts {font-size:12px;gap:9px}
+  body[data-page="activities"] .act-ticket-links {gap:20px;margin-top:18px}
+  body[data-page="activities"] .act-ticket-links .text-link {font-size:12px;min-height:44px}
+  body[data-page="activities"] .act-next {padding-top:23px;margin-top:23px}
+  body[data-page="activities"] .act-next h3 {font-size:16px}
+  body[data-page="activities"] .act-next p {font-size:12px}
+  body[data-page="activities"] .act-next-plus {font-size:30px}
+  body[data-page="activities"] .act-next .text-link {margin-left:44px;font-size:12px}
+}
+@media (prefers-reduced-motion:reduce) {
+  body[data-page="activities"] :is(.act-button,.act-card-link>span) {transition:none;transform:none}
+}
+@media print {
+  body[data-page="activities"] :is(.act-photo-paper,.act-date-sticker) {transform:none;box-shadow:none}
+  body[data-page="activities"] :is(.act-feature,.act-mini,.act-ticket,.act-photo-paper) {break-inside:avoid}
+  body[data-page="activities"] .act-feature {background:white;color:black;border-color:#888}
+  body[data-page="activities"] .act-feature :is(.act-camp-word,.act-card-copy h3,.act-card-copy p,.act-card-link,.act-availability,.act-tags li) {color:black}
+}
