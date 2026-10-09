@@ -2,6 +2,82 @@
   const normalize = value => String(value).normalize('NFKC').toLocaleLowerCase().trim();
   const revealSections = [...document.querySelectorAll('[data-community-reveal]')];
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('[data-contact-fan]').forEach(deck => {
+    const papers = [...deck.querySelectorAll('[data-contact-paper]')];
+    const buttons = papers.map(paper => paper.querySelector('.contact-paper-tab'));
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let active = -1, busy = false, pending = null;
+    const pose = paper => {
+      const style = getComputedStyle(paper);
+      return Object.fromEntries(['transform', 'left', 'top', 'width', 'height'].map(key => [key, style[key]]));
+    };
+    const animate = async (paper, frames, duration) => {
+      if (motion.matches || !paper.animate) return;
+      const animation = paper.animate(frames, {duration, easing: 'cubic-bezier(.22,.8,.25,1)', fill: 'both'});
+      try { await animation.finished; } finally { animation.cancel(); }
+    };
+    function show(index) {
+      papers.forEach((paper, i) => {
+        paper.classList.toggle('is-active', i === index);
+        buttons[i].setAttribute('aria-expanded', String(i === index));
+        paper.querySelector('.contact-paper-body').inert = i !== index;
+      });
+      active = index;
+    }
+    async function select(index) {
+      if (busy) { pending = index; return; }
+      if (index === active) return;
+      busy = true;
+      const next = papers[index], previous = papers[active];
+      const before = pose(next);
+      const pulled = {...before, transform: 'translateY(-145px) ' + before.transform};
+      try {
+        await animate(next, [before, pulled], 230);
+        const previousPose = previous && pose(previous);
+        show(index);
+        await Promise.all([
+          animate(next, [pulled, pose(next)], 430),
+          previous ? animate(previous, [previousPose, pose(previous)], 430) : Promise.resolve(),
+        ]);
+      } finally {
+        busy = false;
+        if (pending !== null) { const index = pending; pending = null; select(index); }
+      }
+    }
+    deck.classList.add('is-ready');
+    show(location.hash === '#contact' ? 5 : location.hash === '#groups' ? 3 : 0);
+    papers.forEach((paper, index) => {
+      paper.addEventListener('click', event => {
+        if (event.target.closest('a')) return;
+        select(index);
+      });
+    });
+    buttons.forEach((button, index) => {
+      button.addEventListener('keydown', event => {
+        let target;
+        if (event.key === 'ArrowRight') target = (index + 1) % papers.length;
+        if (event.key === 'ArrowLeft') target = (index + papers.length - 1) % papers.length;
+        if (event.key === 'Home') target = 0;
+        if (event.key === 'End') target = papers.length - 1;
+        if (target === undefined) return;
+        event.preventDefault();
+        buttons[target].focus({preventScroll: true});
+        select(target);
+      });
+    });
+    const selectHash = hash => {
+      if (hash === '#contact') select(5);
+      if (hash === '#groups') select(3);
+    };
+    window.addEventListener('hashchange', () => selectHash(location.hash));
+    // Re-activating the current fragment does not emit hashchange. Native
+    // anchor clicks also cover Enter activation without replacing scrolling.
+    document.addEventListener('click', event => {
+      if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const link = event.target.closest('a[href]');
+      selectHash(link?.getAttribute('href'));
+    });
+  });
   if (revealSections.length && 'IntersectionObserver' in window && !reduceMotion) {
     document.documentElement.classList.add('community-motion-ready');
     const revealObserver = new IntersectionObserver(entries => {

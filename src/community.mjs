@@ -40,13 +40,19 @@ function communityHistory() {
   return `<section id="history" class="container section community-history" aria-labelledby="history-title" data-community-reveal><h2 id="history-title">我们是谁？</h2><div class="community-story"><p class="community-story-lead">NanoCamp 是一个面向<span class="blue-text">跨专业学生的创造者社区</span>。</p><p class="community-story-copy">从首届 minicamp 出发，把现场的相遇延续为日常的分享、共创与交流。</p><ul class="community-founders" aria-label="联合创办方"><li class="community-founders-label">联合创办</li>${communityFounders.map(founder => `<li class="community-founder"><span class="founder-mark founder-mark-${founder.mark}"><img src="${esc(founder.image)}" alt="" width="${founder.width}" height="${founder.height}" loading="lazy" decoding="async"></span><span>${esc(founder.name)}</span></li>`).join('')}</ul></div></section>`;
 }
 
+function communityMediaIcon(name) {
+  const files = { '抖音': 'douyin.ico', '小红书': 'xiaohongshu.png', 'B站': 'bilibili.ico', '微信': 'wechat.ico', 'QQ': 'qq.png' };
+  return `<img class="community-media-icon" src="/images/social/${files[name]}" width="36" height="36" alt="" aria-hidden="true">`;
+}
+
 function communityConnections() {
-  return `<section id="updates" class="container section community-updates" aria-labelledby="updates-title" data-community-reveal><h2 id="updates-title">关注社区动态。</h2><ul class="community-channels">${communityChannels.map(channel => `<li><h3>${esc(channel.name)}</h3><dl><dt class="sr-only">${esc(channel.label)}</dt><dd>${esc(channel.id)}</dd></dl>${channel.href ? `<a class="text-link" href="${esc(channel.href)}" target="_blank" rel="noopener noreferrer">浏览${esc(channel.name)}主页<span class="sr-only">（新标签页打开）</span></a>` : `<p class="channel-instruction">搜索${esc(channel.name)}号</p>`}</li>`).join('')}</ul><div id="groups" class="community-groups">
-  <div class="community-group-grid">
-    <article><h3>微信群</h3><a class="community-group-image" href="/images/community-groups/wechat-qr.png" target="_blank" rel="noopener noreferrer" aria-label="查看微信群二维码原图（新标签页打开）"><img src="/images/community-groups/wechat-qr.png" alt="NanoCamp 微信群二维码，图片标注 10 月 12 日前有效" loading="lazy" decoding="async"></a><p class="community-group-note">二维码有效期至 10 月 12 日；如已失效，可联系下方 QQ。</p></article>
-    <article><h3>QQ 群</h3><a class="community-group-image" href="/images/community-groups/qq-qr.png" target="_blank" rel="noopener noreferrer" aria-label="查看 QQ 群二维码原图（新标签页打开）"><img src="/images/community-groups/qq-qr.png" alt="NanoCamp QQ 群二维码，群号 1126393930" loading="lazy" decoding="async"></a><p class="community-group-note">使用 QQ 扫码，或搜索群号加入。</p></article>
-  </div>
-</div></section><section id="contact" class="community-contact" aria-labelledby="contact-title" data-community-reveal><div class="container section community-contact-inner"><h2 id="contact-title">联系我们。</h2><div class="community-contact-copy"><dl><dt>QQ</dt><dd>${esc(communityContact.qq)}</dd></dl><p>搜索 QQ 号，添加好友。</p></div></div></section>`;
+  const cards = [
+    ...communityChannels.map(channel => ({ name: channel.name, icon: channel.name, body: '<a class="contact-paper-account" href="' + esc(channel.href) + '" target="_blank" rel="noopener noreferrer" aria-label="浏览' + esc(channel.name) + '主页，' + esc(channel.label) + ' ' + esc(channel.id) + '（新标签页打开）">' + esc(channel.id) + ' <span aria-hidden="true">↗</span></a>' })),
+    { name: '微信群', icon: '微信', body: '<a class="contact-paper-qr" href="/images/community-groups/wechat-qr.png" target="_blank" rel="noopener noreferrer" aria-label="查看微信群二维码原图（新标签页打开）"><img src="/images/community-groups/wechat-qr.png" width="706" height="706" alt="NanoCamp 微信群二维码，图片标注 10 月 12 日前有效"></a><p class="contact-paper-note">二维码有效期至 10 月 12 日；如已失效，可<a href="#contact">联系 QQ</a>。</p>' },
+    { name: 'QQ 群', icon: 'QQ', body: '<a class="contact-paper-qr" href="/images/community-groups/qq-qr.png" target="_blank" rel="noopener noreferrer" aria-label="查看 QQ 群二维码原图（新标签页打开）"><img src="/images/community-groups/qq-qr.png" width="860" height="860" alt="NanoCamp QQ 群二维码，群号 1126393930"></a><p class="contact-paper-note">使用 QQ 扫码，或搜索群号 1126393930 加入。</p>' },
+    { name: 'QQ', icon: 'QQ', body: '<p class="contact-paper-account">' + esc(communityContact.qq) + '</p><p class="contact-paper-note">搜索 QQ 号，添加好友。</p>' },
+  ];
+  return '<section id="updates" class="container section community-updates" aria-labelledby="updates-title" data-community-reveal><h2 id="updates-title">关注<span class="blue-text">社区动态。</span></h2><div id="groups" class="contact-fan" data-contact-fan>' + cards.map((card, index) => '<article class="contact-paper" data-contact-paper style="--slot:' + (index - 2.5) + ';--paper-order:' + (index + 1) + '"' + (index === 5 ? ' id="contact"' : '') + '><button type="button" class="contact-paper-tab" aria-expanded="true" aria-controls="contact-paper-body-' + index + '" aria-label="显示' + card.name + '联系方式">' + communityMediaIcon(card.icon) + '<span>' + card.name + '</span></button><div class="contact-paper-body" id="contact-paper-body-' + index + '"><h3>' + card.name + '</h3>' + card.body + '</div></article>').join('') + '</div></section>';
 }
 
 export function communityPage() {
