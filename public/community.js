@@ -65,9 +65,17 @@
         select(target);
       });
     });
-    window.addEventListener('hashchange', () => {
-      if (location.hash === '#contact') select(5);
-      if (location.hash === '#groups') select(3);
+    const selectHash = hash => {
+      if (hash === '#contact') select(5);
+      if (hash === '#groups') select(3);
+    };
+    window.addEventListener('hashchange', () => selectHash(location.hash));
+    // Re-activating the current fragment does not emit hashchange. Native
+    // anchor clicks also cover Enter activation without replacing scrolling.
+    document.addEventListener('click', event => {
+      if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const link = event.target.closest('a[href]');
+      selectHash(link?.getAttribute('href'));
     });
   });
   if (revealSections.length && 'IntersectionObserver' in window && !reduceMotion) {

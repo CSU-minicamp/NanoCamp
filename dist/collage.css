@@ -1293,11 +1293,13 @@ html.community-motion-ready [data-community-reveal].is-visible {opacity:1;transf
 .contact-paper-account span {display:inline-grid;place-items:center;width:34px;height:34px;flex-shrink:0;border:1px solid #344c842e;border-radius:50%;font-size:23px;margin-left:6px;background:#ffffff30}
 .contact-paper-qr {display:block;width:208px;max-width:100%;outline-offset:5px}
 .contact-paper-qr img {display:block;width:100%;height:auto}
+.contact-paper-note {font-size:14px;line-height:1.6;margin:0;max-width:28em}
 .contact-fan.is-ready {display:block;position:relative;height:650px;isolation:isolate;margin-top:12px}
 .is-ready .contact-paper {position:absolute;width:400px;height:360px;left:calc(50% - 200px);top:80px;padding:24px;transform-origin:50% 100%;transform:translate(calc(var(--slot)*88px),0) rotate(calc(var(--slot)*5deg));z-index:var(--paper-order)}
 .is-ready .contact-paper-tab {position:absolute;top:12px;left:12px;flex-direction:column;gap:6px;min-width:52px;min-height:64px}
 .is-ready .contact-paper-body {visibility:hidden;pointer-events:none;min-height:0;height:100%;padding-top:40px}
 .is-ready .contact-paper.is-active {z-index:20;transform:translate(0,150px) rotate(0deg)}
+.is-ready .contact-paper.is-active:has(.contact-paper-qr) {height:420px}
 .is-ready .contact-paper.is-active .contact-paper-body {visibility:visible;pointer-events:auto}
 .is-ready .contact-paper.is-active .contact-paper-tab {flex-direction:row}
 .is-ready .contact-paper.is-active .contact-paper-tab span {display:none}
@@ -1324,7 +1326,7 @@ html.community-motion-ready [data-community-reveal].is-visible {opacity:1;transf
 @media(max-width:700px) {
  .community-updates>h2 {font-size:32px;margin-bottom:28px}
  .contact-fan {grid-template-columns:1fr}
- .contact-fan.is-ready {height:570px;margin-inline:-8px;margin-top:0}
+ .contact-fan.is-ready {height:620px;margin-inline:-8px;margin-top:0}
  .is-ready .contact-paper {width:120px;height:270px;left:calc(50% - 60px);top:55px;padding:18px;transform:translate(calc(var(--slot)*32px),0) rotate(calc(var(--slot)*1.5deg))}
  .is-ready .contact-paper-tab {left:3px;top:8px;min-width:40px;padding:5px;font-size:10px;gap:5px}
  .contact-paper-tab .community-media-icon {width:26px;height:26px}
