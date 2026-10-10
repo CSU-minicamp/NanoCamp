@@ -16,7 +16,8 @@ if (root) {
     const labels = { page:'社区页面', event:'活动', guide:'共创指南', faq:'常见问题', project:'作品' };
     const types = new Set(['all',...Object.keys(labels)]);
     let type = 'all';
-    let limit = 8;
+    const pageSize = 6;
+    let limit = pageSize;
     let timer;
 
     function highlighted(element, value, terms) {
@@ -46,7 +47,12 @@ if (root) {
       const description = document.createElement('p');
       highlighted(description, resultExcerpt(record, terms), terms);
       const arrow = document.createElement('span'); arrow.className = 'search-result-arrow'; arrow.setAttribute('aria-hidden','true'); arrow.textContent = '↗';
-      link.append(meta,title,description,arrow); item.append(link);
+      const art = document.createElement('span');
+      art.className = `search-card-art search-card-art-${record.type}`;
+      art.setAttribute('aria-hidden','true');
+      const glyphs = { page:'✦', event:'◎', guide:'✎', faq:'?', project:'◇' };
+      art.textContent = glyphs[record.type] || '✦';
+      link.append(meta,title,description,art,arrow); item.append(link);
       return item;
     }
     function updateLocation() {
@@ -76,7 +82,7 @@ if (root) {
       if (expand) results.children[previousCount]?.querySelector('a')?.focus();
     }
     function reset() {
-      input.value=''; type='all'; limit=8; render();
+      input.value=''; type='all'; limit=pageSize; render();
       input.focus({preventScroll:true});
       input.scrollIntoView({block:'center',behavior:'instant'});
     }
@@ -91,18 +97,18 @@ if (root) {
       const params = new URL(location.href).searchParams;
       input.value = (params.get('q') || '').slice(0,120);
       type = types.has(params.get('type')) ? params.get('type') : 'all';
-      limit=8;
+      limit=pageSize;
       render({write:false});
     }
-    form.addEventListener('submit', event => { event.preventDefault(); limit=8; render(); focusResults(); });
-    input.addEventListener('input', event => { clearTimeout(timer); if (!event.isComposing) timer=setTimeout(()=>{limit=8;render();},180); });
-    input.addEventListener('compositionend',()=>{clearTimeout(timer);timer=setTimeout(()=>{limit=8;render();},180);});
-    input.addEventListener('keydown',event=>{if(event.key==='Escape' && !event.isComposing && event.keyCode!==229 && input.value){event.preventDefault();input.value='';limit=8;render();}});
-    clear.addEventListener('click',()=>{input.value='';limit=8;render();input.focus({preventScroll:true});});
+    form.addEventListener('submit', event => { event.preventDefault(); limit=pageSize; render(); focusResults(); });
+    input.addEventListener('input', event => { clearTimeout(timer); if (!event.isComposing) timer=setTimeout(()=>{limit=pageSize;render();},180); });
+    input.addEventListener('compositionend',()=>{clearTimeout(timer);timer=setTimeout(()=>{limit=pageSize;render();},180);});
+    input.addEventListener('keydown',event=>{if(event.key==='Escape' && !event.isComposing && event.keyCode!==229 && input.value){event.preventDefault();input.value='';limit=pageSize;render();}});
+    clear.addEventListener('click',()=>{input.value='';limit=pageSize;render();input.focus({preventScroll:true});});
     root.querySelector('[data-search-reset]').addEventListener('click',reset);
-    buttons.forEach(button=>button.addEventListener('click',()=>{type=button.dataset.searchType;limit=8;render();}));
-    root.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestion;type='all';limit=8;render();input.focus({preventScroll:true});}));
-    more.addEventListener('click',()=>{limit+=8;render({write:false,expand:true});});
+    buttons.forEach(button=>button.addEventListener('click',()=>{type=button.dataset.searchType;limit=pageSize;render();}));
+    root.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestion;type='all';limit=pageSize;render();input.focus({preventScroll:true});}));
+    more.addEventListener('click',()=>{limit+=pageSize;render({write:false,expand:true});});
     window.addEventListener('popstate',hydrate);
     hydrate();
     root.querySelector('[data-search-ui]').hidden=false;
