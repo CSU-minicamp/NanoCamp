@@ -12,6 +12,21 @@
    的锚点与尺寸校验。
    ============================================================================ */
 
+/* Scrollytelling: 页面滚动进度条 */
+body[data-page="home"]::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--blue) 0%, var(--mint) 100%);
+  transform-origin: left;
+  transform: scaleX(var(--scroll-progress, 0));
+  z-index: 9999;
+  transition: transform 0.1s ease-out;
+}
+
 @media (hover: hover) and (pointer: fine) {
 
   /* --- 1. 导航项：下划线从中心向两侧展开 --------------------------------- */
@@ -138,7 +153,7 @@
 
 @keyframes nc-sheen { from { transform: translateX(-180%) skewX(-18deg); } to { transform: translateX(340%) skewX(-18deg); } }
 
-/* 减少动态效果：保留颜色/阴影反馈，去掉位移与扫光 */
+/* 减少动态效果:保留颜色/阴影反馈,去掉位移与扫光 */
 @media (prefers-reduced-motion: reduce) {
   body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: none; }
   body[data-page="home"] .button::before { transition: none; }
@@ -160,3 +175,73 @@
    .no-js .join-fallback{display:inline-flex}（community.css）特异性更高，
    因此关闭 JavaScript 时回退链接仍会显示。 */
 body[data-page="home"] .join-fallback { display: none; }
+
+/* ============================================================================
+   方案 B+C 增强（5 项高级技巧）
+   ============================================================================ */
+
+/* #1 minicamp 活动卡片 3D 翻转 */
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .event-panel {
+    transition: transform .5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .4s ease;
+  }
+  body[data-page="home"] .event-panel:hover {
+    transform: perspective(1000px) rotateY(3deg);
+  }
+  body[data-page="home"] .event-panel:hover .event-visual {
+    transform: rotateY(-3deg);
+  }
+  body[data-page="home"] .event-visual {
+    transition: transform .5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/* #2 作品卡片磁力吸引 - 高光层 */
+body[data-page="home"] .nc-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 255, 255, 0.15),
+    transparent 40%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .project-card:hover .nc-shine {
+    opacity: 1;
+  }
+}
+
+/* #7 弹性物理 - 全局回弹曲线 */
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .button,
+  body[data-page="home"] .project-card,
+  body[data-page="home"] .event-panel,
+  body[data-page="home"] .join-paper,
+  body[data-page="home"] .archive-links > a {
+    transition-timing-function: var(--spring);
+  }
+}
+
+/* #10 边缘发光 - 卡片 hover 时蓝色光晕 */
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .project-card:hover,
+  body[data-page="home"] .event-panel:hover,
+  body[data-page="home"] .archive-links > a:hover {
+    box-shadow:
+      0 0 20px rgba(66, 78, 173, 0.15),
+      0 0 40px rgba(66, 78, 173, 0.1),
+      0 0 60px rgba(66, 78, 173, 0.05),
+      0 20px 36px -22px #2c234052;
+  }
+}
+
