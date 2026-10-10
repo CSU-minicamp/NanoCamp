@@ -1351,3 +1351,10 @@ body[data-page="community"] main .blue-text {color:var(--brand-text-blue);backgr
 @media(max-width:360px) {
  body[data-page="community"] .community-page-hero h1 {font-size:30px}
 }
+
+/* Navigation search submits only on Enter. */
+.nav-search-form { position: relative; display: flex; align-items: center; width: 138px; min-height: 36px; border: 1px solid #cfdded; border-radius: 999px; background: #f1f6fd; padding: 0 12px; }
+.nav-search-form .nav-search-icon { position: absolute; left: 12px; width: 18px; height: 18px; stroke: #688bb8; fill: none; stroke-width: 1.7; pointer-events: none; }
+.nav-search-form input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; padding: 8px 0 8px 26px; color: #405e80; font: inherit; font-size: 14px; }
+.nav-search-form:focus-within { outline: 2px solid #b9d1f6; outline-offset: 2px; }
+.mobile-nav .nav-search-form { width: 100%; }

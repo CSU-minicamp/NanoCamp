@@ -16,7 +16,8 @@ if (root) {
     const labels = { page:'社区页面', event:'活动', guide:'共创指南', faq:'常见问题', project:'作品' };
     const types = new Set(['all',...Object.keys(labels)]);
     let type = 'all';
-    let limit = 8;
+    const pageSize = 6;
+    let limit = pageSize;
     let timer;
 
     function highlighted(element, value, terms) {
@@ -46,7 +47,12 @@ if (root) {
       const description = document.createElement('p');
       highlighted(description, resultExcerpt(record, terms), terms);
       const arrow = document.createElement('span'); arrow.className = 'search-result-arrow'; arrow.setAttribute('aria-hidden','true'); arrow.textContent = '↗';
-      link.append(meta,title,description,arrow); item.append(link);
+      const art = document.createElement('span');
+      art.className = `search-card-art search-card-art-${record.type}`;
+      art.setAttribute('aria-hidden','true');
+      const glyphs = { page:'✦', event:'◎', guide:'✎', faq:'?', project:'◇' };
+      art.textContent = glyphs[record.type] || '✦';
+      link.append(meta,title,description,art,arrow); item.append(link);
       return item;
     }
     function updateLocation() {
@@ -59,7 +65,9 @@ if (root) {
     function render({ write = true, expand = false } = {}) {
       clearTimeout(timer);
       const terms = searchTerms(input.value);
-      const found = searchRecords(records,input.value,type);
+      const hasQuery = terms.length > 0;
+      document.body.dataset.searchState = hasQuery ? 'results' : 'landing';
+      const found = hasQuery ? searchRecords(records,input.value,type) : [];
       const previousCount = results.childElementCount;
       results.replaceChildren(...found.slice(0,limit).map(record => resultNode(record,terms)));
       root.querySelector('[data-search-empty]').hidden = found.length !== 0;
@@ -67,7 +75,7 @@ if (root) {
       clear.hidden = !input.value;
       const shown = Math.min(found.length,limit);
       status.textContent = terms.length ? `找到 ${found.length} 处匹配，已显示 ${shown} 处` : `${found.length} 个内容入口，已显示 ${shown} 个`;
-      root.querySelector('[data-results-title]').textContent = terms.length ? '找到这些可能有用的内容。' : type === 'all' ? '从这里开始探索。' : `探索${labels[type]}。`;
+      root.querySelector('[data-results-title]').textContent = terms.length ? '搜索结果' : type === 'all' ? '从这里开始探索。' : `探索${labels[type]}。`;
       buttons.forEach(button => {
         button.setAttribute('aria-pressed',String(button.dataset.searchType === type));
         button.hidden = button.dataset.searchType !== 'all' && button.dataset.searchType !== type && !records.some(record => record.type === button.dataset.searchType);
@@ -76,33 +84,31 @@ if (root) {
       if (expand) results.children[previousCount]?.querySelector('a')?.focus();
     }
     function reset() {
-      input.value=''; type='all'; limit=8; render();
+      input.value=''; clear.hidden=true;
       input.focus({preventScroll:true});
       input.scrollIntoView({block:'center',behavior:'instant'});
-    }
-    function focusResults() {
-      const empty=root.querySelector('[data-search-empty]');
-      const target=empty.hidden ? root.querySelector('[data-results-title]') : empty.querySelector('h2');
-      target.tabIndex=-1;
-      target.focus({preventScroll:true});
-      target.scrollIntoView({block:'start',behavior:'instant'});
     }
     function hydrate() {
       const params = new URL(location.href).searchParams;
       input.value = (params.get('q') || '').slice(0,120);
       type = types.has(params.get('type')) ? params.get('type') : 'all';
-      limit=8;
+      limit=pageSize;
       render({write:false});
     }
-    form.addEventListener('submit', event => { event.preventDefault(); limit=8; render(); focusResults(); });
-    input.addEventListener('input', event => { clearTimeout(timer); if (!event.isComposing) timer=setTimeout(()=>{limit=8;render();},180); });
-    input.addEventListener('compositionend',()=>{clearTimeout(timer);timer=setTimeout(()=>{limit=8;render();},180);});
-    input.addEventListener('keydown',event=>{if(event.key==='Escape' && !event.isComposing && event.keyCode!==229 && input.value){event.preventDefault();input.value='';limit=8;render();}});
-    clear.addEventListener('click',()=>{input.value='';limit=8;render();input.focus({preventScroll:true});});
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!searchTerms(input.value).length) { input.focus(); return; }
+      const position = { left: window.scrollX, top: window.scrollY, behavior: 'instant' };
+      limit=pageSize; render();
+      window.scrollTo(position);
+    });
+    input.addEventListener('input', () => { clear.hidden = !input.value; });
+    input.addEventListener('keydown',event=>{if(event.key==='Escape' && !event.isComposing && event.keyCode!==229 && input.value){event.preventDefault();input.value='';clear.hidden=true;}});
+    clear.addEventListener('click',()=>{input.value='';clear.hidden=true;input.focus({preventScroll:true});});
     root.querySelector('[data-search-reset]').addEventListener('click',reset);
-    buttons.forEach(button=>button.addEventListener('click',()=>{type=button.dataset.searchType;limit=8;render();}));
-    root.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestion;type='all';limit=8;render();input.focus({preventScroll:true});}));
-    more.addEventListener('click',()=>{limit+=8;render({write:false,expand:true});});
+    buttons.forEach(button=>button.addEventListener('click',()=>{type=button.dataset.searchType;limit=pageSize;render();}));
+    root.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestion;type='all';limit=pageSize;render();input.focus({preventScroll:true});}));
+    more.addEventListener('click',()=>{limit+=pageSize;render({write:false,expand:true});});
     window.addEventListener('popstate',hydrate);
     hydrate();
     root.querySelector('[data-search-ui]').hidden=false;
