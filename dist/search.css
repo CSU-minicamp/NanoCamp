@@ -7,10 +7,17 @@ body[data-page="search"] {
   background: linear-gradient(150deg, #f5f8ff 0%, #edf5ff 36%, #effaf5 75%, #f7faff 100%);
 }
 body[data-page="search"] ::selection { background: #dce9fc; color: #2e4661; }
+body[data-page="search"] .search-landing-logo { display: block; width: min(360px, 65vw); margin-inline: auto; }
+body[data-page="search"]:not([data-search-state="results"]) :is(.search-footer,.back-to-top,.search-type-bar,.search-results-heading,.site-search-results,.directory-empty,.search-more,.search-hero .page-subtitle) { display: none; }
+body[data-page="search"]:not([data-search-state="results"]) #main { min-height: calc(100svh - 88px); display: flex; flex-direction: column; justify-content: flex-start; padding-block: 0; }
+body[data-page="search"]:not([data-search-state="results"]) .search-hero { padding-block: 52px 24px; margin-bottom: 0; }
+body[data-page="search"]:not([data-search-state="results"]) .search-landing-logo { display: block; width: min(360px, 65vw); margin-inline: auto; }
+body[data-page="search"] .search-landing-logo img { width: 100%; height: auto; display: block; mix-blend-mode: multiply; }
+body[data-page="search"]:not([data-search-state="results"]) .site-search { margin-bottom: 0; }
 body[data-page="search"] .search-hero {
   max-width: 1120px;
   text-align: center;
-  padding-block: 72px 38px;
+  padding-block: 52px 24px;
 }
 body[data-page="search"] .search-hero h1 {
   font-family: var(--font);
@@ -49,15 +56,15 @@ body[data-page="search"] .site-search-input > input { font-size: 17px; min-width
 body[data-page="search"] .site-search-input > input::placeholder { color: #6b83a2; font-size: 15px; }
 body[data-page="search"] .site-search-input:focus-within { border-color: #90b1ee; outline: 3px solid #6995f533; outline-offset: 3px; }
 body[data-page="search"] .query-clear { border-radius: 50%; background: #f5f8ff; color: #6889b7; width: 36px; height: 36px; }
-body[data-page="search"] .search-suggestions { display: grid; width: min(100%, 520px); grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; padding-top: 18px; }
-body[data-page="search"] .search-suggestions button { min-height: 32px; padding: 4px 12px; border: 0; border-radius: 6px; background: #e2edff; color: #5879a8; font-size: 13px; }
+body[data-page="search"] .search-suggestions { display: flex; width: min(100%, 620px); justify-content: center; align-items: center; flex-wrap: wrap; gap: 14px; padding-top: 18px; }
+body[data-page="search"] .search-suggestions button { min-height: 32px; padding: 4px 18px; border: 0; border-radius: 6px; background: #e2edff; color: #5879a8; font-size: 13px; }
 body[data-page="search"] .search-suggestions button:hover { background: #d5e5fc; }
-body[data-page="search"] .search-type-bar { display: grid; width: 100%; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; border: 0; padding-top: 0; margin: 58px auto 0; }
+body[data-page="search"] .search-type-bar { display: grid; width: 100%; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; border: 0; padding-top: 0; margin: 36px auto 0; }
 body[data-page="search"] .search-type-bar button { display: flex; justify-content: center; align-items: center; min-height: 42px; padding: 8px 4px; border: 1px solid transparent; border-radius: 999px; background: #edf0f8; color: #65758e; font-size: 14px; }
 body[data-page="search"] .search-type-bar button[aria-pressed="true"] { background: #d5e6fc; color: #3e628e; border-color: #bad2f3; }
 body[data-page="search"] .search-type-bar button:hover { background: #e0eafa; }
 body[data-page="search"] .search-type-bar button::before { display: none; }
-body[data-page="search"] .search-results-heading { margin-block: 54px 22px; align-items: baseline; }
+body[data-page="search"] .search-results-heading { margin-block: 32px 22px; align-items: baseline; }
 body[data-page="search"] .search-results-heading h2 { font-family: var(--font); font-size: 23px; font-weight: 650; color: var(--search-ink); }
 body[data-page="search"] .search-results-heading > [role="status"] { color: var(--search-muted); }
 body[data-page="search"] .site-search-results { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
@@ -113,7 +120,7 @@ body[data-page="search"] .search-footer-wordmark img { display: block; width: 10
   body[data-page="search"] .search-footer-top { grid-template-columns: 1fr; gap: 44px; }
 }
 @media (max-width: 600px) {
-  body[data-page="search"] .search-hero { padding-block: 45px 28px; }
+  body[data-page="search"] .search-hero { padding-block: 36px 22px; }
   body[data-page="search"] .search-hero h1 { font-size: 38px; }
   body[data-page="search"] .search-hero .page-subtitle { font-size: 14px; }
   body[data-page="search"] .site-search-input { min-height: 58px; padding-inline: 16px; gap: 10px; }
@@ -136,3 +143,28 @@ body[data-page="search"] .search-footer-wordmark img { display: block; width: 10
   body[data-page="search"] .search-result { transition: none; }
   body[data-page="search"] .search-result:hover { transform: none; }
 }
+
+body[data-page="search"] .search-suggestions-label { color: var(--search-muted); font-size: 13px; white-space: nowrap; }
+@media (max-width: 600px) {
+  body[data-page="search"]:not([data-search-state="results"]) .search-hero { padding-block: 36px 22px; }
+  body[data-page="search"] .search-suggestions-label { flex-basis: 100%; text-align: center; }
+  body[data-page="search"] .search-suggestions button { padding-inline: 14px; }
+}
+
+/* Keep the logo centre near one quarter of the viewport height. */
+body[data-page="search"] { --search-header-height: 88px; }
+body[data-page="search"] .search-hero,
+body[data-page="search"]:not([data-search-state="results"]) .search-hero {
+  padding-top: max(36px, calc(25svh - var(--search-header-height) - min(44.62px, 8.06vw)));
+  padding-bottom: 24px;
+}
+@media (max-width: 860px) {
+  body[data-page="search"] { --search-header-height: 72px; }
+}
+
+body[data-page="search"][data-search-state="results"] .search-suggestions { display: none; }
+body[data-page="search"][data-search-state="results"] .search-type-bar { margin-top: 24px; }
+
+body[data-page="search"][data-search-state="results"] .search-type-bar { display: none; }
+
+body[data-page="search"]:not([data-search-state="results"]) #main { display: none; }
