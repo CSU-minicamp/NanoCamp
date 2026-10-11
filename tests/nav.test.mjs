@@ -109,7 +109,7 @@ test('桌面导航：首页在最左侧，合作与搜索直接可达', () => {
   ]);
   assert.equal(findFirst(document.body, '.nav-more'), null);
   assert.equal(links[0].text, '首页');
-  assert.equal(links[5].text, '交流合作');
+  assert.equal(links[5].text, '合作');
   assert.equal(links[3].getAttribute('aria-current'), 'page');
   assert.equal(links[0].getAttribute('aria-current'), null);
 });
@@ -150,22 +150,18 @@ test('mount 替换槽位内原有的构建期内容', () => {
   assert.equal(slot.children[2].getAttribute('aria-current'), 'page');
 });
 
-test('页脚底部只有署名：没有动效开关、分享按钮或分享状态区', () => {
+test('页脚底部留空：署名块已移除，且没有动效开关、分享按钮或分享状态区', () => {
   const standard = loadBase({ page: 'projects' }).document.querySelector('[data-nav="footer-bottom"]');
   const bottom = standard.children[0];
   assert.equal(bottom.getAttribute('class'), 'footer-bottom');
-  assert.equal(bottom.children.length, 1, '页脚底部只应有署名');
-  const signoff = canonical(parse(bottom.children[0].serialize()).children[0]);
-  assert.match(signoff, /class="footer-signoff"/);
-  assert.match(signoff, /一个属于学生创造者的社区。/);
-  for (const selector of ['[data-site-motion-toggle]', '.motion-levels', '[data-share-page]', '.share-status', '.share-fallback']) {
+  assert.equal(bottom.children.length, 0, '页脚底部应留空');
+  for (const selector of ['.footer-signoff', '[data-site-motion-toggle]', '.motion-levels', '[data-share-page]', '.share-status', '.share-fallback']) {
     assert.equal(findFirst(standard, selector), null, `页脚底部不应再有 ${selector}`);
   }
 
   const minicamp = loadBase({ page: 'minicamp' }).document.querySelector('[data-nav="footer-bottom"]');
   const minicampBottom = minicamp.children[0];
-  assert.equal(minicampBottom.children.length, 1, 'minicamp 页脚底部同样只有署名');
-  assert.equal(findFirst(minicampBottom, '.footer-signoff-copy').children.length, 2);
+  assert.equal(minicampBottom.children.length, 0, 'minicamp 页脚底部同样留空');
 });
 
 test('页脚导航渲染器已就绪，但页脚顶部仍由构建期输出', () => {

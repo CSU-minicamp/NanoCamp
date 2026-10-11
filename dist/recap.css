@@ -374,10 +374,6 @@ body[data-page="minicamp"] .camp-banner .event-official-link { margin-top:19px; 
 }
 
 /* Minicamp is the campaign page: give its key actions and wayfinding enough visual weight. */
-body[data-page="minicamp"] .footer-top > p {
-  font-size: 19px;
-  line-height: 1.8;
-}
 body[data-page="minicamp"] .event-official-link {
   font-size: 18px;
 }
@@ -419,9 +415,6 @@ body[data-page="minicamp"] .event-cover .media-frame::after {
   }
 }
 @media(max-width:640px) {
-  body[data-page="minicamp"] .footer-top > p {
-    font-size: 17px;
-  }
   body[data-page="minicamp"] .event-official-link {
     font-size: 16px;
   }
@@ -479,8 +472,6 @@ body[data-page="minicamp"] .join-minicamp .join-paper { position: relative; max-
 body[data-page="minicamp"] .join-minicamp .join-paper::before { content: "NANOCAMP / 01"; color: #6f5a24; font: 700 11px/1 var(--mono); letter-spacing: .12em; }
 body[data-page="minicamp"] .join-minicamp .join-paper > strong { margin-block: 20px auto; font-size: 46px; }
 body[data-page="minicamp"] .join-minicamp .join-paper .button { align-self: flex-start; margin-top: 22px; }
-body[data-page="minicamp"] .footer-signoff { position: relative; gap: 14px; padding: 16px 22px; border: 1px solid #b7d8c8; background: linear-gradient(105deg,#effbf4,#edf5ff); color: #295b58; font-size: 18px; font-weight: 600; letter-spacing: .03em; box-shadow: 6px 6px 0 #dcebea; }
-body[data-page="minicamp"] .footer-signoff > i { width: 9px; height: 9px; background: #4f9f80; }
 @keyframes minicamp-join-lines { from { transform: skewX(-12deg) translateX(-4%); } to { transform: skewX(-12deg) translateX(4%); } }
 @media(max-width:860px) { body[data-page="minicamp"] .event-theme-list { grid-template-columns: 1fr; } body[data-page="minicamp"] .join-minicamp .join-inner { gap: 35px; } }
 @media(max-width:640px) {
@@ -498,7 +489,6 @@ body[data-page="minicamp"] .footer-signoff > i { width: 9px; height: 9px; backgr
   body[data-page="minicamp"] .join-minicamp p { font-size: 16px; }
   body[data-page="minicamp"] .join-minicamp .join-paper { min-height: 215px; padding: 26px; }
   body[data-page="minicamp"] .join-minicamp .join-paper > strong { font-size: 37px; }
-  body[data-page="minicamp"] .footer-signoff { font-size: 16px; padding: 14px 17px; }
 }
 @media(prefers-reduced-motion:reduce) { body[data-page="minicamp"] .join-minicamp::before { animation: none; } }
 
@@ -514,20 +504,13 @@ body[data-page="minicamp"] .recap-brand-orbit { position: absolute; z-index: 3; 
 body[data-page="minicamp"] .recap-brand-orbit-a { top: 24px; right: 24%; animation: minicamp-mark-orbit 6s ease-in-out infinite; }
 body[data-page="minicamp"] .recap-brand-orbit-b { bottom: 28px; left: 27%; background: #67b99a; box-shadow: 0 0 0 5px #67b99a26; animation: minicamp-mark-orbit 7s ease-in-out -2s infinite; }
 body[data-page="minicamp"] .recap-brand-label { position: absolute; z-index: 4; bottom: 0; color: #5b8393; font-size: 10px; letter-spacing: .15em; }
-body[data-page="minicamp"] .footer-signoff { gap: 16px; padding: 12px 18px 12px 12px; border: 1px solid #b7d8c8; background: linear-gradient(105deg,#effbf4,#edf5ff); color: #295b58; font-size: 18px; font-weight: 600; letter-spacing: .03em; box-shadow: 7px 7px 0 #dcebea; }
-body[data-page="minicamp"] .footer-signoff-mark { display: grid; place-items: center; width: 58px; height: 58px; flex: 0 0 58px; border-radius: 50%; background: #ffffffaa; box-shadow: inset 0 0 0 1px #b7d8c8; }
-body[data-page="minicamp"] .footer-signoff-mark .brand-asset { width: 47px; height: 47px; animation: minicamp-footer-mark 6s ease-in-out infinite; }
-body[data-page="minicamp"] .footer-signoff-mark .brand-image { width: 100%; height: 100%; object-fit: contain; }
-body[data-page="minicamp"] .footer-signoff-copy { display: grid; gap: 5px; }
-body[data-page="minicamp"] .footer-signoff-kicker { color: #65929a; font-size: 9px; letter-spacing: .14em; }
 @keyframes minicamp-mark-spin { to { transform: rotate(360deg); } }
 @keyframes minicamp-mark-spin-reverse { to { transform: rotate(-360deg); } }
 @keyframes minicamp-mark-float { 0%,100% { transform: translateY(5px) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 @keyframes minicamp-mark-orbit { 0%,100% { transform: translate(0,0); } 50% { transform: translate(12px,-8px); } }
-@keyframes minicamp-footer-mark { 0%,100% { transform: rotate(-3deg) scale(1); } 50% { transform: rotate(4deg) scale(1.08); } }
 @media(max-width:860px) { body[data-page="minicamp"] .recap-intro { min-height: 350px; } body[data-page="minicamp"] .recap-brand-mark { left: 0; bottom: -18px; min-height: 160px; } body[data-page="minicamp"] .recap-brand-mark::before { width: 220px; height: 220px; } body[data-page="minicamp"] .recap-brand-mark::after { width: 158px; height: 158px; } }
-@media(max-width:640px) { body[data-page="minicamp"] .recap-intro { min-height: 0; } body[data-page="minicamp"] .recap-brand-mark { position: relative; left: auto; right: auto; bottom: auto; min-height: 170px; margin-top: 14px; } body[data-page="minicamp"] .recap-brand-mark .brand-asset { width: 112px; height: 112px; } body[data-page="minicamp"] .recap-brand-mark::before { width: 205px; height: 205px; } body[data-page="minicamp"] .recap-brand-mark::after { width: 145px; height: 145px; } body[data-page="minicamp"] .recap-brand-label { font-size: 8px; } body[data-page="minicamp"] .footer-signoff { gap: 11px; padding: 10px 12px 10px 9px; font-size: 15px; } body[data-page="minicamp"] .footer-signoff-mark { width: 49px; height: 49px; flex-basis: 49px; } body[data-page="minicamp"] .footer-signoff-mark .brand-asset { width: 40px; height: 40px; } body[data-page="minicamp"] .footer-signoff-kicker { font-size: 8px; } }
-@media(prefers-reduced-motion:reduce) { body[data-page="minicamp"] .recap-brand-mark::before, body[data-page="minicamp"] .recap-brand-mark::after, body[data-page="minicamp"] .recap-brand-mark .brand-asset, body[data-page="minicamp"] .recap-brand-orbit, body[data-page="minicamp"] .footer-signoff-mark .brand-asset { animation: none; } }
+@media(max-width:640px) { body[data-page="minicamp"] .recap-intro { min-height: 0; } body[data-page="minicamp"] .recap-brand-mark { position: relative; left: auto; right: auto; bottom: auto; min-height: 170px; margin-top: 14px; } body[data-page="minicamp"] .recap-brand-mark .brand-asset { width: 112px; height: 112px; } body[data-page="minicamp"] .recap-brand-mark::before { width: 205px; height: 205px; } body[data-page="minicamp"] .recap-brand-mark::after { width: 145px; height: 145px; } body[data-page="minicamp"] .recap-brand-label { font-size: 8px; } }
+@media(prefers-reduced-motion:reduce) { body[data-page="minicamp"] .recap-brand-mark::before, body[data-page="minicamp"] .recap-brand-mark::after, body[data-page="minicamp"] .recap-brand-mark .brand-asset, body[data-page="minicamp"] .recap-brand-orbit { animation: none; } }
 
 
 /* Minicamp recap brand alignment pass */

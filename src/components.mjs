@@ -45,7 +45,7 @@ export function header(active) {
     <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">${desktopNavigation(active)}</nav>
     <div class="header-actions">${active === 'community' ? '<a class="button button-primary button-small" href="#contact">联系我们</a>' : joinButton(site.join.qrCode || site.join.contact ? '加入社区' : '加入方式', 'button-small')}<button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="打开导航菜单"><span></span><span></span></button></div>
     <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>${mobileNavigation(active)}</nav>
-  </div><div class="reading-progress" data-reading-progress hidden aria-hidden="true"><span></span></div></header>`;
+  </div></header>`;
 }
 
 // 站内导航的数据源是 public/base.js：客户端由它统一渲染，
@@ -57,7 +57,7 @@ const navLinks = [
   { key: 'activities', href: '/activities/', label: '活动' },
   { key: 'projects', href: '/projects/', label: '作品' },
   { key: 'community', href: '/community/', label: '社区' },
-  { key: 'partners', href: '/partners/', label: '交流合作' },
+  { key: 'partners', href: '/partners/', label: '合作' },
   { key: 'search', href: '/search/', label: '站内搜索', search: true }
 ];
 
@@ -96,24 +96,31 @@ export function media({ src, alt = '活动照片', label = '现场照片', id = 
 export function joinSection() {
   const available=Boolean(site.join.qrCode || site.join.contact);
   const paperButton=joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small');
-  return '<section class="join-section join-shared" aria-labelledby="join-heading"><div class="container join-inner"><div><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>' + (available ? joinButton('加入 NanoCamp') : pageLink('/community/','了解参与方式','button-white')) + '</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong>' + paperButton + '</div></div></section>';
+  return '<section class="join-section join-shared" aria-labelledby="join-heading"><div class="container join-inner"><div class="join-copy"><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>' + (available ? joinButton('加入 NanoCamp') : pageLink('/community/','了解参与方式','button-white')) + '</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong>' + paperButton + '</div></div></section>';
 }
 
 export function shareButton(label = '复制页面链接') {
   return `<button type="button" class="page-share-button" data-share-page hidden aria-controls="share-manual"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 10v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-5M5 13H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"/></svg><span data-share-label>${label}</span></button>`;
 }
-export function footer(active) {
-  if (active !== 'search') return sharedFooter();
-  return `<footer class="site-footer search-footer"><div class="container search-footer-inner"><div class="search-footer-top"><div class="search-footer-message"><p class="footer-slogan"><span class="brand-blue">Meet. Build.</span><span class="brand-mint">Make something together.</span></p><div data-nav="footer-bottom"><div class="footer-bottom"><span class="footer-signoff"><i aria-hidden="true"></i>一个属于学生创造者的社区。</span></div></div></div><nav class="search-footer-nav" aria-label="页脚导航"><div><h2>发现</h2><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a></div><div><h2>一起创造</h2><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a></div><div><h2>了解社区</h2><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></div></nav></div><a class="search-footer-wordmark" href="/" aria-label="NanoCamp 首页"><img src="/images/nanocamp-wordmark-1170.webp" alt="NanoCamp" width="1170" height="290" loading="lazy" decoding="async"></a></div></footer>`;
 
-}
-
-// 页脚底部的数据源是 public/base.js：署名同时写死在静态 HTML 里（无 JS 也可见），
-// base.js 载入后用同一份定义原地替换，并由 tests/nav.test.mjs 逐节点比对。
+// 页脚全站统一：口号（双色两行）+ 三栏导航 + 通栏字标，与站内搜索页同款结构。
+// 原来的署名块（图形标志 + WHO WE BUILD WITH）已整块移除，页脚底部留空。
+// [data-nav="footer-bottom"] 槽位保留为空容器：它仍是 base.js 的挂载点契约，
+// 静态 HTML 与客户端渲染的空结构由 tests/nav-build.test.mjs 逐节点比对。
 // 回到顶部浮窗完全由 base.js 在客户端生成，静态 HTML 里没有它的标记。
-function sharedFooter() {
-  const signoffMark = '<span class="footer-signoff"><span class="footer-signoff-mark" aria-hidden="true">' + logoMark('symbol', '', true) + '</span><span class="footer-signoff-copy"><span class="footer-signoff-kicker mono">WHO WE BUILD WITH</span><span>一个属于学生创造者的社区。</span></span></span>';
-  return '<footer class="site-footer footer-shared"><div class="container"><div class="footer-top"><a class="brand" href="/" aria-label="NanoCamp 首页">' + wordmark() + '</a><p>Meet. Build.<br>Make something together.</p><nav aria-label="页脚导航"><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></nav></div><div data-nav="footer-bottom"><div class="footer-bottom">' + signoffMark + '</div></div></div></footer>';
+export function footer() {
+  const nav = '<nav aria-label="页脚导航">'
+    + '<div><h2>发现</h2><a href="/minicamp/">年度 minicamp</a><a href="/activities/">活动总览</a><a href="/projects/">社区作品</a></div>'
+    + '<div><h2>一起创造</h2><a href="/community/">参与指南</a><a href="/resources/">共创资源</a><a href="/partners/">交流合作</a></div>'
+    + '<div><h2>了解社区</h2><a href="/faq/">常见问题</a><a href="/about/">关于我们</a><a href="/search/">站内搜索</a></div>'
+    + '</nav>';
+  const wordmarkImage = '<a class="footer-wordmark" href="/" aria-label="NanoCamp 首页"><img src="/images/nanocamp-wordmark-1170.webp" alt="NanoCamp" width="1170" height="290" loading="lazy" decoding="async"></a>';
+  return '<footer class="site-footer footer-shared"><div class="container"><div class="footer-top">'
+    + '<div class="footer-brand"><p class="footer-slogan"><span class="brand-blue">Meet. Build.</span><span class="brand-mint">Make something together.</span></p>'
+    + '<div data-nav="footer-bottom"><div class="footer-bottom"></div></div></div>'
+    + nav
+    + '</div>' + wordmarkImage
+    + '</div></footer>';
 }
 
 export function dialogs() {
@@ -134,5 +141,5 @@ export function documentPage({ title, description, active, body, route, noindex 
   const favicon = safeUrl(site.symbol === '/images/nanocamp-symbol.png' ? '/images/nanocamp-favicon.png' : site.symbol, true);
   const workshop = ['resources', 'partners'].includes(active);
   const album = !active || ['minicamp','projects'].includes(active);
-  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}${homeAssets}<link rel="stylesheet" href="/interactions.css"><script defer src="/base.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-advanced.js"></script><script defer src="/projects-scroll.js"></script><script defer src="/home-enhancements.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
+  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}${homeAssets}<link rel="stylesheet" href="/interactions.css"><script defer src="/base.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-advanced.js"></script><script defer src="/projects-scroll.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
 }

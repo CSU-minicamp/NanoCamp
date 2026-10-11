@@ -14,24 +14,33 @@
 
 @media (hover: hover) and (pointer: fine) {
 
-  /* --- 1. 导航项：下划线从中心向两侧展开 --------------------------------- */
-  /* 导航链接是 padding:10px 0 的块级元素（实测高 46px，文字底距其底边 14px）。
-     下划线贴链接底边，即文字下方 14px；此前 bottom:22px 会落在 y=44，正好穿过文字。 */
+  /* --- 1. 导航项：下划线从中心向两侧展开 -------------------------------- */
+  /* 首页把 base.css 那条线的起点换成"中心向两侧"，当前页与悬停/键盘聚焦
+     共用同一套几何，因此 hover 与 [aria-current] 之间是宽度过渡、不是换效果。
+     （base.css 里的薄荷纸片已删除，导航的强调只剩这条线。）
+     几何值（bottom/height）与 base.css 的 .desktop-nav a::after 对齐，
+     首页和其余页面看起来才是同一条线。 */
   body[data-page="home"] .desktop-nav > a:not(.nav-search) { position: relative; }
   body[data-page="home"] .desktop-nav > a:not(.nav-search)::after {
-    content: ""; position: absolute; left: 50%; right: 50%; bottom: 0; height: 1.5px;
+    content: ""; position: absolute; left: 50%; right: 50%; bottom: 4px; height: 2px;
     background: var(--blue); transition: left .34s var(--ease), right .34s var(--ease);
   }
-  body[data-page="home"] .desktop-nav > a:not(.nav-search):is(:hover, :focus-visible)::after { left: 0; right: 0; }
+  body[data-page="home"] .desktop-nav > a:not(.nav-search):is(:hover,:focus-visible)::after,
+  body[data-page="home"] .desktop-nav > a:not(.nav-search)[aria-current]::after { left: 0; right: 0; }
 
   /* --- 2. 导航「更多」：箭头轻移一格 ------------------------------------ */
   body[data-page="home"] .nav-more:hover summary svg { transform: translateY(2px); }
   body[data-page="home"] .nav-more[open]:hover summary svg { transform: rotate(180deg) translateY(-2px); }
 
   /* --- 3. 主按钮：上浮 + 双亮带斜扫 + 内描边追光 + 加号翻转 ------------- */
-  /* 只加伪元素和 hover/focus 态：按钮自身的尺寸、圆角、配色、字号一个都不动。 */
-  body[data-page="home"] .button { position: relative; overflow: hidden; }
-  body[data-page="home"] .button::after {
+  /* 只加伪元素和 hover/focus 态：按钮自身的尺寸、圆角、配色、字号一个都不动。
+     :not(.header-actions *) 把顶栏那枚「加入方式」排除在外——它是实心靛蓝的
+     方纸片，带自己的硬投影与抬起（见 collage.css），而这里的柔光投影 + translateY
+     特异性更高（0,3,1 > 0,3,0），会把它整条盖掉。排除之后，这枚按钮在首页与
+     其余页面表现一致；斜扫高光本来也是圆角按钮的路数，扫在方纸片上只会糊掉边缘。 */
+
+  body[data-page="home"] .button:not(.header-actions *) { position: relative; overflow: hidden; }
+  body[data-page="home"] .button:not(.header-actions *)::after {
     content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 62%; pointer-events: none;
     /* collage.css 有 .button::before,.button::after{display:none}，同特异性靠后加载取胜，
        这里必须显式恢复，否则扫光层被整条隐藏。 */
@@ -41,33 +50,27 @@
     transform: translateX(-180%) skewX(-18deg);
   }
   /* 内描边从下往上"画"出来，白色按钮与实心按钮都吃 currentColor */
-  body[data-page="home"] .button::before {
+  body[data-page="home"] .button:not(.header-actions *)::before {
     content: ""; position: absolute; inset: 4px; display: block; pointer-events: none;
     border: 1px solid currentColor; border-radius: inherit; opacity: .4;
     clip-path: inset(0 0 100% 0); transition: clip-path .42s var(--ease);
   }
-  body[data-page="home"] .button:is(:hover, :focus-visible) {
+  body[data-page="home"] .button:not(.header-actions *):is(:hover, :focus-visible) {
     transform: translateY(-2px);
     box-shadow: 0 12px 24px -14px #222d3e59, 0 0 0 5px #245fd61f;
   }
-  body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: nc-sheen .95s var(--ease); }
-  body[data-page="home"] .button:is(:hover, :focus-visible)::before { clip-path: inset(0); }
+  body[data-page="home"] .button:not(.header-actions *):is(:hover, :focus-visible)::after { animation: nc-sheen .95s var(--ease); }
+  body[data-page="home"] .button:not(.header-actions *):is(:hover, :focus-visible)::before { clip-path: inset(0); }
   /* + 号不转：details.css 的 90° 对「+」本来就看不出来，这里一并按掉，保持静止。 */
-  body[data-page="home"] .button .button-plus { transform: none; }
+  body[data-page="home"] .button:not(.header-actions *) .button-plus { transform: none; }
 
   /* --- 4. 文字链接：下划线长展开 + 箭头位移 ----------------------------- */
   body[data-page="home"] .text-link { position: relative; }
   body[data-page="home"] .text-link:is(:hover, :focus-visible) .link-arrow { transform: translate(3px, -3px); }
   body[data-page="home"] .link-arrow { transition: transform .3s var(--ease); }
 
-  /* --- 5. 首屏回顾链接 / 活动条：底部实线展开 + 背景泛色 ----------------- */
-  body[data-page="home"] .b-recap { position: relative; }
-  body[data-page="home"] .b-recap::after {
-    content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1.5px;
-    background: #4944a1; transform: scaleX(0); transform-origin: left;
-    transition: transform .36s var(--ease);
-  }
-  body[data-page="home"] .b-recap:is(:hover, :focus-visible)::after { transform: scaleX(1); }
+  /* --- 5. 活动条：底部背景泛色 + 内移 ----------------------------------- */
+  /* 首屏那两个 CTA（.b-cta）自己带硬阴影与抬起，不在这里做。 */
   body[data-page="home"] .b-event { transition: background-color .3s var(--ease), padding-inline .3s var(--ease); }
   /* 底色画在 ::before 上并通到视口两边（见 hero.css），元素自身不留底色，
      否则会出现一块左右留空的浅色方块。文字仍与正文对齐，hover 时只内移 14px。 */
@@ -76,9 +79,13 @@
   body[data-page="home"] .b-event .b-event-open svg { transition: transform .3s var(--ease); }
   body[data-page="home"] .b-event:is(:hover, :focus-visible) .b-event-open svg { transform: translate(3px, -3px); }
 
-  /* --- 6. 朋友便签：轻微转正 + 抬起 ------------------------------------- */
-  body[data-page="home"] .b-note { transition: transform .4s var(--ease), box-shadow .4s var(--ease); }
-  body[data-page="home"] .b-note:is(:hover, :focus-within) { transform: rotate(-1deg) translateY(-5px); box-shadow: 0 18px 26px -16px #30291c7a; }
+  /* --- 6. 朋友便签：把硬阴影推开一格 ----------------------------------- */
+  /* 便签现在是硬阴影的黄纸（hero.css 里静止态 7px 7px 0 #b7d8c4），再叠一层柔光会和
+     中缝的硬边打架，所以悬停只把同一块硬阴影推远，手感与 .join-paper 的悬停一致。
+     位移动效不在这里做：/intro/ 里 float-soft 动画已经占着 transform，
+     这里的转正/抬起会被动画盖掉，写了也不生效。 */
+  body[data-page="home"] .b-note { transition: box-shadow .4s var(--ease); }
+  body[data-page="home"] .b-note:is(:hover, :focus-within) { box-shadow: 12px 14px 0 #a9cdb9; }
 
   /* --- 7. 绿色卡片：印章标志轻微放大 ------------------------------------ */
   body[data-page="home"] .b-sheet-mint .brand-asset { transition: transform .5s var(--ease); }
@@ -115,9 +122,8 @@
   body[data-page="home"] .event-panel:hover { transform: translateY(-4px); box-shadow: 0 22px 40px -26px #2c23404d; }
 
   /* --- 12. 加入区卡片：抬起 + 微转 -------------------------------------- */
-  /* 静止态是 home.css 里的硬阴影，悬停时把阴影推远一点，保持"贴纸"的手感。 */
-  body[data-page="home"] .join-paper { transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
-  body[data-page="home"] .join-paper:hover { transform: rotate(-1.2deg) translateY(-5px); box-shadow: 16px 16px 0 #a9cdb9; }
+  /* 已升级为全站行为，搬进 base.css 的「收尾区」——加入区现在是 34 个页面共用的
+     同一个区块，悬停手感不该只有首页有。这里不再重复定义。 */
 
   /* --- 13. 页脚导航：下划线从中心展开 ----------------------------------- */
   body[data-page="home"] .footer-top nav a { position: relative; }
@@ -138,20 +144,18 @@
 
 @keyframes nc-sheen { from { transform: translateX(-180%) skewX(-18deg); } to { transform: translateX(340%) skewX(-18deg); } }
 
-/* 减少动态效果：保留颜色/阴影反馈，去掉位移与扫光 */
+/* 减少动态效果:保留颜色/阴影反馈,去掉位移与扫光 */
 @media (prefers-reduced-motion: reduce) {
-  body[data-page="home"] .button:is(:hover, :focus-visible)::after { animation: none; }
-  body[data-page="home"] .button::before { transition: none; }
-  body[data-page="home"] .button:is(:hover, :focus-visible),
+  body[data-page="home"] .button:not(.header-actions *):is(:hover, :focus-visible)::after { animation: none; }
+  body[data-page="home"] .button:not(.header-actions *)::before { transition: none; }
+  body[data-page="home"] .button:not(.header-actions *):is(:hover, :focus-visible),
   body[data-page="home"] .project-card:is(:hover, :focus-within),
   body[data-page="home"] .event-panel:hover,
-  body[data-page="home"] .join-paper:hover,
   body[data-page="home"] .archive-links > a:hover,
   body[data-page="home"] .b-note:is(:hover, :focus-within),
   body[data-page="home"] .b-sheet-mint:is(:hover, :focus-within) .brand-asset,
   body[data-page="home"] .media-open:hover img { transform: none; }
-  body[data-page="home"] .community-row::before,
-  body[data-page="home"] .b-recap::after { transition: none; }
+  body[data-page="home"] .community-row::before { transition: none; }
   body[data-page="home"] .archive-links > a:hover { clip-path: none; }
 }
 
@@ -160,3 +164,72 @@
    .no-js .join-fallback{display:inline-flex}（community.css）特异性更高，
    因此关闭 JavaScript 时回退链接仍会显示。 */
 body[data-page="home"] .join-fallback { display: none; }
+
+/* ============================================================================
+   方案 B+C 增强（5 项高级技巧）
+   ============================================================================ */
+
+/* #1 minicamp 活动卡片 3D 翻转 */
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .event-panel {
+    transition: transform .5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .4s ease;
+  }
+  body[data-page="home"] .event-panel:hover {
+    transform: perspective(1000px) rotateY(3deg);
+  }
+  body[data-page="home"] .event-panel:hover .event-visual {
+    transform: rotateY(-3deg);
+  }
+  body[data-page="home"] .event-visual {
+    transition: transform .5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/* #2 作品卡片磁力吸引 - 高光层 */
+body[data-page="home"] .nc-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 255, 255, 0.15),
+    transparent 40%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .project-card:hover .nc-shine {
+    opacity: 1;
+  }
+}
+
+/* #7 弹性物理 - 全局回弹曲线 */
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .button:not(.header-actions *),
+  body[data-page="home"] .project-card,
+  body[data-page="home"] .event-panel,
+  body[data-page="home"] .archive-links > a {
+    transition-timing-function: var(--spring);
+  }
+}
+
+/* #10 边缘发光 - 卡片 hover 时蓝色光晕 */
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="home"] .project-card:hover,
+  body[data-page="home"] .event-panel:hover,
+  body[data-page="home"] .archive-links > a:hover {
+    box-shadow:
+      0 0 20px rgba(66, 78, 173, 0.15),
+      0 0 40px rgba(66, 78, 173, 0.1),
+      0 0 60px rgba(66, 78, 173, 0.05),
+      0 20px 36px -22px #2c234052;
+  }
+}
+

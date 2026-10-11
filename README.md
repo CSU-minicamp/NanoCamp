@@ -58,9 +58,9 @@ npm run dev
 
 ## 文件说明
 
-- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；构建期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索保留简洁页脚且不追加加入区。
-- `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、交流合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。静态模板与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
-- `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；内容页的加入区使用 `join-shared`，首页保留专属加入区与 `home.css` 样式；页脚通过 `footer-shared` 保持各页一致，搜索页除外。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。
+- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；构建期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索沿用同一页脚，但同样不追加加入区。
+- `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。静态模板与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
+- `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；内容页的加入区使用 `join-shared`，首页保留专属加入区与 `home.css` 样式；页脚通过 `footer-shared` 保持各页一致（搜索页也用它，只是同样不追加加入区）。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
 - `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
 - `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
@@ -69,7 +69,7 @@ npm run dev
 - `public/hero.css`、`public/hero.js`：B 版首屏海报与入场动效，仅在首页加载。
 - `public/interactions.css`：**首页专属**的鼠标交互层（导航下划线、按钮柔光、卡片抬起、封面推近等 15 项）。所有规则都限定在 `body[data-page="home"]`，其他页面不受影响。由 `documentPage()` 用 `<link>` 引入，**不要改成 `collage.css` 里的 `@import`**：该文件开头已有 `@font-face`，而 CSS 规定 `@import` 必须位于所有规则之前，否则整条被浏览器丢弃，交互会静默失效。规则包在 `@media(hover:hover) and (pointer:fine)` 内，只用 transform / 颜色 / 阴影 / 伪元素，不改变布局。
 - `public/collage.css`：当前纸张拼贴视觉的全站样式、字体声明和响应式细节。
-- `public/details.css`、`public/details.js`：全站共享的按钮、卡片、照片框、弹窗、阅读进度与滚动入场（导航/页脚/浮窗样式已移到 `public/base.css`）。动效偏好只跟随系统的 `prefers-reduced-motion`：「暂停全站动效」按钮已移除，`window.NanoCampMotion` 仍暴露 `stopped` / `subscribe` 供社区页、相册与合作页判断。
+- `public/details.css`、`public/details.js`：全站共享的按钮、卡片、照片框与弹窗（导航/页脚/浮窗样式已移到 `public/base.css`）。动效偏好只跟随系统的 `prefers-reduced-motion`：「暂停全站动效」按钮与滚动入场已移除，正文元素不做初始隐藏；`window.NanoCampMotion` 仍暴露 `stopped` / `subscribe` 供社区页、相册与合作页判断。
 - `public/styles.css`：颜色、排版、组件与响应式样式。
 - `public/app.js`：弹窗、图片查看、复制及图片失败处理（导航交互已移至 `public/base.js`）。
 - `scripts/build.mjs`：生成 `dist` 中的静态网站。
@@ -80,11 +80,11 @@ npm run dev
 
 `npm run build` 后执行 `npm run check` 进行基础检查。活动日期、地点、照片、项目资料和入群方式仍为明确占位。
 
-首屏动画在素材就绪后播放一次（等待上限 1.8 秒），不提供重播或暂停控件。入场落座后，三张纸转入幅度 7px 极轻浮沉（`float-soft`，与各自终态旋转对齐，衔接不跳变）。系统开启“减少动态效果”时展示静态完整版，并同样关闭滚动入场与其他装饰动效。关闭 JavaScript 后品牌与内容仍可见。
+首屏动画在素材就绪后播放一次（等待上限 1.8 秒），不提供重播或暂停控件。入场落座后，三张纸转入幅度 7px 极轻浮沉（`float-soft`，与各自终态旋转对齐，衔接不跳变）。系统开启“减少动态效果”时展示静态完整版，并同时关闭其他装饰动效。关闭 JavaScript 后品牌与内容仍可见。
 
-页脚提供全站动效开关，与首屏暂停、重播保持同步。偏好使用本地 `nanocamp-motion-paused` 设置跨页保存；浏览器禁止存储时，当页操作仍可用。系统的减少动态效果设置优先。`details.js` 在 `hero.js` 之前加载，通过 `window.NanoCampMotion` 共享状态。
+全站动效不提供手动开关，只跟随系统的减少动态效果设置：`window.NanoCampMotion` 的 `stopped` 为真时，`body` 会带上 `motion-stopped` 整站停用装饰动效。`details.js` 在 `hero.js` 之前加载，通过 `window.NanoCampMotion` 共享状态。
 
-所有新增反馈均为渐进增强：按钮按压波纹会自动清理，卡片光泽只在精确指针移动时刷新，阅读进度随滚动更新，屏幕下方内容进入视口后仅显露一次。占位内容维持不可点击；只有已填写的照片和链接提供查看、跳转等操作。项目封面、活动照片补齐后，会自动使用新的照片缩放与查看提示。
+所有新增反馈均为渐进增强：按钮按压波纹会自动清理，卡片光泽只在精确指针移动时刷新。占位内容维持不可点击；只有已填写的照片和链接提供查看、跳转等操作。项目封面、活动照片补齐后，会自动使用新的照片缩放与查看提示。
 
 ## 作品列表与详情
 

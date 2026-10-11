@@ -27,12 +27,14 @@
 | `collage.css` | `var(--display)` | 2 | `h1,h2,h3`、`.row-label` |
 | `collage.css` | `var(--latin)` | 11 | `.event-page-hero h1`、`.community-badge b`、`.ticket-number strong` |
 | `collage.css` | `var(--font)` | 1 | `.guide-template pre` |
+| `collage.css` | `var(--mono)` | 1 | `.intro-kicker` |
 | `community.css` | `var(--mono)` | 6 | `.program-card::after`、`.ticket-number strong`、`.ticket-cut` |
 | `details.css` | `var(--mono)` | 1 | `.media-label > span:last-child` |
 | `discovery.css` | `var(--mono)` | 1 | `.missing-art` |
 | `gallery.css` | `var(--latin)` | 1 | `.album-thumbnails button>span` |
-| `hero.css` | `var(--display)` | 3 | `.b-intro h1`、`.b-mint-caption strong`、`.b-note-title` |
-| `hero.css` | `var(--latin)` | 3 | `.b-sheet-top>span:last-child`、`.b-print`、`.b-sheet-bottom` |
+| `hero.css` | `var(--display)` | 3 | `.b-intro h1`、`.b-sheet-mint .b-sheet-bottom`、`.b-lower>p` |
+| `hero.css` | `var(--latin)` | 5 | `.b-sheet-top>span:last-child`、`.b-print`、`.b-sheet-bottom`、`.b-note-print`、`.b-event-name` |
+| `hero.css` | `var(--mono)` | 1 | `.b-note-label` |
 | `partners.css` | `var(--display)` | 3 | `.collab-case-sheet h3>span`、`.collab-detail-header h2`、`.collab-detail-header h2>span` |
 | `partners.css` | `var(--latin),var(--display)` | 2 | `.collab-case--lilac h3`、`.collab-case--lilac .collab-detail-heade…` |
 | `partners.css` | `var(--latin)` | 1 | `.collab-case--yellow h3` |
@@ -175,29 +177,29 @@
 | --- | --- |
 | `backdrop-arrive` | `details.css` |
 | `collab-place` | `partners.css` |
-| `community-curve-enter` | `collage.css` |
 | `community-orbit` | `community.css` |
 | `community-paper-drift` | `collage.css` |
 | `community-soft-enter` | `collage.css` |
 | `dialog-arrive` | `details.css` |
 | `float-soft` | `hero.css` |
-| `mark-in` | `hero.css` |
 | `menu-unfold` | `details.css` |
 | `minicamp-breathe` | `recap.css` |
-| `minicamp-footer-mark` | `recap.css` |
 | `minicamp-join-lines` | `recap.css` |
 | `minicamp-mark-float` | `recap.css` |
 | `minicamp-mark-orbit` | `recap.css` |
 | `minicamp-mark-spin` | `recap.css` |
 | `minicamp-mark-spin-reverse` | `recap.css` |
+| `minicamp-orbit-dial` | `recap.css` |
 | `minicamp-photo-sweep` | `recap.css` |
 | `minicamp-signal` | `recap.css` |
 | `minicamp-stamp` | `recap.css` |
 | `minicamp-star` | `recap.css` |
 | `minicamp-sweep` | `recap.css` |
 | `minicamp-track` | `recap.css` |
+| `nc-join-lines` | `base.css` |
 | `nc-sheen` | `interactions.css` |
 | `note-in` | `hero.css` |
+| `paper-pulse` | `collage.css` |
 | `photo-arrive` | `gallery.css` |
 | `photo-dot` | `gallery.css` |
 | `sheet-one` | `hero.css` |
@@ -216,28 +218,29 @@
 | `.album-photo` | `gallery.css` | `photo-arrive .25s ease both` |
 | `.collab-case-sheet` | `partners.css` | `collab-place .85s var(--ease) backwards` |
 | `.collab-detail[open]` | `partners.css` | `none` |
+| `.join-paper` | `collage.css` | `paper-pulse 4s ease-in-out infinite`（被 `base.css` 的 `animation:none` 关掉） |
 | `.missing-orbit` | `collage.css` | `none` |
 | `.missing-orbit i` | `collage.css` | `none` |
 | `.mobile-nav:not([hidden])` | `details.css` | `menu-unfold .3s var(--detail-ease) both` |
 | `.motion-stopped *, .motion-stopped *::before, .m…` | `details.css` | `none !important` |
 | `.photo-loader i` | `gallery.css` | `photo-dot 1.1s ease-in-out infinite` |
-| `.poster-b.is-intro .b-mark-wrap` | `hero.css` | `mark-in 1s .15s var(--ease) both` |
+| `.poster-b.is-intro .b-sheet-mint .b-print` | `hero.css` | `wordmark-in .9s .38s var(--ease) both` |
 | `.poster-b.is-intro .b-note` | `hero.css` | `note-in .85s .2s var(--ease) both,float-soft 4.6s ease-in-out 1.05s in…` |
 | `.poster-b.is-intro .b-sheet-lilac` | `hero.css` | `sheet-one 1s var(--ease) both,float-soft 4.6s ease-in-out 1s infinite` |
 | `.poster-b.is-intro .b-sheet-mint` | `hero.css` | `sheet-two 1.1s .1s var(--ease) both,float-soft 4.6s ease-in-out 1.2s i…` |
 | `.site-header .brand-asset` | `hero.css` | `wordmark-in .8s .2s var(--ease) both` |
 | `.tap-wave` | `details.css` | `tap-wave .58s var(--detail-ease) both` |
+| `body .join-section::before` | `base.css` | `nc-join-lines 12s linear infinite` |
 | `body.motion-stopped .activity-orbit` | `community.css` | `none` |
 | `body.motion-stopped .collab-case-sheet,body.moti…` | `partners.css` | `none` |
 | `body[data-page="minicamp"] .camp-banner > strong` | `recap.css` | `minicamp-breathe 5s ease-in-out infinite` |
 | `body[data-page="minicamp"] .camp-banner::before` | `recap.css` | `minicamp-sweep 6s ease-in-out infinite` |
-| `body[data-page="minicamp"] .community-help::afte…` | `recap.css` | `minicamp-star 8s linear infinite` |
+| `body[data-page="minicamp"] .community-help::afte…` | `recap.css` | `minicamp-orbit-dial 14s linear infinite`（同选择器后段覆盖前段的 `minicamp-star`） |
 | `body[data-page="minicamp"] .edition-stamp` | `recap.css` | `minicamp-stamp 7s ease-in-out infinite` |
 | `body[data-page="minicamp"] .event-cover .media-f…` | `recap.css` | `minicamp-photo-sweep 7s ease-in-out infinite` |
 | `body[data-page="minicamp"] .event-page-hero .tit…` | `recap.css` | `minicamp-star 6s var(--ease) infinite` |
 | `body[data-page="minicamp"] .event-page-hero::aft…` | `recap.css` | `minicamp-track 8s linear infinite` |
 | `body[data-page="minicamp"] .event-page-hero::bef…` | `recap.css` | `minicamp-signal 5s var(--ease) infinite` |
-| `body[data-page="minicamp"] .footer-signoff-mark …` | `recap.css` | `minicamp-footer-mark 6s ease-in-out infinite` |
 | `body[data-page="minicamp"] .join-minicamp::befor…` | `recap.css` | `minicamp-join-lines 12s linear infinite` |
 | `body[data-page="minicamp"] .recap-brand-mark .br…` | `recap.css` | `minicamp-mark-float 5s ease-in-out infinite` |
 | `body[data-page="minicamp"] .recap-brand-mark::af…` | `recap.css` | `minicamp-mark-spin-reverse 15s linear infinite` |
@@ -249,7 +252,7 @@
 
 ### 3.3 谁在驱动过渡
 
-共 130 个选择器声明了 `transition`。
+共 138 个选择器声明了 `transition`。
 
 | 选择器 | 声明文件 | transition 值 |
 | --- | --- | --- |
@@ -285,10 +288,9 @@
 | `.connection-label` | `workshop.css` | `transform .45s` |
 | `.content-placeholder` | `details.css` | `border-color .3s` |
 | `.copy-status` | `details.css` | `color .2s` |
-| `.desktop-nav a` | `details.css` | `color .2s` |
-| `.desktop-nav a::after` | `details.css` | `transform .35s var(--detail-ease)` |
-| `.desktop-nav a::after` | `styles.css` | `transform .2s` |
-| `.desktop-nav a::before` | `details.css` | `opacity .25s, transform .4s var(--detail-ease)` |
+| `.desktop-nav a` | `base.css` | `color .22s var(--ease)` |
+| `.desktop-nav a::after` | `base.css` | `transform .35s var(--detail-ease)` |
+| `.desktop-nav a::after` | `interactions.css` | `left .34s var(--ease), right .34s var(--ease)`（仅首页） |
 | `.dialog-close` | `details.css` | `background .25s, transform .4s var(--detail-ease), border-color .25s` |
 | `.ecosystem-foot a span` | `community.css` | `transform .3s` |
 | `.edition-stamp` | `details.css` | `transform .6s var(--detail-ease), box-shadow .4s` |
@@ -313,6 +315,7 @@
 | `.guide-cover>b` | `workshop.css` | `transform .5s` |
 | `.guide-next a>span` | `workshop.css` | `transform .3s` |
 | `.guide-toc nav a` | `workshop.css` | `background .2s,color .2s` |
+| `.header-actions .button` | `collage.css` | `transform .3s,box-shadow .3s,background-color .2s`（均为 `var(--ease)`） |
 | `.hero-recap-link, .chapter-link, .motion-button,…` | `details.css` | `color .2s, background .2s` |
 | `.join-symbol` | `details.css` | `transform 1s var(--detail-ease)` |
 | `.learning-arrow` | `workshop.css` | `transform .3s` |
@@ -336,6 +339,7 @@
 | `.motion-stopped *, .motion-stopped *::before, .m…` | `details.css` | `none !important` |
 | `.nav-more summary svg` | `collage.css` | `transform .2s` |
 | `.nav-more-panel a` | `collage.css` | `background .18s,color .18s` |
+| `.nav-search-form` | `collage.css` | `border-color .25s var(--ease), background-color .25s var(--ease)` |
 | `.page-share-button svg` | `discovery.css` | `transform .3s` |
 | `.program-card` | `community.css` | `transform .35s var(--detail-ease),box-shadow .35s,border-color .35s` |
 | `.program-card::after` | `community.css` | `transform .35s,opacity .35s` |
@@ -354,7 +358,6 @@
 | `.recap-nav-links a` | `collage.css` | `background-color .2s,color .2s` |
 | `.recap-nav-links a` | `recap.css` | `color .2s` |
 | `.recap-nav-links a i` | `recap.css` | `transform .3s` |
-| `.reveal-pending` | `details.css` | `opacity .75s var(--detail-ease), transform .75s var(--detail-ease)` |
 | `.role-card` | `community.css` | `box-shadow .3s,border-color .3s` |
 | `.role-resource-link>span` | `community.css` | `transform .3s` |
 | `.row-action b` | `collage.css` | `transform .25s` |
@@ -391,11 +394,11 @@
 | `body[data-page="minicamp"] .event-official-link …` | `recap.css` | `transform .25s var(--ease)` |
 | `body[data-page="minicamp"] .event-official-link:…` | `recap.css` | `transform .5s var(--ease)` |
 | `body[data-page="minicamp"] .event-theme-item` | `recap.css` | `transform .25s var(--ease), box-shadow .25s var(--ease)` |
-| `html.community-motion-ready [data-community-reve…` | `collage.css` | `opacity .65s ease,transform .65s cubic-bezier(.2,.7,.2,1)` |
 
 ## 四、无障碍与降级
 
 - 所有装饰动效都有对应的 `@media (prefers-reduced-motion: reduce)` 规则，系统开启「减少动态效果」时静态呈现。
 - 站内另有页脚「暂停全站动效」开关，通过 body 的 `.motion-stopped` 类整站停用（定义在 `details.js`，状态存 `nanocamp-motion-paused`）。
 - 交互层 `interactions.css` 全部包在 `@media (hover: hover) and (pointer: fine)` 内，触摸设备不启用；其规则限定 `body[data-page="home"]`，只作用于首页。
-- 关闭 JavaScript 后内容仍可见：`html.no-js` 控制回退显示，`html:not(.progress-ready)` 保证滚动入场元素不会停在透明状态。
+- 关闭 JavaScript 后内容仍可见：`html.no-js` 只控制回退链接的显示；正文内容不依赖脚本渲染。
+- 页面内容不做「滚到哪展开到哪」的入场隐藏——正文元素不设初始 `opacity:0`，首屏与滚动途中都直接可见，因此脚本被禁用或报错时页面不会出现空白区块。

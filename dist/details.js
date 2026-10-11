@@ -4,7 +4,6 @@
   const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
   const listeners = new Set();
   const waves = new Map();
-  const revealTimers = new Map();
   let surfaceFrame = 0;
   let activeSurface;
   let pointerX = 0, pointerY = 0;
@@ -14,12 +13,6 @@
     clearTimeout(waves.get(wave));
     waves.delete(wave);
     wave.remove();
-  }
-  function finishReveal(element) {
-    clearTimeout(revealTimers.get(element));
-    revealTimers.delete(element);
-    element.classList.remove('reveal-pending', 'is-visible');
-    element.style.removeProperty('--reveal-delay');
   }
   function resetSurface() {
     cancelAnimationFrame(surfaceFrame);
@@ -32,7 +25,6 @@
     document.body.classList.toggle('motion-stopped', stopped());
     if (stopped()) {
       waves.forEach((_, wave) => removeWave(wave));
-      document.querySelectorAll('.reveal-pending').forEach(finishReveal);
       resetSurface();
     }
     listeners.forEach(listener => listener());
@@ -96,52 +88,23 @@
   });
   finePointer.addEventListener('change', resetSurface);
 
+  // 页头滚动状态：只切 is-scrolled（原来的进度条已去除，不再需要每帧算比例）。
   const header = document.querySelector('.site-header');
-  const progress = document.querySelector('[data-reading-progress]');
   let scrollFrame = 0;
-  function paintProgress() {
+  function paintScrollState() {
     scrollFrame = 0;
-    const range = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    const value = range > 0 ? Math.min(1, Math.max(0, scrollY / range)) : 0;
-    progress.style.setProperty('--read-progress', value.toFixed(4));
     header.classList.toggle('is-scrolled', scrollY > 12);
   }
-  function scheduleProgress() { if (!scrollFrame && !document.hidden) scrollFrame = requestAnimationFrame(paintProgress); }
-  progress.hidden = false;
-  window.addEventListener('scroll', scheduleProgress, { passive: true });
-  window.addEventListener('resize', scheduleProgress, { passive: true });
-  if ('ResizeObserver' in window) new ResizeObserver(scheduleProgress).observe(document.body);
-  scheduleProgress();
+  function scheduleScrollState() { if (!scrollFrame && !document.hidden) scrollFrame = requestAnimationFrame(paintScrollState); }
+  window.addEventListener('scroll', scheduleScrollState, { passive: true });
+  scheduleScrollState();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       waves.forEach((_, wave) => removeWave(wave));
       resetSurface();
       cancelAnimationFrame(scrollFrame);
       scrollFrame = 0;
-    } else scheduleProgress();
+    } else scheduleScrollState();
   });
 
-  // Only below-the-fold elements enter; markup remains complete without JS.
-  if ('IntersectionObserver' in window && !stopped()) {
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        observer.unobserve(entry.target);
-        if (stopped()) { finishReveal(entry.target); return; }
-        entry.target.classList.add('is-visible');
-        revealTimers.set(entry.target, setTimeout(() => finishReveal(entry.target), 1000));
-      });
-    }, { threshold: .06, rootMargin: '0px 0px -20px 0px' });
-    document.querySelectorAll('.section-top, .values-row article, .event-panel, .project-card, .moments-grid figure, .event-gallery figure, .recap-body, .origin-copy, .belief-list article, .welcome-type, .join-inner > div:first-child, .event-detail-facts > div').forEach(element => {
-      if (element.getBoundingClientRect().top < innerHeight * .94 || element.parentElement.closest('.reveal-pending')) return;
-      element.classList.add('reveal-pending');
-      const order = [...element.parentElement.children].indexOf(element);
-      element.style.setProperty('--reveal-delay', `${Math.min(order, 2) * 65}ms`);
-      observer.observe(element);
-    });
-    document.addEventListener('focusin', event => {
-      const pending = event.target.closest('.reveal-pending');
-      if (pending) { observer.unobserve(pending); finishReveal(pending); }
-    });
-  }
 })();

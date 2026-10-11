@@ -6,22 +6,21 @@
    ============================================================================ */
 
 /* --- 1. 整页一张背景：hero 之外的所有区块共用它，章节之间不留接缝 ---------- */
-/* html 先落底色，body 的背景就不会被提升成画布背景（那样百分比尺寸会按视口算）。
-   于是 body 的这张背景按整页盒子铺开：斜带与网格跨章节连续，不再一段一块。 */
-html { background-color: #faf9fe; }
+/* 颜色直接取自 logo 本身的双色：标志左半 #7ab9fd（天蓝）、右半 #7cdab3（薄荷绿）。
+   两者兑淡到接近纸白之后做一条自上而下的蓝→绿渐变，整页就这一层，没有斜带也没有网格。
+   html 先落底色，body 的背景就不会被提升成画布背景（那样百分比尺寸会按视口算），
+   于是 body 的这张渐变按整页盒子铺开，跨章节连续、不留接缝。
+   注：hero 是 <iframe src="/intro/">，海报文档自带不透明底色，首屏那一屏会盖住渐变顶端；
+   渐变铺满整个 body 盒子，所以滚过首屏后看到的是它偏上的一段（接近天蓝），越往下越偏薄荷。 */
+html { background-color: #e6f2fc; }
 body[data-page="home"] {
-  background-color: #faf9fe;
-  background-image:
-    linear-gradient(118deg, transparent 0 12%, #e8f2ff 12% 26%, transparent 26%),
-    linear-gradient(154deg, transparent 0 34%, #fdf1d8 34% 46%, transparent 46%),
-    linear-gradient(124deg, transparent 0 54%, #e2f1e9 54% 70%, transparent 70%),
-    linear-gradient(166deg, transparent 0 78%, #e6f0fb 78% 93%, transparent 93%),
-    repeating-linear-gradient(90deg, transparent 0 118px, #cfe0ec3d 118px 119px);
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
-  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, auto;
+  background-color: #e6f2fc;
+  background-image: linear-gradient(180deg, #e5f1ff 0%, #e6f4f8 40%, #e4f6ee 72%, #e3f6e9 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
-/* hero 之外的区块不再自带底色，统一露出上面这张背景 */
-body[data-page="home"] .site-footer { background: transparent; }
+/* hero 之外的区块不再自带底色，统一露出上面这张背景。
+   页脚不在此列：它与加入区合成一条薄荷收尾带，底色由 base.css 统一给（见「收尾区」）。 */
 
 /* --- 2. 分隔线统一成 minicamp 的蓝绿细线 ---------------------------------- */
 body[data-page="home"] .community-rows,
@@ -31,6 +30,15 @@ body[data-page="home"] .community-intro-strip {
 }
 body[data-page="home"] .community-ecosystem {
   border-block-color: #bcd7df;
+  /* 这个区块在 collage.css 里自带一层不透明薄荷底 #e5f3ec。上面第 1 节把整页改成一张
+     连续渐变之后，那层底就成了一条横贯页面的硬边色块，把渐变截断。这里让它也露出背景。 */
+  background: transparent;
+}
+/* 底色去掉之后还剩一条硬边：这个区块自带的 ::before 是两团径向柔光（见 collage.css），
+   absolute inset:0 正好贴着区块边框起止，柔光在边界那一行从零直接跳到满值。右上那团
+   最强，实测单行跳 11~15/255。给它加一层上下渐隐的遮罩，柔光淡入淡出，边界就看不出来了。 */
+body[data-page="home"] .community-ecosystem::before {
+  mask-image: linear-gradient(180deg, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
 }
 
 /* --- 3. 小标签字体：等宽字距 + 硬边标签块 --------------------------------- */
@@ -112,70 +120,14 @@ body[data-page="home"] .archive-links b {
   letter-spacing: .05em;
 }
 
-/* --- 4. join-section：照搬 minicamp 的分段背景（字号不动） ---------------- */
-body[data-page="home"] .join-section {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: transparent;
-}
-/* collage.css 里有 .join-section::before/::after{display:none}，同特异性靠后加载取胜，
-   这里必须显式恢复 display，否则两条背景层都被整条隐藏。 */
-body[data-page="home"] .join-section::before {
-  content: "";
-  display: block;
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(90deg, transparent 0 18%, #ffffff75 18% 18.2%, transparent 18.2% 100%),
-    linear-gradient(28deg, transparent 0 52%, #ffffff72 52% 52.3%, transparent 52.3% 100%),
-    repeating-linear-gradient(90deg, transparent 0 92px, #5da1a933 92px 93px);
-  transform: skewX(-12deg) scale(1.2);
-  animation: nc-join-lines 12s linear infinite;
-}
-body[data-page="home"] .join-section::after {
-  content: "KEEP BUILDING";
-  display: block;
-  position: absolute;
-  right: 7%;
-  bottom: 16px;
-  color: #27655a;
-  font: 700 11px/1 var(--mono);
-  letter-spacing: .18em;
-  opacity: .7;
-}
-/* 内容再往内收一点：背景整屏铺开之后，贴着容器边缘会显得局促 */
-body[data-page="home"] .join-section .join-inner {
-  padding-inline: clamp(0px, 4.5vw, 68px);
-}
-/* 黄纸压在整页背景上，用 minicamp 同款的描边 + 硬阴影把层次拎开 */
-body[data-page="home"] .join-paper {
-  border: 1px solid #b2913f;
-  box-shadow: 12px 12px 0 #b7d8c4;
-}
-
-/* --- 5. 动效 ----------------------------------------------------------------- */
-@keyframes nc-join-lines {
-  from { transform: skewX(-12deg) translateX(-4%); }
-  to { transform: skewX(-12deg) translateX(4%); }
-}
+/* --- 4. 加入区：这套样式已升为全站标准，搬进 base.css 的「收尾区」 --------
+   原来首页在这里单独画分段背景、斜纹层、右下角小签和纸卡阴影，其余页面另有一套；
+   既然两版要统一，就只留 base.css 那一份，首页不再保留副本（含 nc-join-lines 关键帧）。 */
 
 /* --- 6. 响应式：小屏把网格和斜带都收窄一点 ---------------------------------- */
 @media (max-width: 640px) {
-  body[data-page="home"] {
-    background-image:
-      linear-gradient(118deg, transparent 0 10%, #e8f2ff 10% 24%, transparent 24%),
-      linear-gradient(154deg, transparent 0 32%, #fdf1d8 32% 44%, transparent 44%),
-      linear-gradient(124deg, transparent 0 52%, #e2f1e9 52% 68%, transparent 68%),
-      linear-gradient(166deg, transparent 0 76%, #e6f0fb 76% 92%, transparent 92%),
-      repeating-linear-gradient(90deg, transparent 0 72px, #cfe0ec2e 72px 73px);
-  }
   body[data-page="home"] .row-label::before { width: 14px; }
   body[data-page="home"] .row-action b { width: 25px; height: 25px; }
-  body[data-page="home"] .join-section .join-inner { padding-inline: 0; }
-  body[data-page="home"] .join-paper { box-shadow: 7px 7px 0 #b7d8c4; }
-  body[data-page="home"] .join-section::after { right: 5%; bottom: 12px; }
 }
 
 /* --- 8. 活动面板：媒体框不再横向溢出压住右栏文字 ---------------------------- */
@@ -200,9 +152,7 @@ body[data-page="home"] .home-camp .event-copy {
   z-index: 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  body[data-page="home"] .join-section::before { animation: none; }
-}
+/* 加入区的 reduce-motion 处理已随样式一起搬进 base.css。 */
 
 /* --- 7. 首页作品区：横向滚动（卡片数据与滚动参数见 content/home-showcase*.json） --- */
 body[data-page="home"] .projects-scroller {
