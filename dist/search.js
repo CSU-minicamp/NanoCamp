@@ -16,6 +16,7 @@ if (root) {
     const labels = { page:'社区页面', event:'活动', guide:'共创指南', faq:'常见问题', project:'作品' };
     const types = new Set(['all',...Object.keys(labels)]);
     let type = 'all';
+    let submittedQuery = '';
     const pageSize = 6;
     let limit = pageSize;
     let timer;
@@ -57,17 +58,17 @@ if (root) {
     }
     function updateLocation() {
       const url = new URL(location.href);
-      const query = input.value.trim();
+      const query = submittedQuery.trim();
       query ? url.searchParams.set('q',query) : url.searchParams.delete('q');
       type === 'all' ? url.searchParams.delete('type') : url.searchParams.set('type',type);
       try { history.replaceState(null,'',url); } catch { /* Search still works without history access. */ }
     }
     function render({ write = true, expand = false } = {}) {
       clearTimeout(timer);
-      const terms = searchTerms(input.value);
+      const terms = searchTerms(submittedQuery);
       const hasQuery = terms.length > 0;
       document.body.dataset.searchState = hasQuery ? 'results' : 'landing';
-      const found = hasQuery ? searchRecords(records,input.value,type) : [];
+      const found = hasQuery ? searchRecords(records,submittedQuery,type) : [];
       const previousCount = results.childElementCount;
       results.replaceChildren(...found.slice(0,limit).map(record => resultNode(record,terms)));
       root.querySelector('[data-search-empty]').hidden = found.length !== 0;
@@ -91,6 +92,7 @@ if (root) {
     function hydrate() {
       const params = new URL(location.href).searchParams;
       input.value = (params.get('q') || '').slice(0,120);
+      submittedQuery = input.value;
       type = types.has(params.get('type')) ? params.get('type') : 'all';
       limit=pageSize;
       render({write:false});
@@ -99,6 +101,7 @@ if (root) {
       event.preventDefault();
       if (!searchTerms(input.value).length) { input.focus(); return; }
       const position = { left: window.scrollX, top: window.scrollY, behavior: 'instant' };
+      submittedQuery = input.value;
       limit=pageSize; render();
       window.scrollTo(position);
     });
@@ -107,7 +110,7 @@ if (root) {
     clear.addEventListener('click',()=>{input.value='';clear.hidden=true;input.focus({preventScroll:true});});
     root.querySelector('[data-search-reset]').addEventListener('click',reset);
     buttons.forEach(button=>button.addEventListener('click',()=>{type=button.dataset.searchType;limit=pageSize;render();}));
-    root.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestion;type='all';limit=pageSize;render();input.focus({preventScroll:true});}));
+    root.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestion;submittedQuery=input.value;type='all';limit=pageSize;render();input.focus({preventScroll:true});}));
     more.addEventListener('click',()=>{limit+=pageSize;render({write:false,expand:true});});
     window.addEventListener('popstate',hydrate);
     hydrate();
@@ -115,6 +118,7 @@ if (root) {
     root.querySelector('[data-search-fallback]').hidden=true;
     if (location.hash === '#site-query') input.focus();
   } catch {
+    delete document.body.dataset.searchState;
     root.querySelector('[data-search-ui]').hidden=true;
     root.querySelector('[data-search-fallback]').hidden=false;
     root.querySelector('[data-search-error]').hidden=false;

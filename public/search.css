@@ -167,4 +167,4 @@ body[data-page="search"][data-search-state="results"] .search-type-bar { margin-
 
 body[data-page="search"][data-search-state="results"] .search-type-bar { display: none; }
 
-body[data-page="search"]:not([data-search-state="results"]) #main { display: none; }
+body[data-page="search"][data-search-state="landing"] #main { display: none; }
