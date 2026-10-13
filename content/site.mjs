@@ -1,6 +1,8 @@
 // 所有实际资料都在这里维护。图片放在 public/images/，路径填 /images/文件名。
 export const site = {
   name: 'NanoCamp',
+  // 正式域名，用于 canonical、Open Graph、结构化数据、sitemap.xml 与 robots.txt。
+  // 只在这一处维护；换域名改这里即可。
   url: 'https://nanocamp-community.zjun27256.chatgpt.site/',
   slogan: 'Meet. Build. Make something together.',
   chineseSlogan: '让有趣的人相遇，让相遇的人一起创造。',

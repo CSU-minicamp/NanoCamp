@@ -1,6 +1,8 @@
 # NanoCamp 官网
 
-十四个页面：首页、首届 minicamp 回顾、活动总览、作品、参与指南、常见问题、关于社区、共创资源、四篇独立指南、交流合作、站内搜索，另有专用 404 页面。使用静态页面，无需安装依赖。活动和项目真实资料集中在 `content/site.mjs`，全年活动形式与 FAQ 在 `content/community.mjs`。
+十四个页面：首页、首届 minicamp 回顾、活动总览、作品、参与指南、常见问题、关于社区、共创资源、四篇独立指南、交流合作、站内搜索，另有专用 404 页面。页面由 Node.js 后端在请求到达时生成，无需安装依赖。活动和项目真实资料集中在 `content/site.mjs`，全年活动形式与 FAQ 在 `content/community.mjs`。
+
+> **迁移进行中**：目前只有首页（含首屏海报）、`sitemap.xml`、`robots.txt` 与 404 页由后端生成，其余页面访问会返回 404，用来直观显示进度。详见「部署」一节的迁移说明。
 
 ## 本地预览
 
@@ -12,24 +14,174 @@ cd NanoCamp
 npm run dev
 ```
 
-打开终端输出的本地地址，默认是 `http://127.0.0.1:4187`。修改源文件后执行 `npm run build` 并刷新页面。
+打开终端输出的本地地址（默认绑本机所有网卡、端口 `8080`，由 `data/config.json` 决定）。页面在请求到达时渲染，改完 `src/`、`public/`、`content/` 刷新即可看到，不需要重新构建（`npm run dev` 用 `node --watch` 自动重启）。本机开发想只对自己开放就在 `data/config.json` 里写 `"host": "127.0.0.1"`，见「部署」一节。
 
 ## 协作开发与发布
 
-本次交接包含已发布官网第 18 版的源码、原始 Logo、字体及授权文件、构建产物和测试，来源提交为 `427b06374cc3f47b8067662bfbb2f3489025e458`。网站采用原生 HTML、CSS、JavaScript 和 Node.js 静态页面生成脚本。
+本次交接包含已发布官网第 18 版的源码、原始 Logo、字体及授权文件、构建产物和测试，来源提交为 `427b06374cc3f47b8067662bfbb2f3489025e458`。网站采用原生 HTML、CSS 与 JavaScript；页面由 Node.js 在后端渲染，不依赖任何第三方包。
 
 | 命令 | 用途 |
 | --- | --- |
-| `npm run dev` | 构建页面并启动本地预览 |
-| `npm run build` | 从源码与内容数据重新生成 `dist/` |
-| `npm run check` | 检查脚本语法、页面、资源、锚点与元信息 |
-| `npm test` | 运行内容、图片与站内搜索的回归测试 |
+| `npm run dev` | 启动动态服务，改文件自动重启 |
+| `npm start` | 只启动动态服务 |
+| `npm run build` | 生成 `dist/` 静态产物（旧静态托管流程，见「部署」） |
+| `npm run preview` | 构建并用旧静态服务预览 `dist/` |
+| `npm run check` | 检查服务端语法、页面、资源、锚点与元信息 |
+| `npm test` | 运行内容、图片、站内搜索与后端路由的回归测试 |
 
-开发时修改 `src/`、`public/` 和 `content/`，然后重新构建；直接编辑 `dist/` 的改动会在构建时被覆盖。当前仓库保留 `dist/`，提交功能改动前请一并更新对应构建产物，并执行 `npm run check` 和 `npm test`。多人协作可以从 `main` 创建功能分支，再通过 Pull Request 合并。
+开发时只需修改 `src/`、`public/` 和 `content/`，刷新页面即可生效。多人协作可以从 `main` 创建功能分支，再通过 Pull Request 合并，合并前执行 `npm run check` 和 `npm test`。
 
 当前视觉为 B 版纸张拼贴海报：`public/collage.css` 定义全站最终配色、字体和组件样式，`public/hero.css` 定义首屏。它们会覆盖前面加载的基础样式；调整视觉时先检查这两个文件。`public/fonts/` 保留精简标题字库、备用字库和字体许可证，来源与字形范围记录在 `FONT-SOURCES.txt`。
 
-发布时构建并上传 `dist/` 到静态托管服务，配置目录路由和自定义 `404.html`。网站资源使用以 `/` 开头的路径，应部署在域名根路径；更换正式域名时修改 `content/site.mjs` 的 `site.url` 后重新构建。`.openai/hosting.json` 是现有 Sites 站点的托管配置，普通本地开发不依赖该平台。GitHub 推送与现有 `chatgpt.site` 网站发布是独立操作，本仓库尚未配置自动部署。
+## 部署
+
+站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有 npm 依赖、没有构建步骤**，`git clone` 完就能跑。
+
+本地试跑：
+
+```sh
+git clone https://github.com/CSU-minicamp/NanoCamp.git
+cd NanoCamp
+npm start
+```
+
+### 配置：`data/config.json`
+
+只有一个配置入口：`data/config.json`。整个 `data/` 目录不进版本库，所以在服务器上直接改它，不会影响任何人的 clone。
+
+```json
+{ "host": "0.0.0.0", "port": 38083, "name": "Nanocamp-test" }
+```
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `host` | `0.0.0.0` | 监听地址。默认绑本机所有网卡（含它自己的 IP），部署后直接可访问；本机开发想只对自己开放就写 `"127.0.0.1"` |
+| `port` | `8080` | 监听端口 |
+| `name` | `nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
+
+文件不存在、只写一个字段、或某个字段类型写错，都用默认值兜住，服务照常启动。没有别的启动参数 —— 不读环境变量，也没有示例文件，直接改这一个 JSON 即可。两个实例（不同端口）就放两份 clone，各自写自己的 `data/config.json`。
+
+### 服务器部署（systemd）
+
+`data/` 不进版本库，所以 `git clone` 之后**必须手动建配置文件**，否则会用默认的 `0.0.0.0:8080` 且实例名为 `nanocamp`。
+
+```sh
+# 1) 确认 Node 版本（不需要 npm install）
+node -v                                   # 需要 >= 20
+which node                                # 记下路径，下一步 ExecStart 要用
+
+# 2) 拉代码。每个实例一份独立 clone：实例名 = 目录名 = systemd 的 %i
+sudo mkdir -p /srv && cd /srv
+sudo git clone https://github.com/CSU-minicamp/NanoCamp.git NanoCamp-test
+
+# 3) 写实例配置
+cd /srv/NanoCamp-test
+sudo mkdir -p data
+sudo tee data/config.json >/dev/null <<'JSON'
+{
+  "host": "127.0.0.1",
+  "port": 38083,
+  "name": "Nanocamp-test"
+}
+JSON
+
+# 4) 装 systemd 模板单元：%i 就是实例名，同时决定工作目录 /srv/%i
+sudo tee /etc/systemd/system/nanocamp@.service >/dev/null <<'UNIT'
+[Unit]
+Description=NanoCamp 动态站点（%i）
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/%i
+ExecStart=/usr/bin/node backend/main.mjs
+User=www-data
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+# 5) 启动并设为开机自启
+sudo systemctl daemon-reload
+sudo systemctl enable --now nanocamp@Nanocamp-test
+
+# 6) 验证
+systemctl status nanocamp@Nanocamp-test --no-pager
+journalctl -u nanocamp@Nanocamp-test -n 40 --no-pager
+curl -sS -D- -o/dev/null http://127.0.0.1:38083/ | head -3
+curl -sS -o/dev/null -w '%{http_code}\n' http://127.0.0.1:38083/about/   # 期望 404（还没迁移）
+```
+
+要起第二个实例（不同端口）：再 clone 一份到 `/srv/<另一个名字>`，改它自己的 `data/config.json`，然后 `systemctl enable --now nanocamp@<另一个名字>`。日志天然按 unit 分开。
+
+**更新代码**：
+
+```sh
+cd /srv/NanoCamp-test && sudo git pull && sudo systemctl restart nanocamp@Nanocamp-test
+```
+
+没有 `npm install`、没有构建产物要同步。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
+
+### 反向代理与 HTTPS
+
+服务本身不处理 HTTPS，证书与 443 交给反向代理；`host` 设成 `127.0.0.1` 时 Node 不对外暴露，只有同机 nginx 能访问，这是推荐配置。
+
+```nginx
+server {
+  listen 80;
+  server_name test.example.com;
+
+  location / {
+    proxy_pass http://127.0.0.1:38083;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+```sh
+sudo ln -s /etc/nginx/sites-available/nanocamp-test /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d test.example.com          # 上 HTTPS
+```
+
+如果不想用 nginx、要直接用 `IP:端口` 访问，就把 `data/config.json` 的 `host` 改成 `"0.0.0.0"`，并在防火墙放行该端口（如 `sudo ufw allow 38083/tcp`）。
+
+网站资源使用以 `/` 开头的路径，没有子路径支持，必须部署在域名根路径。换正式域名时改 `content/site.mjs` 的 `site.url`（它决定 canonical、Open Graph 与 `sitemap.xml`），这份文件进版本库，所以在测试实例上改会被下一次 `git pull` 覆盖。
+
+### 日志
+
+进程只往 **stdout / stderr** 写日志，不自己开文件、不管理日志轮转 —— 这些交给外部工具做。所以日志能不能看到，取决于谁接管了这两条流：
+
+```sh
+# systemd：stdout/stderr 自动进 journald，日志带时间戳、按 unit 分开、支持 -f 跟随
+journalctl -u nanocamp@Nanocamp-test -f
+journalctl -u nanocamp@Nanocamp-test --since today
+#   /etc/systemd/journald.conf 设 Storage=persistent 可让日志跨重启保留
+
+# 不用 systemd 时的裸后台运行：必须自己重定向，否则会话一断输出就没了
+node backend/main.mjs >> logs/app.log 2>&1 &
+```
+
+裸重定向到文件时行首只有 `[name]` 没有时间戳，需要时间的话用 systemd（journald 自带），或自己包一层 `ts`。`SIGTERM` / `SIGINT` 会先停止接收新连接、把在途请求处理完再退出，所以 systemd 重启不会丢请求；配合 `Restart=always` 就是完整的守护方案。
+
+
+
+### 迁移进度：未迁移的页面返回 404
+
+后端**不接管 `dist/`**。只做了首页（`/`、`/intro/`）、`sitemap.xml`、`robots.txt` 与 404 页；其余页面一律返回 404，因此访问一遍就能直观看到还有哪些没做，服务启动日志也会把未迁移路由全部列出来。
+
+响应头 `x-nanocamp-source` 标明每次请求的来源：`dynamic` 请求期渲染、`asset` 来自 `public/`、`unmigrated` 页面还没迁移、`notfound` 地址确实不存在、`redirect` 301 补斜杠。
+
+迁移方式：在 `backend/app.mjs` 的 `dynamicRoutes` 里加一条（例如 `['/about/', () => renderPage('/about/')]`），那一页立刻生效，不需要改动其他逻辑。全部迁移完成后即可删除 `dist/`、`scripts/build.mjs`、`scripts/serve.mjs`，并移除 `npm run build` 与 `npm run preview`。
+
+`dist/` 与那两条命令目前只服务于「临时用旧静态方式发布」这一条退路：`npm run preview` 仍然是完整可用的静态版本（含全部页面），可以拿来和动态版逐页比对。
+
 
 ## 替换真实资料
 
@@ -54,11 +206,16 @@ npm run dev
 - `formats`、`offers`、`requests`：合作方向与双方支持的初稿，可直接改标题和说明；实际合作安排由双方另行确认。
 - `email`：合作邮箱为 `qmzjyyds@163.com`，点击后复制到剪贴板。复制受浏览器限制时会选中邮箱供手动复制；没有邮箱时明确显示「合作邮箱待补充」。
 
-`src/partners.mjs` 负责页面，`public/partners.css` 和 `public/partners.js` 仅在合作页加载。点击品牌卡片会放大为居中的详情卡片，支持关闭按钮、点击遮罩、Esc 关闭与键盘焦点循环；减少动态效果或暂停全站动效后立即展示详情。关闭 JavaScript 时，合作详情直接显示，卡片仍可跳转到对应记录。联系区的本地草稿工具由 `src/partner-draft.mjs` 和 `public/workshop.js` 提供，输入与选项变化会实时同步到预览；填写主题后可复制或下载，清空后可撤销。共享页脚将标语放在 Logo 下方，标题与标语采用 Logo 的蓝色与薄荷绿。网站不会代发邮件或提交申请。修改后运行 `npm run build`、`npm run check` 和 `npm test`。
+`src/partners.mjs` 负责页面，`public/partners.css` 和 `public/partners.js` 仅在合作页加载。点击品牌卡片会放大为居中的详情卡片，支持关闭按钮、点击遮罩、Esc 关闭与键盘焦点循环；减少动态效果或暂停全站动效后立即展示详情。关闭 JavaScript 时，合作详情直接显示，卡片仍可跳转到对应记录。联系区的本地草稿工具由 `src/partner-draft.mjs` 和 `public/workshop.js` 提供，输入与选项变化会实时同步到预览；填写主题后可复制或下载，清空后可撤销。共享页脚将标语放在 Logo 下方，标题与标语采用 Logo 的蓝色与薄荷绿。网站不会代发邮件或提交申请。修改后运行 `npm run check` 和 `npm test`。
 
 ## 文件说明
 
-- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；构建期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索保留简洁页脚且不追加加入区。
+- `backend/app.mjs`：服务端渲染核心，导出 `handleRequest({ method, url, headers })`，返回 `{ status, headers, body }`，与 HTTP 服务器解耦、可直接单测。解析顺序为「派生文件 → 动态页面 → 目录补斜杠 → `public/` 资源 → 404」，**不接管 `dist/`**。响应头 `x-nanocamp-source` 标明来源（`dynamic` / `asset` / `unmigrated` / `notfound` / `redirect`）。不读配置、不碰端口。
+- `backend/base.mjs`：站点的**唯一文件系统出口** —— `assetRoot`、后缀到 Content-Type 的映射表、`readFileWithin()` 与 `readAsset()`。请求进入 `handleRequest` 后先过 `safeRoute()`（拒绝 `\0`、`.`/`..` 段与含 `\` 的段，回 400），再由 `readFileWithin` 兜住最后一层。
+- **路径安全规则**：任何由 URL 推导出的文件路径都必须经 `readFileWithin()` 读，它把路径 `path.resolve` 展开后要求仍落在允许的根目录内，因此 `/../package.json`、`/images/../../x` 以及 Windows 风格的 `..\..\x` 都读不到目录外的文件；`decodeURI`（而非 `decodeURIComponent`）保证编码过的 `/`（`%2F`）不会被还原成分隔符。更好的做法是根本不让 URL 决定文件路径 —— 能让内容来自 `content/` 里的内存数据就别落磁盘。另外注意 `public/` 下的任何文件都是公开可下载的，别往里放密钥。
+- `backend/main.mjs`：入口。读 `data/config.json` 的 `host`/`port`/`name`，监听端口、`SIGTERM`/`SIGINT` 优雅退出，并在启动时打印访问地址与迁移进度。日志只走 stdout / stderr，每行带 `[name]` 前缀，由外部（systemd / 重定向）接管。
+- `data/config.json`：实例配置（`host` / `port` / `name` 三个字段），整个 `data/` 目录不进版本库。服务启动时读一次。
+- `src/components.mjs`：卡片、媒体、弹窗与文档外壳；请求期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索保留简洁页脚且不追加加入区。
 - `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、交流合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。静态模板与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
 - `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；内容页的加入区使用 `join-shared`，首页保留专属加入区与 `home.css` 样式；页脚通过 `footer-shared` 保持各页一致，搜索页除外。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
@@ -72,8 +229,8 @@ npm run dev
 - `public/details.css`、`public/details.js`：全站共享的按钮、卡片、照片框、弹窗、阅读进度与滚动入场（导航/页脚/浮窗样式已移到 `public/base.css`）。动效偏好只跟随系统的 `prefers-reduced-motion`：「暂停全站动效」按钮已移除，`window.NanoCampMotion` 仍暴露 `stopped` / `subscribe` 供社区页、相册与合作页判断。
 - `public/styles.css`：颜色、排版、组件与响应式样式。
 - `public/app.js`：弹窗、图片查看、复制及图片失败处理（导航交互已移至 `public/base.js`）。
-- `scripts/build.mjs`：生成 `dist` 中的静态网站。
-- `scripts/serve.mjs`：仅绑定本机地址的预览服务。
+- `scripts/build.mjs`：生成 `dist` 中的静态网站。后端不读它，这里只保留「临时用旧静态方式发布」这条退路，以及和动态版逐页比对的基准。
+- `scripts/serve.mjs`：仅绑定本机地址的静态预览服务（`npm run preview`）。迁完之后由 `backend/main.mjs` 取代。
 - `scripts/check.mjs`：验证生成的页面与资源链接。
 - `scripts/inspect.mjs`：页面几何自检（`npm run inspect`，可带路由参数）。让页面自行测量关键元素的坐标并渲染成文本，再用 headless 截图取回，输出到 `verify/`。这台机器上 Chrome 的主进程 IPC 走命名管道，受限令牌沙箱禁止跨进程打开命名管道，因此无法用 DevTools 协议驱动真实滚动；这个脚本是那类测量的替代办法。
 - `scripts/verify-home-scope.mjs`：首页隔离自检（`npm run verify:scope`）。逐页比对，确认交互层与文案改动只落在首页、其他页面的共享行为与还原前一致。`verify/` 只是本地排查产物，不要提交。
@@ -109,7 +266,7 @@ npm run dev
 - `content/guides.mjs`：四篇通用共创指南、分节正文、准备清单、纯文本模板与外部官方学习入口。
 - `src/learning.mjs`：资源中心及指南页面；`src/partners.mjs`：交流合作页面。
 - `public/workshop.css` / `public/workshop.js` 仅在资源与合作页加载。
-- 构建时自动生成 `dist/downloads/*-template.txt`，下载链接不依赖 JavaScript。
+- 模板下载 `dist/downloads/*-template.txt` 目前仍由静态构建生成。资源页迁到后端时，应把它一并改成请求期输出，否则删掉 `dist/` 后这些下载链接会失效。下载链接本身不依赖 JavaScript。
 - 准备清单按指南存储在 `nanocamp-checklist-<slug>-v1` 本地键中。仅存勾选项标识；浏览器不允许存储时，本页仍可使用并显示说明。
 - 合作工具只在当前页面生成文本，没有网络提交、数据库写入或自动保存。生成后可复制或下载；输入修改后需要重新生成；清空后可撤销。不要把此工具的文案改成「提交成功」或「申请已收到」，除非另外接入并验证真实接收流程。
 - 官方学习链接核实于 2026-10-02。社区指南为通用准备建议，不代表某一届 minicamp 的实际规则。
