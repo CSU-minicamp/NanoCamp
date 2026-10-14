@@ -9,7 +9,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const dist = path.join(root, 'dist');
+// 探针页写进 public/ —— 动态服务直接提供这个目录，所以只要 npm start 开着就能访问到。
+// 以前写进 dist/，那是静态构建时代的做法，dist 正在被去掉。
+const probeRoot = path.join(root, 'public');
 const outDir = path.join(root, 'verify');
 const port = Number(process.env.PORT || 4187);
 
@@ -108,7 +110,7 @@ function finish() {
 </script></body></html>`;
 
 mkdirSync(outDir, { recursive: true });
-const probePath = path.join(dist, '__scope.html');
+const probePath = path.join(probeRoot, '__scope.html');
 writeFileSync(probePath, probe(PAGES), 'utf8');
 const shot = path.join(outDir, 'scope.png');
 

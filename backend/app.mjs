@@ -15,6 +15,7 @@ import {types, readAsset} from './base.mjs';
 import {routePaths, renderPage, renderNotFound} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
 import {canonicalUrl} from '../src/metadata.mjs';
+import {guides} from '../content/guides.mjs';
 
 /**
  * 全站唯一的缓存策略：一律 no-cache。
@@ -25,13 +26,32 @@ const cacheControl = 'no-cache';
 // ======================= 动态路由表（迁移进度） =======================
 
 /**
+ * 已迁移的普通页面：首页、7 个栏目、以及 4 篇共创指南。
+ * 它们都由 src/pages.mjs 的 renderPage 统一渲染，所以这里只列路由，不重复写渲染函数。
+ */
+const pageRoutes = [
+  '/',
+  '/about/',
+  '/activities/',
+  '/community/',
+  '/faq/',
+  '/minicamp/',
+  '/partners/',
+  '/resources/',
+  '/resources/from-idea-to-demo/',
+  '/resources/find-your-team/',
+  '/resources/demo-story/',
+  '/resources/host-a-sharing/',
+];
+
+/**
  * 已迁移到请求期渲染的路由：键是路由路径，值是「零参数、返回完整 HTML 字符串」的函数。
  *
  * 每迁移一个页面就在这里加一行即可 —— 动态路由优先级高于其他分支，加完不需要改动别处。未列在这里的路由会走到 404 分支（见 pendingRoutes）。
  */
 const dynamicRoutes = new Map([
-  ['/', () => renderPage('/')],  // 首页：由 src/pages.mjs 的 home() 组合首屏海报、活动、社区、作品与加入区。
-  ['/intro/', renderIntroPage],  // 首页首屏海报：首页用 iframe 嵌入它，所以它属于「首页」这一批。
+  ['/intro/', renderIntroPage],  // 首页首屏海报：首页用 iframe 嵌入它，渲染方式与普通页面不同，所以单独列出。
+  ...pageRoutes.map(route => [route, () => renderPage(route)]),
 ]);
 
 /** 还没迁移、因此会返回 404 的站点路由，响应头会标记为 unmigrated，以便和「地址确实不存在」区分开；启动日志也会列出这份清单。*/
@@ -68,6 +88,12 @@ const textRoutes = new Map([
     type: types['.html'],
     render: () => renderNotFound(),
   }],
+  // 指南的空白模板下载：正文本来就存在 content/guides.mjs 的 template 字段里，
+  // 以前由 scripts/build.mjs 写进 dist/downloads/，现在改成请求时现算，不再落磁盘。
+  ...guides.map(guide => [`/downloads/${guide.slug}-template.txt`, {
+    type: types['.txt'],
+    render: () => `\uFEFF${guide.template}\n\nNanoCamp 共创指南\n`,
+  }]),
 ]);
 
 /**
@@ -136,7 +162,10 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
   // 解析地址
   let pathname;
   try{
-    pathname = decodeURI(new URL(url, 'http://localhost').pathname);
+    // 切掉查询串与片段后显式拼到固定 base 上，让它只按路径解析；'..' 与 '%2e%2e' 仍由URL解析器负责归一化，'%2F' 依旧不会被还原成分隔符。
+    const target = url.split(/[?#]/)[0] || '/';
+    const absolute = /^\//.test(target)? 'http://localhost' + target: target;
+    pathname = decodeURI(new URL(absolute, 'http://localhost').pathname);
   }
   catch{
     // 非法的百分号编码
@@ -180,10 +209,11 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
 
 /**
  * 迁移进度快照，供启动日志与排查使用。
- * @type {{migrated: string[], pending: string[]}}
- *   migrated 是已改为请求期渲染的路由；pending 是仍会返回 404 的路由。
+ * @type {{migrated: string[], pending: string[], text: string[]}}
+ *   migrated 是已改为请求期渲染的页面路由；pending 是仍会返回 404 的路由；text 是不落磁盘的派生文件。
  */
 export const routeInfo = {
   migrated: [...dynamicRoutes.keys()],
   pending: pendingRoutes,
+  text: [...textRoutes.keys()],
 };

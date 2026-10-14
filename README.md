@@ -24,8 +24,6 @@ npm run dev
 | --- | --- |
 | `npm run dev` | 启动动态服务，改文件自动重启 |
 | `npm start` | 只启动动态服务 |
-| `npm run build` | 生成 `dist/` 静态产物（旧静态托管流程，见「部署」） |
-| `npm run preview` | 构建并用旧静态服务预览 `dist/` |
 | `npm run check` | 检查服务端语法、页面、资源、锚点与元信息 |
 | `npm test` | 运行内容、图片、站内搜索与后端路由的回归测试 |
 
@@ -115,6 +113,11 @@ curl -sS -D- -o/dev/null http://127.0.0.1:38083/ | head -3
 curl -sS -o/dev/null -w '%{http_code}\n' http://127.0.0.1:38083/about/   # 期望 404（还没迁移）
 ```
 
+**别漏了服务端口本身。** 用哪种访问方式决定了要不要把它对外开：
+
+- **直接用 `IP:端口` 访问**（`host` 要设成 `0.0.0.0`）：必须在云平台放行该端口的**入站**规则 —— 云服务器 CVM 在「安全组」，轻量应用服务器 Lighthouse 在「防火墙」（名字不一样，别找错页签），默认只开 22/80/443。**不放行的话请求压根到不了机器，服务器上也不会留下任何日志**，很容易误以为是程序问题。系统防火墙（`ufw` / `firewalld`）同样要放行。
+- **走 nginx 反代 80/443**（`host` 保持 `127.0.0.1`，见下）：这个端口不用对外开，只放行 80/443。
+
 要起第二个实例（不同端口）：再 clone 一份到 `/srv/<另一个名字>`，改它自己的 `data/config.json`，然后 `systemctl enable --now nanocamp@<另一个名字>`。日志天然按 unit 分开。
 
 **更新代码**：
@@ -125,9 +128,27 @@ cd /srv/NanoCamp-test && sudo git pull && sudo systemctl restart nanocamp@Nanoca
 
 没有 `npm install`、没有构建产物要同步。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
 
+用 pm2 守护也可以，两条命令即可：
+
+```sh
+cd /srv/NanoCamp-test
+pm2 start backend/main.mjs --name NanoCamp-test --interpreter node   # .mjs 要显式指定解释器
+# 或者借 package.json 的 start 脚本（更稳，不受 pm2 对扩展名判断的影响）
+pm2 start npm --name NanoCamp-test -- start
+pm2 save && pm2 startup        # 否则机器重启后不会自动拉起
+pm2 logs NanoCamp-test         # 日志在 ~/.pm2/logs/ 下也有一份
+```
+
 ### 反向代理与 HTTPS
 
 服务本身不处理 HTTPS，证书与 443 交给反向代理；`host` 设成 `127.0.0.1` 时 Node 不对外暴露，只有同机 nginx 能访问，这是推荐配置。
+
+⚠️ 如果这台机器上**已经有 nginx 在跑别的站点**，先看清现状再动手，只加自己的 server block，别覆盖现有的：
+
+```sh
+nginx -T | grep -nE "server_name|listen|root"     # 现有哪些站点、听哪些端口
+ls /etc/nginx/sites-enabled/
+```
 
 ```nginx
 server {
@@ -150,7 +171,13 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d test.example.com          # 上 HTTPS
 ```
 
-如果不想用 nginx、要直接用 `IP:端口` 访问，就把 `data/config.json` 的 `host` 改成 `"0.0.0.0"`，并在防火墙放行该端口（如 `sudo ufw allow 38083/tcp`）。
+只写 `listen 80` 那一段就够了，`certbot --nginx` 会自己补上 `listen 443 ssl`、证书路径和 http→https 跳转。想放在子域名上（例如 `test.example.com` 挂在 `example.com` 下）不需要重新备案 —— 顶级域名备案过，二级域名即可用。
+
+**用域名就必须先 ICP 备案**：托管在中国境内服务器上的站点，域名解析过去后 80/443 都会被云厂商的未备案监测拦截（HTTPS 一样拦，且不分端口）。只用公网 IP 访问则不需要备案。备案有办理周期，计划上域名就早点办。
+
+HTTPS 还有一种"纯 IP"的做法：Let's Encrypt 从 2026 年 1 月起支持给 IP 签发证书（IPv4/IPv6 都行），不需要域名也不需要备案。但它**强制 6 天有效期**（必须自动化续期），而且 certbot 的 nginx 插件**不支持 IP 证书** —— 只能 `certonly` 签发后手写证书路径、再用 `--deploy-hook` 在续期后 reload nginx。有域名的话不必走这条。
+
+如果不想用 nginx、要直接用 `IP:端口` 访问，就把 `data/config.json` 的 `host` 改成 `"0.0.0.0"`，并在防火墙放行该端口（如 `sudo ufw allow 38083/tcp`）。反过来，**一旦挂上 nginx，就应该把 `host` 改回 `127.0.0.1`**，让 Node 不再直接暴露在公网，安全组里那个高位端口也就可以撤掉了。
 
 网站资源使用以 `/` 开头的路径，没有子路径支持，必须部署在域名根路径。换正式域名时改 `content/site.mjs` 的 `site.url`（它决定 canonical、Open Graph 与 `sitemap.xml`），这份文件进版本库，所以在测试实例上改会被下一次 `git pull` 覆盖。
 
@@ -174,13 +201,13 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 
 ### 迁移进度：未迁移的页面返回 404
 
-后端**不接管 `dist/`**。只做了首页（`/`、`/intro/`）、`sitemap.xml`、`robots.txt` 与 404 页；其余页面一律返回 404，因此访问一遍就能直观看到还有哪些没做，服务启动日志也会把未迁移路由全部列出来。
+后端**不接管 `dist/`**。当前已迁移 13 个路由：首页、`/intro/`、7 个栏目（about / activities / community / faq / minicamp / partners / resources）、4 篇共创指南，以及不落磁盘的 `sitemap.xml`、`robots.txt`、`/404.html` 和 4 个指南模板下载。其余 22 个路由（/projects/* 与 /search/）一律返回 404，因此访问一遍就能直观看到还有哪些没做，服务启动日志也会把未迁移路由全部列出来，`npm run check` 结尾也会报迁移进度。
 
 响应头 `x-nanocamp-source` 标明每次请求的来源：`dynamic` 请求期渲染、`asset` 来自 `public/`、`unmigrated` 页面还没迁移、`notfound` 地址确实不存在、`redirect` 301 补斜杠。
 
-迁移方式：在 `backend/app.mjs` 的 `dynamicRoutes` 里加一条（例如 `['/about/', () => renderPage('/about/')]`），那一页立刻生效，不需要改动其他逻辑。全部迁移完成后即可删除 `dist/`、`scripts/build.mjs`、`scripts/serve.mjs`，并移除 `npm run build` 与 `npm run preview`。
+迁移方式：普通页面只要把路由加进 `backend/app.mjs` 的 `pageRoutes` 数组（它们都由 `renderPage` 渲染，不必重复写渲染函数）；渲染方式特殊的页面（如 `/intro/`）单独加进 `dynamicRoutes`。加完那一页立刻生效。
 
-`dist/` 与那两条命令目前只服务于「临时用旧静态方式发布」这一条退路：`npm run preview` 仍然是完整可用的静态版本（含全部页面），可以拿来和动态版逐页比对。
+`dist/` 与静态构建链路（`scripts/build.mjs`、`scripts/serve.mjs`、`npm run build`、`npm run preview`）**已经删除**。站点现在完全由请求期渲染提供，没有任何构建步骤。仓库里剩下的 `dist/` 已无人读取（服务器不读、测试不读、`npm run check` 不读），可以随时整目录删掉。
 
 
 ## 替换真实资料
@@ -193,7 +220,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 6. `projects` 中填写作品标题、简介、图片、成员、介绍链接和 Demo 链接。添加或删减数组项即可调整作品数量。
 7. 作品的 `slug` 决定详情页地址 `/projects/<slug>/`，填写后应尽量保持稳定；缺省时回退为 `/projects/project-<id>/`。字段为：`description`（一句话简介）、`problem` / `solution`（问题与做法，换行即分段）、`theme`（活动主题，列表页据此分组）、`team` / `year`（队伍与年份）、`tools`（工具标签数组，卡片显示前 3 个）、`members`（`{name, role}` 数组）、`cover` / `coverAlt` / `coverFull`（封面与点击查看的原图）、`repoUrl`（GitHub 仓库）、`demoUrl`（在线体验）、`sourceId`（上游系统编号，用于去重）。未提供的地址保持 `null`，页面显示「待补充」而不是编造内容。标题仍为「项目名称」的占位项不会进入列表、详情页路由与站内搜索。
 8. `moments` 中填写照片、描述与图注。填写真实图片后自动支持点击查看大图。
-9. 执行 `npm run build` 更新生成页面。
+9. 页面在请求到达时渲染，不需要再执行构建。
 
 外部项目链接使用完整的 http 或 https 地址。未提供的地址保持 `null`，页面会显示待补充状态。
 
@@ -229,13 +256,11 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - `public/details.css`、`public/details.js`：全站共享的按钮、卡片、照片框、弹窗、阅读进度与滚动入场（导航/页脚/浮窗样式已移到 `public/base.css`）。动效偏好只跟随系统的 `prefers-reduced-motion`：「暂停全站动效」按钮已移除，`window.NanoCampMotion` 仍暴露 `stopped` / `subscribe` 供社区页、相册与合作页判断。
 - `public/styles.css`：颜色、排版、组件与响应式样式。
 - `public/app.js`：弹窗、图片查看、复制及图片失败处理（导航交互已移至 `public/base.js`）。
-- `scripts/build.mjs`：生成 `dist` 中的静态网站。后端不读它，这里只保留「临时用旧静态方式发布」这条退路，以及和动态版逐页比对的基准。
-- `scripts/serve.mjs`：仅绑定本机地址的静态预览服务（`npm run preview`）。迁完之后由 `backend/main.mjs` 取代。
 - `scripts/check.mjs`：验证生成的页面与资源链接。
 - `scripts/inspect.mjs`：页面几何自检（`npm run inspect`，可带路由参数）。让页面自行测量关键元素的坐标并渲染成文本，再用 headless 截图取回，输出到 `verify/`。这台机器上 Chrome 的主进程 IPC 走命名管道，受限令牌沙箱禁止跨进程打开命名管道，因此无法用 DevTools 协议驱动真实滚动；这个脚本是那类测量的替代办法。
 - `scripts/verify-home-scope.mjs`：首页隔离自检（`npm run verify:scope`）。逐页比对，确认交互层与文案改动只落在首页、其他页面的共享行为与还原前一致。`verify/` 只是本地排查产物，不要提交。
 
-`npm run build` 后执行 `npm run check` 进行基础检查。活动日期、地点、照片、项目资料和入群方式仍为明确占位。
+内容改完后执行 `npm run check` 与 `npm test` 进行基础检查。活动日期、地点、照片、项目资料和入群方式仍为明确占位。
 
 首屏动画在素材就绪后播放一次（等待上限 1.8 秒），不提供重播或暂停控件。入场落座后，三张纸转入幅度 7px 极轻浮沉（`float-soft`，与各自终态旋转对齐，衔接不跳变）。系统开启“减少动态效果”时展示静态完整版，并同样关闭滚动入场与其他装饰动效。关闭 JavaScript 后品牌与内容仍可见。
 
@@ -266,7 +291,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - `content/guides.mjs`：四篇通用共创指南、分节正文、准备清单、纯文本模板与外部官方学习入口。
 - `src/learning.mjs`：资源中心及指南页面；`src/partners.mjs`：交流合作页面。
 - `public/workshop.css` / `public/workshop.js` 仅在资源与合作页加载。
-- 模板下载 `dist/downloads/*-template.txt` 目前仍由静态构建生成。资源页迁到后端时，应把它一并改成请求期输出，否则删掉 `dist/` 后这些下载链接会失效。下载链接本身不依赖 JavaScript。
+- 模板下载 `/downloads/*-template.txt` 由后端从 `content/guides.mjs` 的 `template` 字段现场生成，不再有构建产物，输出与原 `dist/downloads/` 逐字节一致。下载链接本身不依赖 JavaScript。
 - 准备清单按指南存储在 `nanocamp-checklist-<slug>-v1` 本地键中。仅存勾选项标识；浏览器不允许存储时，本页仍可使用并显示说明。
 - 合作工具只在当前页面生成文本，没有网络提交、数据库写入或自动保存。生成后可复制或下载；输入修改后需要重新生成；清空后可撤销。不要把此工具的文案改成「提交成功」或「申请已收到」，除非另外接入并验证真实接收流程。
 - 官方学习链接核实于 2026-10-02。社区指南为通用准备建议，不代表某一届 minicamp 的实际规则。
@@ -278,7 +303,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - 主导航搜索入口支持 Ctrl / Command + K，输入控件或打开的弹窗内不会触发。不会绑定纯字符快捷键。
 - `site.url` 是网站的正式公开地址，更换域名后需修改并重新构建。`src/metadata.mjs` 生成 canonical、Open Graph、社交卡片和基于真实页面内容的结构化数据。
 - `design/social-card.html` 是分享预览图的原始排版，`public/images/nanocamp-social.png` 为 1200 × 630 输出。原始两张 Logo 不修改。
-- `design/animation-lab.html` 是首页动效选型页（16 个纯 CSS 候选，按板块分组，右上角可重播或定格）。它不是站点页面，`npm run build` 不会生成；本地查看时执行 `Copy-Item design\animation-lab.html dist\`，再打开 `/animation-lab.html`。选定动效后，把对应 CSS 与标记并入正式样式与 `src/`。
+- `design/animation-lab.html` 是首页动效选型页（16 个纯 CSS 候选，按板块分组，右上角可重播或定格）。它不是站点页面；本地查看时执行 `Copy-Item design\animation-lab.html public\`，再打开 `/animation-lab.html`（`public/` 就是后端直接提供的目录）。选定动效后，把对应 CSS 与标记并入正式样式与 `src/`。
 - `npm test` 运行搜索核心、真实内容索引和内联 JSON 安全回归。
 - 构建生成 `sitemap.xml` 与 `robots.txt`。搜索页和 404 标记为 noindex；站点地图只列入普通公开页面，不捏造最后更新时间。
 - `scripts/check.mjs` 检查页面标题/描述、元素 ID、站内文件与锚点、搜索记录、内联 JSON、canonical 与社交元信息、站点地图和分享图尺寸。上线后仍需确认托管平台对未知地址返回 HTTP 404。
