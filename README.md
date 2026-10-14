@@ -1,6 +1,6 @@
 # NanoCamp 官网
 
-十四个页面：首页、首届 minicamp 回顾、活动总览、作品、参与指南、常见问题、关于社区、共创资源、四篇独立指南、交流合作、站内搜索，另有专用 404 页面。页面由 Node.js 后端在请求到达时生成，无需安装依赖。活动和项目真实资料集中在 `content/site.mjs`，全年活动形式与 FAQ 在 `content/community.mjs`。
+十四个页面：首页、首届 minicamp 回顾、活动总览、作品、参与指南、常见问题、关于社区、共创资源、四篇独立指南、交流合作、站内搜索，另有专用 404 页面。页面由 Node.js 后端在请求到达时生成，无需安装依赖。站点与活动资料集中在 `content/site.mjs`，2026 届作品数据在 `content/minicamp2026.json`，全年活动形式与 FAQ 在 `content/community.mjs`。
 
 > **迁移进行中**：目前只有首页（含首屏海报）、`sitemap.xml`、`robots.txt` 与 404 页由后端生成，其余页面访问会返回 404，用来直观显示进度。详见「部署」一节的迁移说明。
 
@@ -201,7 +201,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 
 ### 迁移进度：未迁移的页面返回 404
 
-后端**不接管 `dist/`**。当前已迁移 13 个路由：首页、`/intro/`、7 个栏目（about / activities / community / faq / minicamp / partners / resources）、4 篇共创指南，以及不落磁盘的 `sitemap.xml`、`robots.txt`、`/404.html` 和 4 个指南模板下载。其余 22 个路由（/projects/* 与 /search/）一律返回 404，因此访问一遍就能直观看到还有哪些没做，服务启动日志也会把未迁移路由全部列出来，`npm run check` 结尾也会报迁移进度。
+后端**不接管 `dist/`**。除 `/search/` 外全部页面都已改为请求期渲染：首页、`/intro/`、7 个栏目、4 篇共创指南、作品列表页与 20 个作品详情页，另有不落磁盘的 `sitemap.xml`、`robots.txt`、`/404.html` 与 4 个指南模板下载。只剩 `/search/` 仍返回 404。服务启动日志会列出未迁移路由，`npm run check` 结尾也会报迁移进度。
 
 响应头 `x-nanocamp-source` 标明每次请求的来源：`dynamic` 请求期渲染、`asset` 来自 `public/`、`unmigrated` 页面还没迁移、`notfound` 地址确实不存在、`redirect` 301 补斜杠。
 
@@ -248,7 +248,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - `src/pages.mjs`：页面路由与首页、活动回顾、关于页面的内容结构；作品详情页按 `projects` 动态展开。
 - `src/projects.mjs`：作品卡片、列表页与详情页；`projectSlug` / `projectPath` 生成地址，`readyProjects` 过滤占位项。
 - `public/projects.css`：作品卡片标签、主题分组与详情页版式，在 `gallery.css` 之后、`collage.css` 之前加载。
-- `scripts/sync-minicamp-projects.mjs`：从 minicamp 官方接口 `https://minicamp.flipperusc.work/api/projects` 拉取已发布作品，按主题、队伍、编号排序后生成 `projects` 数组片段，加 `--write-images` 会把接口内嵌的 base64 封面导出到 `public/images/projects/`。默认只打印结果，不改动 `content/site.mjs`。
+- `scripts/sync-minicamp-projects.mjs`：从 minicamp 官方接口 `https://minicamp.flipperusc.work/api/projects` 拉取已发布作品，按主题、队伍、编号排序后输出 JSON，加 `--write-images` 会把接口内嵌的 base64 封面导出到 `public/images/projects/`。默认只打印结果，不改动任何文件；核对后整体替换 `content/minicamp2026.json` 的 `projects` 数组。中文标题没法自动转成好读的英文，所以人工起的英文名记在脚本内的 `englishSlugs` 表里，重新同步不会冲掉。
 - `src/hero.mjs`：首页品牌舞台与首页专属加入区；`homeJoinSection()` 保留首页邀请文案与加入渠道提示，首页只渲染一次加入区。
 - `public/hero.css`、`public/hero.js`：B 版首屏海报与入场动效，仅在首页加载。
 - `public/interactions.css`：**首页专属**的鼠标交互层（导航下划线、按钮柔光、卡片抬起、封面推近等 15 项）。所有规则都限定在 `body[data-page="home"]`，其他页面不受影响。由 `documentPage()` 用 `<link>` 引入，**不要改成 `collage.css` 里的 `@import`**：该文件开头已有 `@font-face`，而 CSS 规定 `@import` 必须位于所有规则之前，否则整条被浏览器丢弃，交互会静默失效。规则包在 `@media(hover:hover) and (pointer:fine)` 内，只用 transform / 颜色 / 阴影 / 伪元素，不改变布局。
@@ -270,6 +270,8 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 
 ## 作品列表与详情
 
+- 作品数据在 `content/minicamp2026.json`：`projects` 数组是 20 条作品，`featuredProjectIds` 是首页推荐哪几个。改内容只动这个 JSON，不用碰代码；`content/site.mjs` 只负责读它并补上默认分类。
+- 详情页地址由每条作品的 `slug` 决定（`/projects/<slug>/`），中文标题没法自动转出好读的英文，所以 15 条占位编号（`project-05` 这类）已人工改为英文名（`bookmark-rescue` 这类）。改 slug 就会换地址，旧地址直接 404，不做跳转。
 - `/projects/` 是卡片网格；点击卡片标题或「查看详情」进入 `/projects/<slug>/`。卡片不做整卡链接，避免与封面相册、Demo、仓库等外链形成嵌套 `<a>`。
 - 详情页依次为：面包屑、主题标签、标题与导语、工具标签、外链按钮、封面、侧栏目录与元信息、想解决的问题、我们的做法、用到的工具、参与的同学、上一个/下一个作品。未填写的章节显示待补充占位框。
 - 作品超过 6 个时，列表页按 `theme` 分组，每组一条 `.project-group` 并带 `id="theme-<slug>"` 锚点；无主题的条目归入末尾的「未分类主题」。
@@ -288,6 +290,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 增加联系方式、报名政策或未来场次后，请同时核对 FAQ 的当前状态说明。网页不会收集或提交报名信息；缺少的联系方式仍明确显示待公布。
 ## 共创资源与交流草稿
 
+- `content/minicamp2026.json`：2026 届作品数据（20 条作品 + 首页推荐编号）。纯 JSON，便于非代码方式编辑。
 - `content/guides.mjs`：四篇通用共创指南、分节正文、准备清单、纯文本模板与外部官方学习入口。
 - `src/learning.mjs`：资源中心及指南页面；`src/partners.mjs`：交流合作页面。
 - `public/workshop.css` / `public/workshop.js` 仅在资源与合作页加载。

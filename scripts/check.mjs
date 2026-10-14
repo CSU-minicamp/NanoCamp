@@ -138,4 +138,7 @@ for (const route of migrated) {
 }
 
 console.log(`PASS: ${routePaths.length} pages + 404, ${assets.size} local files, ${anchors} anchor links, ${index.length} search records, canonical/social metadata, JSON, sitemap and share image.`);
-console.log(`      迁移进度：${migrated.size}/${routePaths.length} 页已改为请求期渲染，${routeInfo.pending.length} 页待迁移；派生文件 ${derived.size} 个不落磁盘。`);
+const done = routePaths.length - routeInfo.pending.length;
+console.log(`      迁移进度：站点页面 ${done}/${routePaths.length} 已请求期渲染（另有 /intro/ 海报页随首页一起渲染），` +
+  `待迁移 ${routeInfo.pending.length} 个${routeInfo.pending.length ? '：' + routeInfo.pending.join('、') : ''}；` +
+  `不落磁盘的派生文件 ${derived.size} 个。`);

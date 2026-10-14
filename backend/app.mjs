@@ -3,9 +3,6 @@
 // 视图层不动：src/ 里的页面函数本来就返回完整 HTML 字符串，以前被构建脚本调用一次，
 // 现在改成每次请求调用一次。所以本文件只做三件事：解析地址、挑选渲染函数、组装响应。
 //
-// 不接 dist/ 兜底：还没迁移的页面直接返回 404，这样访问一遍就能直观看到迁移进度
-// （启动日志也会列出全部未迁移路由）。迁移方式是在 dynamicRoutes 里加一条，不需要改动其他逻辑。
-//
 // 本文件不读配置、不碰端口，也没有任何模块级副作用：监听地址与端口在 backend/main.mjs里读 data/config.json。
 // 因此这里导出的 handleRequest 可以直接被单测调用。
 
@@ -26,7 +23,7 @@ const cacheControl = 'no-cache';
 // ======================= 动态路由表（迁移进度） =======================
 
 /**
- * 已迁移的普通页面：首页、7 个栏目、以及 4 篇共创指南。
+ * 已迁移的普通页面：首页、7 个栏目、4 篇共创指南，以及作品区的列表页与全部详情页。
  * 它们都由 src/pages.mjs 的 renderPage 统一渲染，所以这里只列路由，不重复写渲染函数。
  */
 const pageRoutes = [
@@ -42,6 +39,8 @@ const pageRoutes = [
   '/resources/find-your-team/',
   '/resources/demo-story/',
   '/resources/host-a-sharing/',
+  // 作品详情页的数量随内容增长，所以按前缀从路由表里取，不在这里手写；新增作品自动生效。
+  ...routePaths.filter(route => route.startsWith('/projects/')),
 ];
 
 /**
@@ -191,7 +190,7 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
   const text = textRoutes.get(route);
   if(text)
     return send(text.render(), {type: text.type, status: 200, source: 'dynamic'}, headers);
-  // 请求期渲染的动态页面（当前只有首页）
+  // 请求期渲染的页面（首页、栏目、共创指南、作品列表与详情）
   const page = dynamicRoutes.get(route);
   if(page)
     return send(page(), {type: types['.html'], status: 200, source: 'dynamic'}, headers);
