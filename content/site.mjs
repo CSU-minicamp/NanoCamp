@@ -4,8 +4,8 @@ import {readFileSync} from 'node:fs';
 export const site = {
   name: 'NanoCamp',
   // 正式域名，用于 canonical、Open Graph、结构化数据、sitemap.xml 与 robots.txt。
-  // 只在这一处维护；换域名改这里即可。
-  url: 'https://nanocamp-community.zjun27256.chatgpt.site/',
+  // 部署到别的地址时不要改这里，而是在本实例的 data/config.json 里写 url 覆盖。
+  url: 'https://nanocamp.club/',
   slogan: 'Meet. Build. Make something together.',
   chineseSlogan: '让有趣的人相遇，让相遇的人一起创造。',
   description: 'NanoCamp 是一个面向跨专业学生的创造者社区。从 minicamp 黑客松开始，让有趣的人相遇，一起把想法做出来。',

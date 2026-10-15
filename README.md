@@ -48,16 +48,25 @@ npm start
 只有一个配置入口：`data/config.json`。整个 `data/` 目录不进版本库，所以在服务器上直接改它，不会影响任何人的 clone。
 
 ```json
-{ "host": "0.0.0.0", "port": 38083, "name": "Nanocamp-test" }
+{ "host": "0.0.0.0", "port": 38083, "name": "Nanocamp-test", "url": "https://ttesestt.nanocamp.club/" }
 ```
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
 | `host` | `0.0.0.0` | 监听地址。默认绑本机所有网卡（含它自己的 IP），部署后直接可访问；本机开发想只对自己开放就写 `"127.0.0.1"` |
 | `port` | `8080` | 监听端口 |
-| `name` | `nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
+| `name` | `Nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
+| `url` | 无 | **可选**：覆盖站点正式域名（即 `content/site.mjs` 的 `site.url`）。canonical、Open Graph、sitemap 与 robots 会整体跟着变。只接受 http / https，非法值忽略并打一行日志。结尾斜杠会自动补上。 |
 
 文件不存在、只写一个字段、或某个字段类型写错，都用默认值兜住，服务照常启动。没有别的启动参数 —— 不读环境变量，也没有示例文件，直接改这一个 JSON 即可。两个实例（不同端口）就放两份 clone，各自写自己的 `data/config.json`。
+
+`url` 存在的理由是**域名属于部署属性，而不是内容属性**：版本库里的 `site.url` 写的是生产域名，但每台机器可能跑在不同的地址上。启动日志会明确打印当前生效的域名及来源：
+
+```
+[Nanocamp-test]   站点域名：https://ttesestt.nanocamp.club/（来自 data/config.json 的 url 覆盖）
+```
+
+不写 `url` 时回退到 `content/site.mjs` 的值。⚠️ 如果两个实例共用同一个域名（比如测试站没写 `url`），测试站生成的 canonical 会指向生产域名 —— 搜索引擎看到的是重复内容，建议至少加一行 `X-Robots-Tag: noindex`（见下一节）。
 
 ### 服务器部署（systemd）
 
@@ -179,7 +188,134 @@ HTTPS 还有一种"纯 IP"的做法：Let's Encrypt 从 2026 年 1 月起支持�
 
 如果不想用 nginx、要直接用 `IP:端口` 访问，就把 `data/config.json` 的 `host` 改成 `"0.0.0.0"`，并在防火墙放行该端口（如 `sudo ufw allow 38083/tcp`）。反过来，**一旦挂上 nginx，就应该把 `host` 改回 `127.0.0.1`**，让 Node 不再直接暴露在公网，安全组里那个高位端口也就可以撤掉了。
 
-网站资源使用以 `/` 开头的路径，没有子路径支持，必须部署在域名根路径。换正式域名时改 `content/site.mjs` 的 `site.url`（它决定 canonical、Open Graph 与 `sitemap.xml`），这份文件进版本库，所以在测试实例上改会被下一次 `git pull` 覆盖。
+网站资源使用以 `/` 开头的路径，没有子路径支持，必须部署在域名根路径。
+
+### 把正式域名接进来
+
+前置条件：域名已 **ICP 备案**、A 记录已指向该实例、443 上有覆盖该域名的证书。三项都可以从外部先确认：
+
+```sh
+curl -s 'https://doh.pub/dns-query?name=<域名>&type=A' -H 'accept: application/dns-json'
+openssl s_client -connect <IP>:443 -servername <域名> </dev/null 2>/dev/null | openssl x509 -noout -subject -dates
+```
+
+**然后摸清 443 上的现状** —— 这决定你能不能直接加一个 `server` 块：
+
+```sh
+sudo ss -ltnp | grep -E ':(80|443)\b'    # 443 上是哪个进程在监听
+systemctl status nginx --no-pager
+sudo nginx -T 2>/dev/null | grep -nE '^# configuration file|listen |server_name |root |proxy_pass |add_header |default_server'
+ls -l /etc/nginx/sites-enabled/ /etc/nginx/conf.d/
+sudo certbot certificates                # 现有证书覆盖哪些域名、何时到期
+```
+
+| `ss -ltnp` 里 443 那一行 | 含义 | 怎么办 |
+| --- | --- | --- |
+| `nginx: master` | nginx 在终止 TLS | ✅ 加一个 `server_name` 不同的块即可，SNI 自动分流 |
+| 别的进程 | 443 被占用 | ⚠️ 先决定：停掉它 / 让它换端口 / 让它做转发 |
+| 什么都没有 | 443 空着 | ✅ 直接起 nginx |
+| 什么都没有但外部能访问 | 流量没到这台机器 | ⚠️ 中间有 CDN 或云负载均衡，得去那边配 |
+
+⚠️ **注意现有站点的 `default_server` 行为**：如果它没有 `server_name`，或者被标了 `default_server`，那么任何**没配置过的域名**都会被它兜住 —— 访问新子域名会拿到它的证书和内容，浏览器直接报证书不匹配。新块写明自己的 `server_name` 就能避免；**不要给新块加 `default_server`**。
+
+一个可以从外部先探的信号：`curl -sI https://<IP>/ -H 'Host: <随便一个没配过的域名>' -k`，如果返回的是某个站的内容，就说明存在这种兜底行为。
+
+**1. 改 `content/site.mjs` 的 `site.url`**（唯一驱动 canonical、Open Graph、结构化数据、`sitemap.xml` 与 `robots.txt` 的地方）：
+
+```js
+url: 'https://<正式域名>/',
+```
+
+这一行进了版本库，所以要在本地改好再提交，服务器 `git pull` 才拿得到。改完重启进程即可，不用改别处。
+
+**2. 服务器更新并自检**：
+
+```sh
+cd /srv/NanoCamp-test && git pull && pm2 restart Nanocamp-test
+curl -s http://127.0.0.1:38083/sitemap.xml | head -3    # 第一行 loc 应是新域名
+```
+
+**3. 用 nginx 反代到本机端口**（只写 `listen 80` 一段也可以，交给 `certbot --nginx` 补 443）：
+
+```nginx
+server {
+  listen 80;
+  server_name <正式域名>;
+  location /.well-known/acme-challenge/ { root /var/www/html; }
+  location / { return 301 https://$host$request_uri; }
+}
+
+server {
+  listen 443 ssl;
+  server_name <正式域名>;
+  ssl_certificate     /etc/letsencrypt/live/<正式域名>/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/<正式域名>/privkey.pem;
+  location / {
+    proxy_pass http://127.0.0.1:38083;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+证书路径先 `ls /etc/letsencrypt/live/` 确认目录名。要连 `www` 子域的话，`server_name` 里加上它，并且**必须重签证书**（原证书的 SAN 不含 www）：`sudo certbot --nginx -d <域名> -d www.<域名>`。
+
+**4. 上线并收尾**：
+
+```sh
+sudo nginx -t && sudo systemctl reload nginx
+curl -sI https://<正式域名>/ | grep -i x-nanocamp-source   # 期望 dynamic，说明走的是动态站
+sudo certbot renew --dry-run                              # 改过 server block 后确认续期仍然可走
+```
+
+- ⚠️ **换配置前先备份**（`sudo cp -a /etc/nginx/sites-enabled /etc/nginx/sites-enabled.bak`），并**保留旧静态站的目录** —— 动态站出问题时可以秒切回去。
+- ⚠️ 旧静态站部署流程留下的 `X-NanoCamp-Commit` / `X-NanoCamp-Release` 响应头，切到动态站后会消失。动态站的版本标记是 `x-nanocamp-source`。
+- 把 `data/config.json` 的 `host` **改回 `127.0.0.1`** 后重启，撤掉安全组里那个高位端口的放行规则。
+
+### 测试实例：用子域名跑第二份
+
+生产和测试各一份 clone，两个 node 进程监听不同的**内网**端口，nginx 在同一个 443 上按 **SNI**（`server_name`）分发 —— 这是 HTTPS 多站点的标准做法，不需要给测试站开非标端口。
+
+| 站点 | 对外 | nginx 转发到 | clone 目录 |
+| --- | --- | --- | --- |
+| 生产 | `https://nanocamp.club/` | `127.0.0.1:38084` | `/srv/NanoCamp` |
+| 测试 | `https://ttesestt.nanocamp.club/` | `127.0.0.1:38083` | `/srv/NanoCamp-test` |
+
+**node 这两份都要照常监听** —— nginx 只是前置。区别只在各自 clone 里的 `data/config.json`（`data/` 不进版本库）：
+
+```json
+{ "host": "127.0.0.1", "port": 38083, "name": "Nanocamp-test", "url": "https://ttesestt.nanocamp.club/" }
+```
+
+`host` 改成 `"127.0.0.1"` 让它不再直接对公网暴露；`port` 两份错开；**`url` 让测试站的 canonical / Open Graph / sitemap 指向它自己**（不写就会指向生产域名，变成重复内容）。
+
+子域名**不需要重新备案**（顶级域名已备案时，二级域名跟着走）。证书可以单独给子域名签一张，也可以用一张 SAN 证书同时覆盖两个名字：
+
+```sh
+# 先写子域名的 listen 80 块（server_name ttesestt.nanocamp.club），再让 certbot 补 443
+sudo certbot --nginx -d ttesestt.nanocamp.club
+# 或者签一张覆盖两个名字的证书
+sudo certbot --nginx -d nanocamp.club -d ttesestt.nanocamp.club
+```
+
+即使 `url` 已经分开，测试站仍然建议加一行 —— 它装的是还没发布的改动：
+
+```nginx
+add_header X-Robots-Tag "noindex, nofollow" always;
+```
+
+⚠️ 两份 clone 共用同一个 nginx 进程 —— 它重启或崩溃会同时影响两个站。要故障隔离只能让 node 自己终止 TLS（见下），通常不值得。
+
+### 为什么不让 node 自己处理 HTTPS
+
+`backend/main.mjs` 用的是 `http.createServer`，TLS 全部交给反向代理。让 node 直接跑 TLS 技术上可行，但有四个具体代价：
+
+1. 要改 `main.mjs` 与配置结构 —— `data/config.json` 目前只认 `host` / `port` / `name` / `url` 四个字段（前三管监听与日志，`url` 是域名覆盖）。再加 `cert` / `key` 路径等于把运维细节塞进应用配置，而这件事 nginx 本来就做得更好。
+2. **证书权限**：`/etc/letsencrypt/live/<域名>/privkey.pem` 默认是 `root:root 0600`，而 node 以 `ubuntu` 运行 —— 读不到。需要 `--deploy-hook` 把证书复制到应用可读的目录。
+3. **续期后必须重启 node**：`https` 在启动时就把证书读进内存，续期不会自动生效（nginx 只要 `reload`）。
+4. **测试实例会失去"与生产同构"的价值**：生产的 TLS 由 nginx 决定（协议版本、密码套件、HSTS、HTTP/2、OCSP stapling、证书链），测试如果由 node 终止，等于用不同实现测不同的东西。
 
 ### 日志
 
@@ -256,7 +392,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - `backend/base.mjs`：站点的**唯一文件系统出口** —— `assetRoot`、后缀到 Content-Type 的映射表、`readFileWithin()` 与 `readAsset()`。请求进入 `handleRequest` 后先过 `safeRoute()`（拒绝 `\0`、`.`/`..` 段与含 `\` 的段，回 400），再由 `readFileWithin` 兜住最后一层。
 - **路径安全规则**：任何由 URL 推导出的文件路径都必须经 `readFileWithin()` 读，它把路径 `path.resolve` 展开后要求仍落在允许的根目录内，因此 `/../package.json`、`/images/../../x` 以及 Windows 风格的 `..\..\x` 都读不到目录外的文件；`decodeURI`（而非 `decodeURIComponent`）保证编码过的 `/`（`%2F`）不会被还原成分隔符。更好的做法是根本不让 URL 决定文件路径 —— 能让内容来自 `content/` 里的内存数据就别落磁盘。另外注意 `public/` 下的任何文件都是公开可下载的，别往里放密钥。
 - `backend/main.mjs`：入口。读 `data/config.json` 的 `host`/`port`/`name`，监听端口、`SIGTERM`/`SIGINT` 优雅退出，并在启动时打印访问地址与渲染规模。日志只走 stdout / stderr，每行带 `[name]` 前缀，由外部（systemd / 重定向）接管。
-- `data/config.json`：实例配置（`host` / `port` / `name` 三个字段），整个 `data/` 目录不进版本库。服务启动时读一次。
+- `data/config.json`：实例配置（`host` / `port` / `name` / 可选的 `url`），整个 `data/` 目录不进版本库。服务启动时读一次。
 - `src/components.mjs`：卡片、媒体、弹窗与文档外壳；请求期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索沿用同一页脚，但同样不追加加入区。
 - `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。渲染结果与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
 - `public/base.css`：与 `base.js` 配套的站点框架样式，包含顶部栏、桌面/手机导航、共用的 minicamp 同款加入区与页脚、回到顶部浮窗。在 `styles.css` 之后、页面皮肤之前加载；内容页的加入区使用 `join-shared`，首页保留专属加入区与 `home.css` 样式；页脚通过 `footer-shared` 保持各页一致（搜索页也用它，只是同样不追加加入区）。浮窗显隐由 `data-visible` 驱动，`details.js` 判断滚动距离。

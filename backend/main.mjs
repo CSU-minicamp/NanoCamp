@@ -10,6 +10,9 @@
 // 默认 0.0.0.0:8080 —— 绑本机所有网卡，部署到服务器就能直接访问；
 // 本机开发不想对局域网开放，就在 data/config.json 里写 "host": "127.0.0.1"。
 //
+// 可选的 "url" 覆盖版本库里的正式域名（content/site.mjs 的 site.url），canonical、Open Graph、
+// sitemap 与 robots 会整体跟着变。多实例部署时每个实例写自己的地址 —— 否则测试站会把 canonical 指向生产域名。
+//
 // 日志全部走 stdout / stderr，每行带 [name] 前缀（name 同样来自 data/config.json），
 // 同一台机器上跑多个实例时靠它区分。长久运行靠外部接管这两条流：
 // systemd 会自动收进 journald（journalctl -u <服务名> -f）；裸后台运行则要自己重定向
@@ -21,8 +24,9 @@ import http from 'node:http';
 import {existsSync, readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 
-import {assetRoot} from './base.mjs'
+import {assetRoot} from './base.mjs';
 import {handleRequest, routeInfo} from './app.mjs';
+import {site} from '../content/site.mjs';
 
 /** 实例配置文件的绝对路径。整个 data/ 目录不进版本库，每台机器各写一份。 */
 const configPath = fileURLToPath(new URL('../data/config.json', import.meta.url));
@@ -43,11 +47,11 @@ const log = (...args) => console.log(tag, ...args);
 const fail = (...args) => console.error(tag, ...args);
 
 /**
- * 读取实例配置，只认 host / port / name 三个字段，其余键一律忽略。
+ * 读取实例配置，只认 host / port / name / url 四个字段，其余键一律忽略。
  *
  * 容错原则是「绝不因为配置问题起不来」：文件不存在（正常情况）、读不动、不是合法 JSON、字段缺失或类型写错，都用默认值兜住，最多打一行日志。
  *
- * @returns {{host: string, port: number, name: string}} 合并默认值后的监听地址、端口与实例名。
+ * @returns {{host: string, port: number, name: string, url?: string}} 合并默认值后的监听地址、端口、实例名，以及可选的域名覆盖。
  */
 function readSettings(){
   const settings = {...DEFAULTS};
@@ -67,11 +71,40 @@ function readSettings(){
     settings.port = raw.port;
   if(typeof raw?.name === 'string' && raw.name.trim())
     settings.name = raw.name.trim();
+  /**
+   * 把配置里的 url 规范化成可以喂给 new URL(route, base) 的形式，非法值返回 null。
+   *
+   * 只接受 http / https，并且用 URL 解析器自己补上结尾斜杠（https://x.club → https://x.club/），这样 canonical 拼出来才是 `https://x.club/about/` 而不是少一层。
+   *
+   * @param {unknown} value 待校验的值。
+   * @returns {string|null} 规范化后的域名，或 null 表示非法。
+   */
+  function normalizeSiteUrl(value){
+    if(typeof value !== 'string' || !value.trim())
+      return null;
+    let url;
+    try{
+      url = new URL(value.trim());
+    }
+    catch{
+      return null;
+    }
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  }
+  const url = normalizeSiteUrl(raw?.url);
+  if(url)
+    settings.url = url;
+  else if(raw?.url)
+    fail(`data/config.json 里的 url 不是合法的 http/https 地址，已忽略：${JSON.stringify(raw.url)}`);
   return settings;
 }
 
-const {host, port, name} = readSettings();
+const {host, port, name, url} = readSettings();
 tag = `[${name}]`;
+// 域名是部署属性而不是内容属性：版本库里的 site.url 是生产域名，本实例若在 config 里写了 url 就以它为准。
+// site 是模块级单例对象，这里改属性对 src/metadata.mjs 的 canonicalUrl 立即生效（两边是同一个对象引用）。
+if(url)
+  site.url = url;
 
 /**
  * HTTP 请求处理：把请求交给 app.mjs 的 handleRequest，再把结果写回 socket。
@@ -127,6 +160,7 @@ server.listen(port, host, () => {
   if(allInterfaces)
     log('  对局域网开放；本机开发想只对自己开放，在 data/config.json 里写 "host": "127.0.0.1"');
   log(`  配置：${existsSync(configPath) ? configPath : `${configPath}（不存在，使用默认值）`}`);
+  log(`  站点域名：${site.url}${url ? '（来自 data/config.json 的 url 覆盖）' : '（来自 content/site.mjs）'}`);
   log(`  静态资源：${assetRoot}`);
   log(`  请求期渲染：${routeInfo.pages} 个页面，另有 ${routeInfo.derived.length} 个不落磁盘的派生文件（sitemap、robots、404 页、指南模板下载）`);
 });
