@@ -1,11 +1,24 @@
+// backend/ 内部共用的基础件，只服务于 backend/ 里的脚本：
+//   · escapeHtml —— 转义任意文本，供手写标签输出的地方使用（当前是 sitemap.xml）；
+//   · 站点资源目录、后缀到 Content-Type 的映射，以及限定在目录内读取文件的辅助函数 —— 站点的唯一文件系统出口。
 import {readFile, stat} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+/**
+ * 转义文本里会破坏标记结构的五个字符。
+ *
+ * 五个实体在 HTML 与 XML 里都合法，所以同一份实现可以同时喂给两种输出，其中撇号统一用 &#39。
+ *
+ * @param {unknown} value 待转义的值，会先转成字符串。
+ * @returns {string} 转义后的字符串。
+ */
+export const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
+
 /** 项目根目录（本文件位于 <root>/backend/ 下）。 */
 const root = fileURLToPath(new URL('../', import.meta.url));
 
-/** 站点资源目录：URL 路径直接对应 public/ 下的文件，不需要再往 dist/ 里复制一份。 */
+/** 站点资源目录：URL 路径直接对应 public/ 下的文件。 */
 export const assetRoot = path.join(root, 'public');
 
 /** 后缀到 Content-Type 的映射。不在表里的后缀不会被当作静态资源返回。 */

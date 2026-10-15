@@ -4,30 +4,34 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { handleRequest, routeInfo } from '../backend/app.mjs';
+import { handleRequest } from '../backend/app.mjs';
+import { routePaths } from '../src/pages.mjs';
 import { createDocument, parse, canonical, runBase, toFakeNodes, findFirst } from './helpers/fake-dom.mjs';
 
 // 这个文件测的是「站点呈现给用户的 HTML」的导航结构。
-// 以前它读 dist/ 的构建产物；dist 正在被去掉，测试改成只走请求期渲染（backend/app.mjs），
-// 不再依赖任何构建产物。因此下面只覆盖「已经迁移到请求期渲染」的路由 ——
-// 还没迁移的路由由 handleRequest 返回 404，不在这里断言。
+// 以前它读 dist/ 的构建产物；dist 已被去掉，现在全部走请求期渲染（backend/app.mjs）。
 const root = fileURLToPath(new URL('../', import.meta.url));
 const baseSource = readFileSync(path.join(root, 'public/base.js'), 'utf8');
 
+// /intro/ 是首页 iframe 嵌入的纯海报页：自带 noindex，没有站点页头、页脚与 base.js，
+// 所以不参与下面这些「导航骨架」断言。它也不在 routePaths 里。
+const specialPages = new Set(['/intro/']);
 const served = new Map();
-for (const route of routeInfo.migrated) {
+for (const route of routePaths) {
   const response = await handleRequest({method: 'GET', url: route, headers: {}});
-  assert.equal(response.status, 200, route + ' 已迁移，应当返回 200');
+  assert.equal(response.status, 200, route + ' 应当返回 200');
+  served.set(route, response.body.toString('utf8'));
+}
+for (const route of specialPages) {
+  const response = await handleRequest({method: 'GET', url: route, headers: {}});
+  assert.equal(response.status, 200, route + ' 应当返回 200');
   served.set(route, response.body.toString('utf8'));
 }
 const html = route => {
   const value = served.get(route);
-  assert.ok(value, route + ' 不在已迁移路由里，这个用例的前提不成立');
+  assert.ok(value, route + ' 不在已渲染路由里，这个用例的前提不成立');
   return value;
 };
-// /intro/ 是首页 iframe 嵌入的纯海报页：自带 noindex，没有站点页头、页脚与 base.js，
-// 所以不参与下面这些「导航骨架」断言。
-const specialPages = new Set(['/intro/']);
 const routeList = [...served.keys()].filter(route => !specialPages.has(route));
 
 test('准备：已迁移的路由都能渲染出导航', () => {
@@ -105,8 +109,10 @@ test('页脚与浮窗：HTML 无按钮残留，浮窗由 base.js 生成', () => 
       assert.equal(footer.includes(forbidden), false, `${route} 的页脚残留了已移除的 ${forbidden}`);
     }
     const slot = /<div data-nav="footer-bottom">/.test(source);
-    assert.equal((source.match(/id="join-heading"/g) || []).length, 1, `${route} 的共用加入区应只出现一次（/search/ 例外，但它还没迁移）`);
-    assert.equal(footer, reference, `${route} 应使用 minicamp 同款页脚`);
+    // 搜索页没有共用加入区，页脚也与其它页面不同，这两项对它单独放宽。
+    assert.equal((source.match(/id="join-heading"/g) || []).length, route === '/search/' ? 0 : 1, `${route} 的共用加入区应只出现一次，搜索页除外`);
+    if (route !== '/search/')
+      assert.equal(footer, reference, `${route} 应使用 minicamp 同款页脚`);
     assert.ok(slot, `${route} 应该有页脚底部槽位`);
     assert.match(footer, /一个属于学生创造者的社区。/, `${route} 的署名应写死在 HTML 里`);
   }

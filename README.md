@@ -18,7 +18,7 @@ npm run dev
 
 ## 协作开发与发布
 
-本次交接包含已发布官网第 18 版的源码、原始 Logo、字体及授权文件、构建产物和测试，来源提交为 `427b06374cc3f47b8067662bfbb2f3489025e458`。网站采用原生 HTML、CSS 与 JavaScript；页面由 Node.js 在后端渲染，不依赖任何第三方包。
+本次交接包含官网第 18 版的源码、原始 Logo、字体及授权文件和测试，来源提交为 `427b06374cc3f47b8067662bfbb2f3489025e458`。网站采用原生 HTML、CSS 与 JavaScript；页面由 Node.js 在后端渲染，不依赖任何第三方包。
 
 | 命令 | 用途 |
 | --- | --- |
@@ -199,17 +199,32 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 
 
 
-### 迁移进度：未迁移的页面返回 404
+### 页面全部在请求期渲染，没有构建步骤
 
-后端**不接管 `dist/`**。除 `/search/` 外全部页面都已改为请求期渲染：首页、`/intro/`、7 个栏目、4 篇共创指南、作品列表页与 20 个作品详情页，另有不落磁盘的 `sitemap.xml`、`robots.txt`、`/404.html` 与 4 个指南模板下载。只剩 `/search/` 仍返回 404。服务启动日志会列出未迁移路由，`npm run check` 结尾也会报迁移进度。
+所有页面都由 `src/pages.mjs` 的 `renderPage` 渲染，`backend/app.mjs` 的路由表直接按 `routePaths` 展开 —— 新增页面只要写进 `src/pages.mjs` 就自动生效，不存在「写了页面忘了挂路由」的情况。渲染方式特殊的 `/intro/`（首页 iframe 嵌入的海报）单独列出。
 
-响应头 `x-nanocamp-source` 标明每次请求的来源：`dynamic` 请求期渲染、`asset` 来自 `public/`、`unmigrated` 页面还没迁移、`notfound` 地址确实不存在、`redirect` 301 补斜杠。
+另有 7 个文件不落磁盘、在请求期现场生成：`sitemap.xml`、`robots.txt`、`/404.html`，以及 4 个指南模板下载 `/downloads/<slug>-template.txt`（正文取自 `content/guides.mjs` 的 `template` 字段）。仓库里没有任何页面产物，也没有 `dist/`。
 
-迁移方式：普通页面只要把路由加进 `backend/app.mjs` 的 `pageRoutes` 数组（它们都由 `renderPage` 渲染，不必重复写渲染函数）；渲染方式特殊的页面（如 `/intro/`）单独加进 `dynamicRoutes`。加完那一页立刻生效。
+响应头 `x-nanocamp-source` 标明每次请求的来源：`dynamic` 请求期渲染、`asset` 来自 `public/`、`notfound` 地址不存在、`redirect` 301 补斜杠。
 
-`dist/` 与静态构建链路（`scripts/build.mjs`、`scripts/serve.mjs`、`npm run build`、`npm run preview`）**已经删除**。站点现在完全由请求期渲染提供，没有任何构建步骤。仓库里剩下的 `dist/` 已无人读取（服务器不读、测试不读、`npm run check` 不读），可以随时整目录删掉。
+### 性能与缓存
 
+渲染结果按路由缓存（`backend/app.mjs` 的 `renderOnce`）：**第一次请求时渲染，之后直接复用**。内容是进程启动时固定的 —— 没有任何运行时写入路径，只有重新部署（`git pull` + 重启）才会变，所以这个缓存不需要任何失效逻辑。404 页也共用同一份缓存，被扫描器狂打不存在的地址时不会反复重建。
 
+实测（单进程、同一台机器）：
+
+| | 每个请求都渲染 | 缓存命中后 |
+| --- | --- | --- |
+| 首页 | 0.91 ms | 0.07 ms |
+| 作品列表（65 KB） | 1.23 ms | 0.10 ms |
+| 站内搜索（83 KB） | 0.92 ms | 0.09 ms |
+| 全站 34 页跑一遍 | 14.9 ms | 1.22 ms |
+
+冷启动时全站渲染一遍约 14 ms，全部页面常驻内存约 0.8 MB。剩下的 0.03–0.1 ms 是对响应体算 sha1（生成强 ETag）的成本，与渲染无关。
+
+⚠️ `/search/` 是唯一随内容量线性增长的页面：它把全站检索索引内嵌进页面（当前 92 条 / **64.7 KB**，占该页 81.2 KB 的 **80%**；每条约 720 字节）。索引大小随记录数线性增长 —— 500 条约 368 KB、1000 条约 720 KB。要改造时首选「服务端过滤」（实测一次查询只要 0.5–0.64 ms），可让页面瘦到约 20 KB 并让无 JS 也能搜索。
+
+⚠️ 索引随页面全量下发，**不能放非公开内容** —— 访问一次 `/search/` 就能拿到全部记录。
 ## 替换真实资料
 
 1. 将图片放入 `public/images/`，例如 `public/images/minicamp-cover.jpg`。
@@ -237,10 +252,10 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 
 ## 文件说明
 
-- `backend/app.mjs`：服务端渲染核心，导出 `handleRequest({ method, url, headers })`，返回 `{ status, headers, body }`，与 HTTP 服务器解耦、可直接单测。解析顺序为「派生文件 → 动态页面 → 目录补斜杠 → `public/` 资源 → 404」，**不接管 `dist/`**。响应头 `x-nanocamp-source` 标明来源（`dynamic` / `asset` / `unmigrated` / `notfound` / `redirect`）。不读配置、不碰端口。
+- `backend/app.mjs`：服务端渲染核心，导出 `handleRequest({ method, url, headers })`，返回 `{ status, headers, body }`，与 HTTP 服务器解耦、可直接单测。解析顺序为「派生文件 → 页面 → 目录补斜杠 → `public/` 资源 → 404」。响应头 `x-nanocamp-source` 标明来源（`dynamic` / `asset` / `notfound` / `redirect`）。渲染结果按路由缓存（见「性能与缓存」）。不读配置、不碰端口。
 - `backend/base.mjs`：站点的**唯一文件系统出口** —— `assetRoot`、后缀到 Content-Type 的映射表、`readFileWithin()` 与 `readAsset()`。请求进入 `handleRequest` 后先过 `safeRoute()`（拒绝 `\0`、`.`/`..` 段与含 `\` 的段，回 400），再由 `readFileWithin` 兜住最后一层。
 - **路径安全规则**：任何由 URL 推导出的文件路径都必须经 `readFileWithin()` 读，它把路径 `path.resolve` 展开后要求仍落在允许的根目录内，因此 `/../package.json`、`/images/../../x` 以及 Windows 风格的 `..\..\x` 都读不到目录外的文件；`decodeURI`（而非 `decodeURIComponent`）保证编码过的 `/`（`%2F`）不会被还原成分隔符。更好的做法是根本不让 URL 决定文件路径 —— 能让内容来自 `content/` 里的内存数据就别落磁盘。另外注意 `public/` 下的任何文件都是公开可下载的，别往里放密钥。
-- `backend/main.mjs`：入口。读 `data/config.json` 的 `host`/`port`/`name`，监听端口、`SIGTERM`/`SIGINT` 优雅退出，并在启动时打印访问地址与迁移进度。日志只走 stdout / stderr，每行带 `[name]` 前缀，由外部（systemd / 重定向）接管。
+- `backend/main.mjs`：入口。读 `data/config.json` 的 `host`/`port`/`name`，监听端口、`SIGTERM`/`SIGINT` 优雅退出，并在启动时打印访问地址与渲染规模。日志只走 stdout / stderr，每行带 `[name]` 前缀，由外部（systemd / 重定向）接管。
 - `data/config.json`：实例配置（`host` / `port` / `name` 三个字段），整个 `data/` 目录不进版本库。服务启动时读一次。
 - `src/components.mjs`：卡片、媒体、弹窗与文档外壳；请求期输出与 `public/base.js` 一致的导航及页脚署名。`documentPage()` 为内容页（含子页面与 404）统一追加 minicamp 同款加入区和页脚；首页保留 `homeJoinSection()` 专属加入区，站内搜索保留简洁页脚且不追加加入区。
 - `public/base.js`：导航、页脚底部与回到顶部的统一数据源及客户端渲染入口。桌面与手机导航均为「首页、minicamp、活动、作品、社区、交流合作、站内搜索」，全部直接显示；共创资源、关于我们与常见问题保留在页脚。首页使用 `home` 标记当前项。静态模板与客户端渲染由导航测试逐节点比对，搜索项保留 Ctrl/⌘ + K 快捷键钩子。
@@ -294,7 +309,7 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - `content/guides.mjs`：四篇通用共创指南、分节正文、准备清单、纯文本模板与外部官方学习入口。
 - `src/learning.mjs`：资源中心及指南页面；`src/partners.mjs`：交流合作页面。
 - `public/workshop.css` / `public/workshop.js` 仅在资源与合作页加载。
-- 模板下载 `/downloads/*-template.txt` 由后端从 `content/guides.mjs` 的 `template` 字段现场生成，不再有构建产物，输出与原 `dist/downloads/` 逐字节一致。下载链接本身不依赖 JavaScript。
+- 模板下载 `/downloads/*-template.txt` 由后端从 `content/guides.mjs` 的 `template` 字段现场生成。下载链接本身不依赖 JavaScript。
 - 准备清单按指南存储在 `nanocamp-checklist-<slug>-v1` 本地键中。仅存勾选项标识；浏览器不允许存储时，本页仍可使用并显示说明。
 - 合作工具只在当前页面生成文本，没有网络提交、数据库写入或自动保存。生成后可复制或下载；输入修改后需要重新生成；清空后可撤销。不要把此工具的文案改成「提交成功」或「申请已收到」，除非另外接入并验证真实接收流程。
 - 官方学习链接核实于 2026-10-02。社区指南为通用准备建议，不代表某一届 minicamp 的实际规则。
@@ -304,11 +319,10 @@ node backend/main.mjs >> logs/app.log 2>&1 &
 - `src/search.mjs` 生成索引和无脚本目录；`public/search-core.js` 提供规范化、多词共同匹配、排序及摘要；`public/search.js` 渐进增强查询、分类、分页及安全高亮。所有结果文本使用 DOM 文本节点。
 - 搜索使用 `?q=关键词&type=guide`；空格分隔的词共同匹配，支持全角字符。无 JavaScript 或索引无法读取时回退为公开页面目录。
 - 主导航搜索入口支持 Ctrl / Command + K，输入控件或打开的弹窗内不会触发。不会绑定纯字符快捷键。
-- `site.url` 是网站的正式公开地址，更换域名后需修改并重新构建。`src/metadata.mjs` 生成 canonical、Open Graph、社交卡片和基于真实页面内容的结构化数据。
-- `design/social-card.html` 是分享预览图的原始排版，`public/images/nanocamp-social.png` 为 1200 × 630 输出。原始两张 Logo 不修改。
-- `design/animation-lab.html` 是首页动效选型页（16 个纯 CSS 候选，按板块分组，右上角可重播或定格）。它不是站点页面；本地查看时执行 `Copy-Item design\animation-lab.html public\`，再打开 `/animation-lab.html`（`public/` 就是后端直接提供的目录）。选定动效后，把对应 CSS 与标记并入正式样式与 `src/`。
+- `site.url` 是网站的正式公开地址，更换域名后改这里并重启即可（`content/site.mjs`）。`src/metadata.mjs` 生成 canonical、Open Graph、社交卡片和基于真实页面内容的结构化数据。
+- `public/images/nanocamp-social.png` 是 1200 × 630 的分享预览图输出。原始两张 Logo 不修改。
 - `npm test` 运行搜索核心、真实内容索引和内联 JSON 安全回归。
-- 构建生成 `sitemap.xml` 与 `robots.txt`。搜索页和 404 标记为 noindex；站点地图只列入普通公开页面，不捏造最后更新时间。
+- `sitemap.xml` 与 `robots.txt` 由后端现场生成。搜索页和 404 标记为 noindex；站点地图只列入普通公开页面，不捏造最后更新时间。
 - `scripts/check.mjs` 检查页面标题/描述、元素 ID、站内文件与锚点、搜索记录、内联 JSON、canonical 与社交元信息、站点地图和分享图尺寸。上线后仍需确认托管平台对未知地址返回 HTTP 404。
 ## minicamp 回顾与相册
 

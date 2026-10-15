@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { handleRequest, pendingRoutes, routeInfo } from '../backend/app.mjs';
+import { handleRequest } from '../backend/app.mjs';
 
 const get = url => handleRequest({ method: 'GET', url, headers: {} });
 
@@ -27,7 +27,7 @@ test('7 个栏目与 4 篇指南都在请求期渲染', async () => {
   }
 });
 
-// 指南的空白模板以前由 scripts/build.mjs 写进 dist/downloads/，现在改成请求时现算。
+// 指南的空白模板以前是构建产物，现在改成请求时现算，内容必须保持一致。
 // 内容必须与旧产物逐字节一致，否则已发出去的下载链接内容会变。
 test('指南的模板下载由 content/guides.mjs 现场生成', async () => {
   const { guides } = await import('../content/guides.mjs');
@@ -61,15 +61,16 @@ test('sitemap 与 robots 在请求期生成，域名跟随 site.url', async () =
   assert.match(robots.body.toString('utf8'), /^Sitemap: https:\/\/\S+\/sitemap\.xml$/m);
 });
 
-// 不接 dist/ 兜底：没迁移的页面必须是 404，这样访问一遍就能直观看到进度。
-test('未迁移的页面返回 404，并用响应头标记 unmigrated', async () => {
-  assert.ok(pendingRoutes.length > 0, '当前应仍有未迁移路由，这个用例才有意义');
-  for (const route of pendingRoutes) {
-    assert.equal(routeInfo.migrated.includes(route), false);
+// 路由表是按 src/pages.mjs 展开的，所以每个站点路由都必须真的能从服务器取到。
+// 这条用例兜住「页面写进了路由表、服务器却拿不到」的情况。
+test('每个站点路由都在请求期渲染', async () => {
+  const { routePaths } = await import('../src/pages.mjs');
+  assert.ok(routePaths.length > 0, '路由表不应为空');
+  for (const route of routePaths) {
     const response = await get(route);
-    assert.equal(response.status, 404, `${route} 未迁移时应当 404`);
-    assert.equal(response.headers['x-nanocamp-source'], 'unmigrated', `${route} 应标记为未迁移`);
-    assert.match(response.body.toString('utf8'), /页面未找到/);
+    assert.equal(response.status, 200, `${route} 应返回 200`);
+    assert.equal(response.headers['x-nanocamp-source'], 'dynamic', `${route} 应来自请求期渲染`);
+    assert.match(response.body.toString('utf8'), /<title>[^<]+<\/title>/, `${route} 应有标题`);
   }
 });
 

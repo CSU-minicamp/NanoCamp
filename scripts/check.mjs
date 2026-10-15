@@ -1,9 +1,9 @@
 // 站点完整性自检：标题/描述唯一、锚点可解析、链接可达、元信息、JSON、sitemap、分享图。
 //
-// 以前这里读 dist/ 的构建产物；dist 正在被去掉，现在改成：
+// 站点全部在请求期渲染，所以这里也全部走服务器：
 //   - 已迁移到请求期渲染的路由 → 取服务器实际会返回的 HTML（与线上完全一致）
 //   - 还没迁移的路由           → 直接用渲染函数产出 HTML（迁移后会走上面那条，内容相同）
-// 两条路径都不碰 dist，因此 dist 删干净之后这个脚本照样能跑。
+// 页面与派生文件都不落磁盘，因此这个脚本不依赖任何构建产物。
 import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,8 +24,7 @@ const require = (condition, message) => { if (!condition) throw new Error(messag
 const decode = value => value.replace(/&(?:amp|lt|gt|quot|#39|apos);/g, entity => ({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&#39;':"'",'&apos;':"'"}[entity]));
 
 // 不落磁盘的派生文件（sitemap / robots / 404 / 下载模板），它们只存在于请求期。
-const derived = new Set(routeInfo.text);
-const migrated = new Set(routeInfo.migrated);
+const derived = new Set(routeInfo.derived);
 // /intro/ 是首页 iframe 嵌入的海报页：自带 noindex、没有加入区，也不在 routePaths 里，
 // 所以不参与下面的内容校验；但它必须被承认为合法的链接目标。
 const specialRoutes = new Set(['/intro/']);
@@ -130,15 +129,15 @@ require(robots.includes('Sitemap: '+new URL('/sitemap.xml',site.url).href), 'Rob
 const png = await readFile(path.join(assetRoot,'images/nanocamp-social.png'));
 require(png.toString('hex',0,8)==='89504e470d0a1a0a' && png.readUInt32BE(16)===1200 && png.readUInt32BE(20)===630, 'Share image must be a valid 1200 × 630 PNG');
 
-// 迁移进度：已迁移的路由必须真的能从服务器拿到，且内容和渲染函数一致。
-for (const route of migrated) {
+// 全部站点页面都必须能从服务器直接取到，且响应与渲染函数一致。
+// 这条同时兜住「页面写进了 src/pages.mjs 但路由没生效」这类问题 —— 现在路由是按路由表展开的，
+// 理论上不会漏，但一旦有人改动路由逻辑，这里会立刻报出来。
+for (const route of routePaths) {
   const response = await handleRequest({method:'GET',url:route,headers:{}});
-  require(response.status === 200, route + ': 标记为已迁移，但服务器没有返回 200');
-  require(response.body.toString('utf8') === await pageHtml(route), route + ': 已迁移路由的响应与渲染结果不一致');
+  require(response.status === 200, route + ': 没有返回 200');
+  require(response.headers['x-nanocamp-source'] === 'dynamic', route + ': 不是请求期渲染的响应');
+  require(response.body.toString('utf8') === await pageHtml(route), route + ': 响应与渲染结果不一致');
 }
 
 console.log(`PASS: ${routePaths.length} pages + 404, ${assets.size} local files, ${anchors} anchor links, ${index.length} search records, canonical/social metadata, JSON, sitemap and share image.`);
-const done = routePaths.length - routeInfo.pending.length;
-console.log(`      迁移进度：站点页面 ${done}/${routePaths.length} 已请求期渲染（另有 /intro/ 海报页随首页一起渲染），` +
-  `待迁移 ${routeInfo.pending.length} 个${routeInfo.pending.length ? '：' + routeInfo.pending.join('、') : ''}；` +
-  `不落磁盘的派生文件 ${derived.size} 个。`);
+console.log(`      全部 ${routeInfo.pages} 个路由在请求期渲染，另有 ${derived.size} 个不落磁盘的派生文件。`);

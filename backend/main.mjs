@@ -117,9 +117,9 @@ server.on('error', error => {
 });
 
 /**
- * 启动成功后打印访问地址与迁移进度快照。
+ * 启动成功后打印访问地址与内容规模快照。
  *
- * 绑「本机所有网卡」时额外提示一次，避免在本机无意中对局域网开放；未迁移的路由会逐条列出 —— 这份清单就是当前的迁移待办。
+ * 绑「本机所有网卡」时额外提示一次，避免在本机无意中对局域网开放。
  */
 server.listen(port, host, () => {
   const allInterfaces = host === '0.0.0.0' || host === '::';
@@ -128,8 +128,5 @@ server.listen(port, host, () => {
     log('  对局域网开放；本机开发想只对自己开放，在 data/config.json 里写 "host": "127.0.0.1"');
   log(`  配置：${existsSync(configPath) ? configPath : `${configPath}（不存在，使用默认值）`}`);
   log(`  静态资源：${assetRoot}`);
-  log(`  已迁移：${routeInfo.migrated.join('、')}`);
-  log(`  未迁移：${routeInfo.pending.length} 个（访问返回 404，用于直观查看进度）`);
-  for(const route of routeInfo.pending)
-    log(`    · ${route}`);
+  log(`  请求期渲染：${routeInfo.pages} 个页面，另有 ${routeInfo.derived.length} 个不落磁盘的派生文件（sitemap、robots、404 页、指南模板下载）`);
 });

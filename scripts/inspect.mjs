@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 // 探针页写进 public/ —— 动态服务直接提供这个目录，所以只要 npm start 开着就能访问到。
-// 以前写进 dist/，那是静态构建时代的做法，dist 正在被去掉。
+// 以前写进 dist/（静态构建时代的产物，已删除）。
 const probeRoot = path.join(root, 'public');
 const outDir = path.join(root, 'verify');
 const port = Number(process.env.PORT || 4187);
