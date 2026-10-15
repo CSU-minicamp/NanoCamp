@@ -5,7 +5,9 @@
 //   API=https://minicamp.flipperusc.work node scripts/sync-minicamp-projects.mjs
 //
 // 约定：只搬运接口里真实存在的字段，缺失字段一律留 null（页面显示「待补充」），不做编造。
-// 输出的 JS 片段需要人工核对后粘贴进 content/site.mjs 的 projects 数组。
+// 输出的 JSON 需要人工核对后，整体替换 content/minicamp2026.json 的 projects 数组。
+// slug 决定详情页地址 /projects/<slug>/，接口给的中文标题无法自动转成好读的英文，
+// 所以人工起的英文名记在下面的 englishSlugs 表里，重新同步时不会被冲掉。
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -50,13 +52,36 @@ const source = (payload.projects || [])
     return theme || teamNumber(a.teamId) - teamNumber(b.teamId) || String(a.id).localeCompare(String(b.id));
   });
 
+// 人工起的英文名：键是接口里的中文标题，值是详情页地址要用的 slug。
+// 接口给的中文标题 slugify 后为空（或只剩「app / ai」这类碎片），只能回退到队伍编号，
+// 地址就成了 /projects/project-05/ 这种没有含义的形式，所以在这里逐个补英文名。
+// 新增作品时在这张表里加一行；没加的作品仍按下面的规则自动回退。
+const englishSlugs = {
+  '校园雷达': 'campus-radar',
+  '收藏夹不吃灰计划': 'bookmark-rescue',
+  '念图': 'nian-tu',
+  '中南人的课表应用': 'csu-timetable',
+  '多人格圆桌会谈': 'multi-persona-roundtable',
+  '中南大学校园出行与充电': 'campus-travel-charging',
+  '电动车大学跑路app': 'e-bike-escape',
+  '中南大学像素校园': 'pixel-campus',
+  '小电驴的一天': 'a-day-of-e-bike',
+  '请勿喧哗': 'please-keep-quiet',
+  '中国龙能飞': 'chinese-dragon-can-fly',
+  '智能衣柜与家庭物品管理助手': 'smart-wardrobe-assistant',
+  '因花寺': 'yin-hua-si',
+  '宝子，你想茶出怎样的滋味？': 'tea-flavor-explorer',
+  '属于工程师的AI智能桌宠助手': 'engineer-ai-desk-pet',
+};
+
 const used = new Set();
 const entries = source.map((project, index) => {
   const id = String(index + 1).padStart(2, '0');
   const name = clean(project.projectName) || `未命名作品 ${id}`;
-  // 中文标题 slugify 后为空，或只剩「app / ai」这类碎片时，回退到稳定的队伍编号式 slug。
+  // 优先用人工表里的英文名；没有就看标题能不能 slugify 出可用的片段；再不行才回退到编号。
+  // 注意：回退到编号的地址（/projects/project-NN/）以后补上英文名就会换地址，旧地址直接 404，不做跳转。
   const fromName = slugify(name);
-  let slug = fromName.length >= 3 ? fromName : `project-${id}`;
+  let slug = englishSlugs[name] || (fromName.length >= 3 ? fromName : `project-${id}`);
   while (used.has(slug)) slug = `${slug}-${id}`;
   used.add(slug);
 
@@ -96,24 +121,20 @@ if (writeImages) {
   }
 }
 
-// problem / solution 里可能带换行，必须转义，否则拼出来的 JS 字面量会断行。
-const quote = value => value === null ? 'null' : `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r\n?|\n/g, '\\n').replace(/\t/g, '\\t')}'`;
-const block = entries.map(entry => {
-  const members = entry.members.map(member => `{ name: ${quote(member.name)}, role: ${quote(member.role)} }`).join(', ');
-  const tools = entry.tools.map(quote).join(', ');
-  return `  {
-    id: ${quote(entry.id)}, slug: ${quote(entry.slug)}, title: ${quote(entry.title)},
-    description: ${quote(entry.description)},
-    problem: ${quote(entry.problem)}, solution: ${quote(entry.solution)},
-    theme: ${quote(entry.theme)}, team: ${quote(entry.team)}, year: '2026', category: 'minicamp',
-    tools: [${tools}], members: [${members}],
-    cover: ${quote(entry.cover)}, coverAlt: ${quote(`${entry.title} 作品封面`)}, coverFull: null,
-    repoUrl: ${quote(entry.repoUrl)}, demoUrl: ${quote(entry.demoUrl)},
-    sourceId: ${quote(entry.sourceId)},
-  },`;
-}).join('\n');
+// 输出 JSON：字段顺序与 content/minicamp2026.json 保持一致，这样重新同步后的 diff 干净。
+// __cover 是导出封面用的内部字段（含二进制），不能进配置文件。
+const toConfig = entry => ({
+  id: entry.id, slug: entry.slug, title: entry.title,
+  description: entry.description,
+  problem: entry.problem, solution: entry.solution,
+  theme: entry.theme, team: entry.team, year: '2026',
+  tools: entry.tools, members: entry.members,
+  cover: entry.cover, coverAlt: `${entry.title} 作品封面`, coverFull: null,
+  repoUrl: entry.repoUrl, demoUrl: entry.demoUrl,
+  sourceId: entry.sourceId,
+});
 
 console.log(`\n共 ${entries.length} 条已发布作品（接口原始 ${(payload.projects || []).length} 条）`);
 console.log(`有封面 ${entries.filter(e => e.cover).length} · 有 GitHub ${entries.filter(e => e.repoUrl).length} · 有 Demo ${entries.filter(e => e.demoUrl).length}`);
-console.log('\n--- 粘贴到 content/site.mjs 的 projects 数组 ---\n');
-console.log(block);
+console.log('\n--- 核对后替换 content/minicamp2026.json 的 projects 数组 ---\n');
+console.log(JSON.stringify(entries.map(toConfig), null, 2));

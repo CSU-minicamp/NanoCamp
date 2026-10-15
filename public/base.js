@@ -21,7 +21,7 @@
     Object.freeze({ key: 'projects', href: '/projects/', label: '作品', compact: true, footer: true, footerLabel: '社区作品' }),
     Object.freeze({ key: 'resources', href: '/resources/', label: '资源', compact: false, footer: true, footerLabel: '共创资源', footerOnly: true }),
     Object.freeze({ key: 'community', href: '/community/', label: '社区', compact: true, footer: true, footerLabel: '参与指南' }),
-    Object.freeze({ key: 'partners', href: '/partners/', label: '交流合作', compact: true, footer: true, footerLabel: '交流合作' }),
+    Object.freeze({ key: 'partners', href: '/partners/', label: '合作', compact: true, footer: true, footerLabel: '交流合作' }),
     Object.freeze({ key: 'about', href: '/about/', label: '关于', compact: false, footer: true, footerLabel: '关于我们', footerOnly: true }),
     Object.freeze({ key: 'search', href: '/search/', label: '站内搜索', compact: true, footer: true, footerLabel: '站内搜索', search: true }),
     // 页脚专有项：主导航里没有，页脚渲染器接管时使用。
@@ -117,52 +117,12 @@
 
   // --- 页脚底部（数据源在这里，构建期会按同一份定义输出一份静态 HTML）---
 
-  // 搜索页保留简洁署名，其余页面统一使用图形标志加说明。
-  // 这行文字同时写死在静态 HTML 里（见 src/components.mjs），无 JS 时也可见。
-  function signoff() {
-    const wrapper = doc.createElement('span');
-    wrapper.setAttribute('class', 'footer-signoff');
-    if (navActive() === 'search') {
-      const dot = doc.createElement('i');
-      dot.setAttribute('aria-hidden', 'true');
-      wrapper.append(dot, doc.createTextNode('一个属于学生创造者的社区。'));
-      return wrapper;
-    }
-    const mark = doc.createElement('span');
-    mark.setAttribute('class', 'footer-signoff-mark');
-    mark.setAttribute('aria-hidden', 'true');
-    const asset = doc.createElement('span');
-    asset.setAttribute('class', 'brand-asset brand-symbol');
-    const image = doc.createElement('img');
-    image.setAttribute('class', 'brand-image');
-    image.setAttribute('src', '/images/nanocamp-symbol.webp');
-    image.setAttribute('alt', 'NanoCamp NC 图形标志');
-    image.setAttribute('decoding', 'async');
-    image.setAttribute('loading', 'lazy');
-    image.setAttribute('width', '428');
-    image.setAttribute('height', '430');
-    const fallback = doc.createElement('span');
-    fallback.setAttribute('class', 'brand-fallback');
-    fallback.hidden = true;
-    fallback.textContent = 'NC';
-    asset.append(image, fallback);
-    mark.append(asset);
-    const copy = doc.createElement('span');
-    copy.setAttribute('class', 'footer-signoff-copy');
-    const kicker = doc.createElement('span');
-    kicker.setAttribute('class', 'footer-signoff-kicker mono');
-    kicker.textContent = 'WHO WE BUILD WITH';
-    const line = doc.createElement('span');
-    line.textContent = '一个属于学生创造者的社区。';
-    copy.append(kicker, line);
-    wrapper.append(mark, copy);
-    return wrapper;
-  }
-
+  // 署名块已整块移除，页脚底部留空。这里仍返回那个空容器：
+  // [data-nav="footer-bottom"] 是挂载点契约，静态 HTML 里也保留同样的空结构，
+  // 由 tests/nav-build.test.mjs 逐节点比对两边是否一致。
   function footerBottom() {
     const bottom = doc.createElement('div');
     bottom.setAttribute('class', 'footer-bottom');
-    bottom.append(signoff());
     return bottom;
   }
 

@@ -9,7 +9,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const dist = path.join(root, 'dist');
+// 探针页写进 public/ —— 动态服务直接提供这个目录，所以只要 npm start 开着就能访问到。
+// 以前写进 dist/（静态构建时代的产物，已删除）。
+const probeRoot = path.join(root, 'public');
 const outDir = path.join(root, 'verify');
 const port = Number(process.env.PORT || 4187);
 
@@ -69,7 +71,6 @@ routes.forEach(route => {
         ? w.getComputedStyle(d.querySelector('.footer-top nav a'), '::after').transform : '-',
       // 共享件（还原后应全站都在）；侧边栏分享按钮只在指南/作品详情页
       shareButton: count('[data-share-page]'),
-      readingProgress: count('[data-reading-progress]'),
       joinFallbackDisplay: cs(d.querySelector('.header-actions .join-fallback'), 'display'),
       plusRotation: cs(d.querySelector('.button-plus'), 'transform'),
     };
@@ -84,7 +85,7 @@ function finish() {
   L.push('首页隔离自检 —— 期望：交互与文案只在 "/"，共享件在每页都在');
   L.push('='.repeat(96));
   L.push('');
-  const cols = ['route','page','hero','heroFloat','homeJoin','int.css','nav::after','btn::after','share','readProg','+rot'];
+  const cols = ['route','page','hero','heroFloat','homeJoin','int.css','nav::after','btn::after','share','+rot'];
   L.push(cols.map(c => c.padEnd(11)).join(''));
   L.push('-'.repeat(96));
   Object.values(results).forEach(r => {
@@ -93,7 +94,7 @@ function finish() {
       r.hero ? 'yes' : '-', r.heroFloat ? 'yes' : '-', r.homeJoin ? 'yes' : '-',
       r.interactionsLoaded ? 'yes' : '-',
       r.navAfterContent === '""' ? 'empty' : (r.navAfterContent === 'none' ? 'none' : '?'),
-      r.buttonAfterDisplay, r.shareButton, r.readingProgress,
+      r.buttonAfterDisplay, r.shareButton,
       r.plusRotation === 'none' ? 'none' : r.plusRotation,
     ].map(v => String(v).padEnd(11)).join(''));
   });
@@ -102,13 +103,13 @@ function finish() {
   L.push('  * nav::after 应为 empty（无下划线伪元素）→ 说明交互层没跑到该页');
   L.push('  * btn::after 应为 none（collage.css 的 display:none 生效，未被交互层覆盖）');
   L.push('  * 首页 int.css=yes，其他页也加载但规则被 body[data-page=home] 挡掉');
-  L.push('  * share 只在指南/作品详情页 >=1（侧边栏按钮），readProg 每页都应 >=1');
+  L.push('  * share 只在指南/作品详情页 >=1（侧边栏按钮）');
   document.getElementById('out').textContent = L.join('\\n');
 }
 </script></body></html>`;
 
 mkdirSync(outDir, { recursive: true });
-const probePath = path.join(dist, '__scope.html');
+const probePath = path.join(probeRoot, '__scope.html');
 writeFileSync(probePath, probe(PAGES), 'utf8');
 const shot = path.join(outDir, 'scope.png');
 
