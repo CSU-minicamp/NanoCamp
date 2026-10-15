@@ -114,7 +114,8 @@ test('页脚与浮窗：HTML 无按钮残留，浮窗由 base.js 生成', () => 
     if (route !== '/search/')
       assert.equal(footer, reference, `${route} 应使用 minicamp 同款页脚`);
     assert.ok(slot, `${route} 应该有页脚底部槽位`);
-    assert.match(footer, /一个属于学生创造者的社区。/, `${route} 的署名应写死在 HTML 里`);
+    assert.match(footer, /Meet\. Build\./, `${route} 的页脚内容应写死在 HTML 里`);
+    assert.equal(footer.includes('footer-signoff'), false, `${route} 的页脚署名块应已移除`);
   }
 });
 
