@@ -1,0 +1,78 @@
+/* NanoCamp auth.css — 登录页版式（注册已并入登录，只有这一页）。
+   顶栏导航、页脚与加入弹窗的样式仍由 base.css / collage.css 负责，这里只写中间那张卡片。
+   本文件只在 data-page="login" 时加载（见 src/components.mjs），
+   所以 .form-field 这类通用类名不会影响 workshop.css 里的交流草稿表单。 */
+
+.auth-page{display:grid;place-items:center;padding-block:56px 84px}
+.auth-panel{position:relative;isolation:isolate;width:100%;max-width:470px;min-width:0}
+/* 卡片背后一块微斜的薄荷底，把纸面上的白卡托起来；颜色取自加入区，全站是同一片绿。 */
+.auth-panel::before{content:"";position:absolute;inset:-14px -16px -18px -12px;z-index:-1;border:1px solid #c9dfd2;background:linear-gradient(155deg,#e9f4ee,#d7ebdf 72%);transform:rotate(-1.2deg)}
+.auth-card{position:relative;background:#fff;border:1px solid #c7d5e0;border-radius:14px;padding:30px 30px 26px;box-shadow:10px 10px 0 -1px #fff,10px 10px 0 0 #cfdbe4}
+.auth-card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px dashed #cbd9e3}
+.auth-card-head .mono{font-size:10px;letter-spacing:.16em;color:#4d6b8a}
+.auth-card-mark{font-size:10px;letter-spacing:.1em;color:#7d8fa0}
+.auth-card-title{font-size:clamp(24px,3vw,29px);font-weight:750;letter-spacing:-.02em}
+.auth-card-note{margin-top:9px;font-size:13px;line-height:1.8;color:#5d7284}
+
+/* 带 ?next= 时出现的回跳提示：静态 HTML 里是空的且 hidden，由 auth.js 填目标并显形。 */
+.auth-next{display:flex;align-items:baseline;gap:10px;margin-top:16px;padding:9px 12px;border:1px dashed #bcd3c5;border-radius:8px;background:#f1f8f4;font-size:12px;line-height:1.7;color:#3d6b58}
+.auth-next[hidden]{display:none}
+.auth-next code{font-family:var(--mono);font-size:12px;color:#26544a;overflow-wrap:anywhere}
+
+.auth-card .form-field{margin-top:20px;min-width:0}
+.auth-card .form-field label{display:block;margin-bottom:8px;font-size:13px;font-weight:600;color:#3e5667}
+.auth-card .form-field input{font:inherit;width:100%;min-width:0;min-height:48px;padding:11px 13px;border:1px solid #b9c9d6;border-radius:8px;background:#fbfcfe;color:#2b404e;font-size:15px;transition:border-color .2s,box-shadow .2s,background .2s}
+.auth-card .form-field input::placeholder{font-size:14px;color:#8b9aa6}
+.auth-card .form-field input:focus{outline:0;border-color:#477bbd;background:#fff;box-shadow:0 0 0 3px #e9f0fb}
+/* 提交过之后才出现的错误描边（浏览器自己管时机，不需要额外 JS）。 */
+.auth-card .form-field input:user-invalid{border-color:#c96a55;background:#fdf6f4}
+/* 验证码框：数字等宽、居中、加大字距，方便核对而不像密码那样被遮住。 */
+.auth-code{font-family:var(--mono);font-size:22px;letter-spacing:.34em;text-align:center;text-indent:.34em}
+/* 占位提示是"6 位数字"这样的词组，别跟着数字那样拉字距。 */
+.auth-code::placeholder{font-size:14px;letter-spacing:.02em;text-indent:0;font-family:var(--font)}
+.auth-card .field-note{display:block;margin-top:7px;font-size:11px;line-height:1.8;color:#6a7f8e}
+
+/* --- 密码框与眼睛按钮 -------------------------------------------------------
+   按钮绝对定位在输入框右侧，输入框留出等宽右内边距；两个图标叠在同一格里，
+   由 aria-pressed 决定显示哪一个（睁眼=明文，闭眼=密文），脚本只翻状态不换 DOM。 */
+.auth-input{position:relative}
+.auth-input input{padding-right:52px}
+.auth-reveal{position:absolute;top:50%;right:6px;display:grid;place-items:center;width:38px;height:38px;border:0;border-radius:7px;background:transparent;color:#7b8d9b;transform:translateY(-50%);transition:background .2s,color .2s}
+.auth-reveal:hover{background:#eef3f9;color:var(--blue)}
+.auth-reveal:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.auth-reveal[aria-pressed="true"]{color:var(--blue);background:#eaf1fb}
+.auth-reveal svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.auth-reveal .auth-eye-open,.auth-reveal[aria-pressed="true"] .auth-eye-closed{display:block}
+.auth-reveal .auth-eye-closed,.auth-reveal[aria-pressed="true"] .auth-eye-open{display:none}
+
+/* --- 两步面板 ---------------------------------------------------------------
+   同一张卡里切换，不换页也不换地址：email 面板是邮箱输入，code 面板是验证码。
+   hidden 由 auth.js 切换；这里显式写 display:none，防止将来给面板加 display 时被覆盖。 */
+[data-auth-step][hidden]{display:none}
+
+/* 「验证码已发送到 xxx」那一行：邮箱用粗体，右边跟一个「改邮箱」文字按钮。 */
+.auth-sent{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin-top:20px;font-size:13px;line-height:1.7;color:#5d7284}
+.auth-sent b{color:#2b404e;font-weight:600;overflow-wrap:anywhere}
+/* 文字按钮：看起来是链接、语义是按钮，键盘与读屏都能用。 */
+.auth-link{padding:0;border:0;background:none;color:var(--blue);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.auth-link:hover{color:#194eb9}
+.auth-link:disabled{color:#8b9aa6;text-decoration:none;cursor:default}
+.auth-resend{margin-top:14px;font-size:13px;color:#5d7284;text-align:center}
+
+.auth-card .auth-submit{width:100%;gap:14px;margin-top:22px;justify-content:center}
+.auth-submit .button-plus{font-size:20px}
+.auth-submit:disabled{opacity:.62;transform:none;cursor:default}
+.auth-status{margin:0;font-size:13px;line-height:1.8;color:#2f6b52}
+.auth-status:not(:empty){margin-top:14px;padding:10px 13px;border-radius:8px;background:#eef7f1;border:1px solid #cbe3d3}
+.auth-status[data-tone="error"]{color:#a03b2c;background:#fdf2ef;border-color:#eed3ca}
+
+/* 验证码路径的说明文字：只在「改用验证码」那一步出现。 */
+.auth-note{margin-top:18px;font-size:13px;line-height:1.85;color:#5d7284}
+/* 两条路径之间的切换：一行居中的文字按钮，不抢主按钮的注意力。 */
+.auth-alt{margin-top:14px;font-size:13px;line-height:1.8;color:#5d7284;text-align:center}
+
+@media(max-width:560px){
+  .auth-page{padding-block:34px 60px}
+  .auth-card{padding:24px 20px 22px;box-shadow:7px 7px 0 -1px #fff,7px 7px 0 0 #cfdbe4}
+  .auth-code{font-size:20px;letter-spacing:.26em;text-indent:.26em}
+}

@@ -33,7 +33,7 @@ npm run dev
 
 ## 部署
 
-站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有 npm 依赖、没有构建步骤**，`git clone` 完就能跑。
+站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有 npm 依赖、没有构建步骤**，`git clone` 完就能跑（数据库接入后才会引入 `mysql2`，见[配置](#配置dataconfigjson)）。
 
 本地试跑：
 
@@ -57,8 +57,88 @@ npm start
 | `port` | `8080` | 监听端口 |
 | `name` | `Nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
 | `url` | 无 | **可选**：覆盖站点正式域名（即 `content/site.mjs` 的 `site.url`）。canonical、Open Graph、sitemap 与 robots 会整体跟着变。只接受 http / https，非法值忽略并打一行日志。结尾斜杠会自动补上。 |
+| `db` | 无 | **下一版本接入**：MySQL 连接。当前版本的认证存储尚未接数据库，这一项写了也会被忽略。 |
+| `mail` | `console` | **可选**：发信配置。`provider` 为 `console`（只打日志，不发信）或 `resend`；`resend` 需要 `apiKey` 与已认证域下的 `from`。 |
+| `auth` | 无 | **可选**：`secret`（会话与验证码 HMAC 的密钥，**必须自己生成**）、`trustProxy`（走 nginx 反代时设 `true`，否则来源限流失效）。 |
 
 文件不存在、只写一个字段、或某个字段类型写错，都用默认值兜住，服务照常启动。没有别的启动参数 —— 不读环境变量，也没有示例文件，直接改这一个 JSON 即可。两个实例（不同端口）就放两份 clone，各自写自己的 `data/config.json`。
+
+配置**在进程内只读一次**（首次用到时读盘，之后走缓存），所以改完要重启服务才生效 —— 和改 `host` / `port` 一样。
+
+#### 账号与邮件（当前仅发信可用）
+
+**当前版本没有接数据库，所以只开放了「发验证码」这一半**：
+
+| 接口 | 状态 |
+|---|---|
+| `POST /api/auth/code` | ✅ 真发一封验证码邮件（不依赖存储） |
+| `POST /api/auth/{verify,login,logout}` | 503 `auth_unavailable`（校验与会话都要写库） |
+| `GET /api/session` | `{user: null, disabled: true, canSendCode: true}` |
+
+登录页照常渲染：密码按钮是禁用的、发码按钮可用，页面上会写明「账号系统尚未开放」。这是有意的 —— 宁可不提供登录，也不要给一个「重启就没了、只在一个进程里有效」的假登录。
+
+数据库在下一个版本接入：`backend/auth.mjs` 里需要存储的函数（`verifyCode` / `loginWithPassword` / `readSession` 等）**签名已经定好、暂时抛 `not_implemented`**，届时只填函数体，`backend/api.mjs` 与前端都不用改。
+
+现在能做的事情：
+
+```sh
+# 1) 生成密钥，填进 data/config.json 的 auth.secret（接数据库后要用）
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+
+# 2) 直接验证发信（会真发一封，收到即说明域名与密钥都通了）
+npm run mail:test -- 你的邮箱
+```
+
+也可以打开 `/login/`，切到「改用邮箱验证码登录」点一次发码 —— 走的是同一条 `requestCode()`。
+
+`data/config.json` 里相关的段大概长这样：
+
+```json
+{
+  "mail": {
+    "provider": "resend",
+    "apiKey": "re_…",
+    "streams": { "auth": { "from": "NanoCamp <donotreply@mail.nanocamp.club>" } }
+  },
+  "auth": { "secret": "…", "trustProxy": true }
+}
+```
+
+`auth.secret` 是一把 HMAC 密钥，只做两件事：验证码存库前与限流计数用的邮箱/IP 化名。**它与会话无关**（会话是随机 token + 纯 sha256），所以轮换它只会让未使用的验证码失效、限流计数重算，不会把已登录用户踢下线。缺失或为空时认证整体不可用（fail closed），不会临时随机生成一把。
+
+⚠️ 发件人的 `@` 前面可任意取（只要域已验证），但 **`from` 的域必须是 Resend 里认证过的那个**；别用主域直接发信，主域一旦进垃圾箱会连累官网邮件。DMARC 记录（`_dmarc.<主域>`）需要自己加，Resend 只负责 SPF/DKIM。
+
+#### 多个发件人与多把 Key
+
+**发件人地址与 API Key 是两个独立维度。** 一个已验证域下，`@` 前面可以随便取（`captcha@`、`notice@`、`event@`…），一把 Key 就能发这些地址，**不需要为每个发件人建一把 Key**。
+
+只有下面三种情况才值得开第二把 Key：
+
+1. **轮换隔离**：两部分的 Key 分开，一把泄露只换一把；
+2. **跨域**：某类邮件要用另一个已验证域（比如以后加 `news.nanocamp.club` 发批量通知）；
+3. **审计或限权**：需要按功能看 Resend 的发送日志，或某把 Key 只给只发信权限。
+
+配置用 `streams` 表达，**没写的字段从顶层继承**（典型情况：共用一把 Key，只换发件人）：
+
+```json
+"mail": {
+  "provider": "resend",
+  "apiKey": "re_shared",
+  "replyTo": "hello@nanocamp.club",
+  "defaultStream": "auth",
+  "streams": {
+    "auth":   { "from": "NanoCamp <captcha@mail.nanocamp.club>" },
+    "notice": { "from": "NanoCamp <notice@mail.nanocamp.club>" },
+    "event":  { "from": "minicamp <event@mail.nanocamp.club>", "apiKey": "re_event" }
+  }
+}
+```
+
+- 登录验证码固定走 `auth` 这条 stream；以后加通知、活动提醒，业务侧调 `sendMail({stream: 'notice', …})` 即可，不用改发信代码。
+- `apiKey` 可以简写成 `key`（两者等价；同时写且值不同时以 `apiKey` 为准）。写错其它字段名会在启动/发信时打一行 `[mail] …不是有效字段` 到 stderr，不会静默忽略。
+- 单独验证某一条：`npm run mail:test -- 你的邮箱 notice`
+- 完全没写 `streams` 时行为与之前一致（顶层那套就是唯一配置），老配置文件不用改。
+- ⚠️ 同一个子域下的所有发件人**共享域名信誉**。事务邮件与批量群发建议早点分域：`mail.` 只发事务类（验证码、通知），另开一个子域做批量投递，别让一封群发把验证码带进垃圾箱。
 
 `url` 存在的理由是**域名属于部署属性，而不是内容属性**：版本库里的 `site.url` 写的是生产域名，但每台机器可能跑在不同的地址上。启动日志会明确打印当前生效的域名及来源：
 
@@ -73,7 +153,7 @@ npm start
 `data/` 不进版本库，所以 `git clone` 之后**必须手动建配置文件**，否则会用默认的 `0.0.0.0:8080` 且实例名为 `nanocamp`。
 
 ```sh
-# 1) 确认 Node 版本（不需要 npm install）
+# 1) 确认 Node 版本
 node -v                                   # 需要 >= 20
 which node                                # 记下路径，下一步 ExecStart 要用
 

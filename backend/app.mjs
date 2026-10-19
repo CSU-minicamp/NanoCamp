@@ -9,7 +9,8 @@
 import {createHash} from 'node:crypto';
 
 import {types, readAsset, escapeHtml} from './base.mjs';
-import {routePaths, renderPage, renderNotFound} from '../src/pages.mjs';
+import {handleApi} from './api.mjs';
+import {routePaths, indexablePaths, renderPage, renderNotFound, renderUnauthorized} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
 import {canonicalUrl} from '../src/metadata.mjs';
 import {guides} from '../content/guides.mjs';
@@ -43,7 +44,7 @@ const dynamicRoutes = new Map([
 const textRoutes = new Map([
   ['/sitemap.xml', {
     type: types['.xml'],
-    render: () => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${routePaths.filter(route => route !== '/search/').map(route => `  <url><loc>${escapeHtml(canonicalUrl(route))}</loc></url>`).join('\n')}\n</urlset>\n`,
+    render: () => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexablePaths.map(route => `  <url><loc>${escapeHtml(canonicalUrl(route))}</loc></url>`).join('\n')}\n</urlset>\n`,
   }],
   ['/robots.txt', {
     type: types['.txt'],
@@ -53,6 +54,11 @@ const textRoutes = new Map([
   ['/404.html', {
     type: types['.html'],
     render: () => renderNotFound(),
+  }],
+  // 401 页同样落一份文件版（nginx 可以直接 `error_page 401 /401.html`）。
+  ['/401.html', {
+    type: types['.html'],
+    render: () => renderUnauthorized(),
   }],
   // 指南的空白模板下载：正文本来就存在 content/guides.mjs 的 template 字段里，由请求期现场生成，不落磁盘。
   ...guides.map(guide => [`/downloads/${guide.slug}-template.txt`, {
@@ -130,20 +136,14 @@ function redirect(location){
  * 依次尝试：站点级派生文件 → 页面 → 目录补斜杠 → public/ 静态资源 → 404。所有页面都在请求期渲染，404 就是地址确实不存在。
  *
  * @param {object} [request] 请求对象。可以是 http.IncomingMessage，也可以是任意具备 method / url / headers 的对象，便于单测直接构造。
- * @param {string} [request.method='GET'] HTTP 方法，只支持 GET 与 HEAD。
+ * @param {string} [request.method='GET'] HTTP 方法。页面只接受 GET / HEAD；/api/* 另收 POST。
  * @param {string} [request.url='/'] 请求地址，可含查询串（会被忽略）。
  * @param {object} [request.headers={}] 请求头。
+ * @param {string|Buffer|null} [request.body=null] 原始请求体，仅 /api/* 的 POST 需要。
+ * @param {string} [request.ip=''] 来源地址，由传输层给出（不读请求头，避免被自有头绕过限流）。
  * @returns {Promise<{status: number, headers: object, body: Buffer}>} 响应描述。405 方法不允许、400 地址无法解码、301 补斜杠、200 命中内容、404 兜底。
  */
-export async function handleRequest({method = 'GET', url = '/', headers = {}} = {}){
-  // 筛选有效请求
-  if(method !== 'GET' && method !== 'HEAD'){
-    return {
-      status: 405,
-      headers: {'content-type': types['.txt'], allow: 'GET, HEAD', 'x-nanocamp-source': 'dynamic'},
-      body: Buffer.from('Method Not Allowed\n', 'utf8'),
-    };
-  }
+export async function handleRequest({method = 'GET', url = '/', headers = {}, body = null, ip = ''} = {}){
   // 解析地址
   let pathname;
   try{
@@ -155,6 +155,17 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
   catch{
     // 非法的百分号编码
     return send('请求地址无法解析。\n', {type: types['.txt'], status: 400}, headers);
+  }
+  // 认证接口先分流：它要收 POST，而且响应与具体浏览器有关
+  if(pathname.startsWith('/api/'))
+    return handleApi({method, pathname, headers, body, ip});
+  // 其他页面一律只读
+  if(method !== 'GET' && method !== 'HEAD'){
+    return {
+      status: 405,
+      headers: {'content-type': types['.txt'], allow: 'GET, HEAD', 'x-nanocamp-source': 'dynamic'},
+      body: Buffer.from('Method Not Allowed\n', 'utf8'),
+    };
   }
   /** 验证route安全性 */
   function safeRoute(route){

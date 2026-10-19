@@ -9,6 +9,8 @@ import { createSearchIndex, searchPage, notFoundPage } from './search.mjs';
 import { recapNavigation } from './recap.mjs';
 import { readyProjects, projectGrid, projectsPage, projectDetailPage, projectPath } from './projects.mjs';
 import { homeShowcase } from './home-showcase.mjs';
+import { loginPage } from './auth.mjs';
+import { unauthorizedPage } from './errors.mjs';
 
 const gridProjects = (items = projects, classes = '') => projectGrid(items).replace('class="projects-grid"', `class="projects-grid ${classes}"`);
 const readyMoments = () => moments.filter(item => item.src);
@@ -50,8 +52,15 @@ const routes = {
   ...Object.fromEntries(readyProjects().map(project => [projectPath(project), { title: `${project.title} · NanoCamp 社区作品`, description: `${project.title}｜${project.description}`, active: 'projects', content: () => projectDetailPage(project) }])),
   '/search/': { title: '站内搜索 · NanoCamp', description: '搜索 NanoCamp 的活动、社区指南、模板与常见问题，找到下一次探索的起点。', active: 'search', noindex: true, content: () => searchPage(createSearchIndex(pageSummaries())) },
   '/about/': { title: '关于社区 · NanoCamp', description: '认识 NanoCamp，一个从黑客松出发、欢迎跨专业学生的创造者社区。', active: 'about', content: about },
+  '/login/': { title: '登录 · NanoCamp', description: '登录 NanoCamp 账号，继续报名活动、查看共创草稿与作品进展。', active: 'login', noindex: true, content: loginPage },
+  '/401/': { title: '需要登录 · NanoCamp', description: '这个页面只对本人开放，登录后即可继续查看自己的账号资料与草稿。', active: 'unauthorized', noindex: true, content: unauthorizedPage },
 };
-export function pageSummaries() { return Object.entries(routes).map(([path, page]) => ({ path, title: page.title, description: page.description })); }
+// noindex 是唯一来源：sitemap、搜索索引与 scripts/check.mjs 的期望值都从这两个列表推导，
+// 免得以后又出现「页面标了 noindex，却还躺在 sitemap 里」这种三处各写一遍的漂移。
+export const noindexPaths = Object.entries(routes).filter(([, page]) => page.noindex).map(([path]) => path);
+export const indexablePaths = Object.keys(routes).filter(path => !noindexPaths.includes(path));
+export function pageSummaries() { return Object.entries(routes).map(([path, page]) => ({ path, title: page.title, description: page.description, noindex: Boolean(page.noindex) })); }
 export function renderNotFound() { return documentPage({ title: '页面未找到 · NanoCamp', description: '这个链接暂时没有找到，从 NanoCamp 首页、社区指南或站内搜索继续探索。', active: 'missing', noindex: true, body: notFoundPage() }); }
+export function renderUnauthorized() { return documentPage({ title: '需要登录 · NanoCamp', description: '这个页面只对本人开放，登录后即可继续查看自己的账号资料与草稿。', active: 'unauthorized', noindex: true, body: unauthorizedPage() }); }
 export const routePaths = Object.keys(routes);
 export function renderPage(route) { const page = routes[route]; if (!page) throw new Error(`Unknown route: ${route}`); return documentPage({ ...page, route, body: page.content() }); }

@@ -7,7 +7,9 @@ import { readyProjects, projectPath } from './projects.mjs';
 export const searchTypes = [['all','全部'],['page','社区页面'],['event','活动'],['guide','共创指南'],['faq','常见问题'],['project','作品']];
 const labels = Object.fromEntries(searchTypes);
 export function createSearchIndex(pages) {
-  const records = pages.filter(page => page.path !== '/search/').map(page => ({
+  // 只收可索引的页面：登录、注册、401 这类状态页由 pages.mjs 的 noindex 标记排除，
+  // 以前这里是硬编码 `page.path !== '/search/'`，加一个新状态页就得记得改一遍。
+  const records = pages.filter(page => !page.noindex).map(page => ({
     id: `page:${page.path}`, href: page.path, title: page.title.replace(/ · NanoCamp.*$/, ''), description: page.description,
     type: page.path === '/minicamp/' || page.path === '/activities/' ? 'event' : page.path.startsWith('/resources/') ? 'guide' : page.path === '/faq/' ? 'faq' : page.path.startsWith('/projects/') && page.path !== '/projects/' ? 'project' : 'page',
     context: 'NanoCamp 官网', text: page.path === '/community/' ? '参与 加入 新手 学生 专业 分享 组队 志愿 交流 社群' : page.path === '/partners/' ? '合作 学校 企业 校园 校企交流 社团 赞助 支持 交流 草稿 提案' : '',
