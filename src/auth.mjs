@@ -14,10 +14,7 @@ const eyeOpen = '<svg class="auth-eye-open" viewBox="0 0 24 24" aria-hidden="tru
 const eyeClosed = '<svg class="auth-eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.2 4.4 20.8 19.6"/><path d="M10.5 6.2A9.3 9.3 0 0 1 12 6.1c5.8 0 9.4 5.9 9.4 5.9a16.4 16.4 0 0 1-3.3 3.8M6.4 8.1A16.6 16.6 0 0 0 2.6 12S6.2 17.9 12 17.9a9.6 9.6 0 0 0 3.5-.6"/><path d="M9.7 10.2a3.2 3.2 0 0 0 4.4 4.4"/></svg>';
 
 // 「显示 / 隐藏密码」：图标按钮，睁眼=明文，闭眼=密文；图标切换交给 CSS，脚本只翻 aria-pressed。
-const eyeButton = id => `<button type="button" class="auth-reveal" data-auth-reveal aria-controls="${id}" aria-pressed="false" aria-label="显示密码">${eyeOpen}${eyeClosed}</button>`;
-
-// 回跳提示条：只在带 next 参数时由 auth.js 填上内容并显示，静态 HTML 里是空且隐藏的。
-const nextNotice = `<p class="auth-next" data-auth-next hidden><span class="auth-next-label">完成后返回</span><code data-auth-next-value></code></p>`;
+export const eyeButton = id => `<button type="button" class="auth-reveal" data-auth-reveal aria-controls="${id}" aria-pressed="false" aria-label="显示密码">${eyeOpen}${eyeClosed}</button>`;
 
 export function loginPage() {
   return `<section class="auth-page container" aria-labelledby="login-title">
@@ -26,7 +23,6 @@ export function loginPage() {
       <div class="auth-card-head"><span class="mono">MEMBER LOGIN</span><span class="auth-card-mark" aria-hidden="true">NC / 01</span></div>
       <h1 class="auth-card-title" id="login-title">登录 NanoCamp</h1>
       <p class="auth-card-note">用邮箱和密码登录。第一次来可以先用验证码验证一次，会自动创建账号。</p>
-      ${nextNotice}
 
       <div class="form-field">
         <label for="login-email">邮箱</label>
@@ -55,9 +51,9 @@ export function loginPage() {
       <div data-auth-step="verify" hidden>
         <p class="auth-sent">验证码已发送到 <b data-auth-email></b><button type="button" class="auth-link" data-auth-change>改邮箱</button></p>
         <div class="form-field">
-          <label for="login-code">验证码</label>
-          <input id="login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6 位数字" class="auth-code" aria-describedby="login-code-hint">
-          <span class="field-note" id="login-code-hint">10 分钟内有效，只能用一次；重新发送后旧验证码立即失效。</span>
+          <label for="login-captcha">验证码</label>
+          <input id="login-captcha" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6 位数字" class="auth-code" aria-describedby="login-captcha-hint">
+          <span class="field-note" id="login-captcha-hint">10 分钟内有效，只能用一次；重新发送后旧验证码立即失效。</span>
         </div>
         <button class="button button-primary auth-submit" type="submit"><span class="button-label">验证并登录</span><span class="button-plus" aria-hidden="true">+</span></button>
         <p class="auth-resend">没收到？<button type="button" class="auth-link" data-auth-resend>重新发送</button></p>

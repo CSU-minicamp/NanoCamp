@@ -3,7 +3,7 @@
 // 用法：npm run mail:test -- 你的邮箱 [stream]
 //   stream 省略时是 auth（登录验证码）；传别的名字会发一封普通测试邮件，
 //   用来验证 mail.streams 里那套 from / apiKey 是否生效。
-import { createCode, sendLoginCode, sendMail } from '../backend/mail.mjs';
+import { createEmailCaptcha, sendLoginCode, sendMail } from '../backend/mail.mjs';
 import { mailConfig } from '../backend/config.mjs';
 
 const to = process.argv[2];
@@ -24,7 +24,7 @@ if (config.provider === 'resend' && !config.apiKey)
 
 const started = Date.now();
 try {
-  const code = createCode();
+  const code = createEmailCaptcha();
   const result = stream === 'auth'
     ? await sendLoginCode({ to, code, minutes: 10 })
     : await sendMail({

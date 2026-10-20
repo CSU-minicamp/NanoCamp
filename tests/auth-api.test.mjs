@@ -1,117 +1,487 @@
-import { test } from 'node:test';
+import {test, after} from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import {randomBytes} from 'node:crypto';
 
-import { handleRequest } from '../backend/app.mjs';
+import {handleRequest} from '../backend/app.mjs';
+import {dbReady, select, execute, closePool, isUnavailable} from '../backend/db.mjs';
 import {
-  normalizeEmail, isEmail, hashPassword, verifyPassword,
-  subjectOf, hashToken, createChallenge, verifyCode, loginWithPassword,
-  readSession, revokeSession, sendIntervalFor
+  normalizeEmail, isEmail, hashPassword, verifyPassword, sendIntervalFor,
+  subjectOf, hashToken, createChallenge, readSession, authAvailable
 } from '../backend/auth.mjs';
-import { lastConsoleCode } from '../backend/mail.mjs';
+import {safeNext} from '../backend/api.mjs';
+import {lastConsoleEmailCaptcha} from '../backend/mail.mjs';
 
-// 本版本的契约：
-//   发验证码 = 真实现（不依赖存储，能测）
-//   登录/验证码校验/会话 = 没有存储，接口 503，函数抛 not_implemented
+// 打真 MySQL：先把 data/config.json 的 db 段配好、跑过 npm run db:migrate。
+// 没有数据库时整组跳过（CI 里不会红），纯函数测试照常跑。
+const ready = await (async () => {
+  if(!dbReady())
+    return false;
+  try{
+    await select('SELECT 1');
+    return true;
+  }
+  catch{
+    return false;
+  }
+})();
+const skip = ready? false: '未配置数据库（data/config.json 的 db 段），跳过认证集成测试';
 
 const HOST = 'localhost:8099';
-const newEmail = () => `t.${randomBytes(6).toString('hex')}@example.test`;
+const emails = [];
+const newEmail = () => {
+  const email = `t.${randomBytes(6).toString('hex')}@example.test`;
+  emails.push(email);
+  return email;
+};
 
-const call = (url, { method = 'GET', headers = {} } = {}) => handleRequest({ method, url, headers });
+/** 发一次请求；默认带同源 Origin，cookie 与 csrf 由调用方给。 */
+async function call(path, {method = 'POST', body = null, jar = null, csrf = '', origin = `http://${HOST}`} = {}){
+  const headers = {host: HOST};
+  if(origin)
+    headers.origin = origin;
+  if(jar?.size)
+    headers.cookie = cookieHeader(jar);
+  if(csrf)
+    headers['x-nc-csrf'] = csrf;
+  const response = await handleRequest({
+    method,
+    url: path,
+    headers,
+    body: body? JSON.stringify(body): null,
+    ip: '127.0.0.1'
+  });
+  const text = response.body.toString('utf8');
+  return {
+    status: response.status,
+    headers: response.headers,
+    text,
+    json: text.startsWith('{')? JSON.parse(text): null,
+    setCookies: [response.headers['set-cookie'] || []].flat()
+  };
+}
 
-/** POST JSON：默认带同源 Origin。 */
-const post = (url, body, { origin = `http://${HOST}`, host = HOST } = {}) => handleRequest({
-  method: 'POST',
-  url,
-  headers: { host, ...(origin ? { origin } : {}) },
-  body: body === null ? null : JSON.stringify(body),
-  ip: '127.0.0.1'
+const cookieHeader = jar => [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
+
+/** 把响应里的 Set-Cookie 合并进简单的 cookie 罐。 */
+function absorb(jar, setCookies){
+  for(const raw of setCookies){
+    const pair = raw.split(';')[0];
+    const index = pair.indexOf('=');
+    const name = pair.slice(0, index);
+    const value = pair.slice(index + 1);
+    if(value)
+      jar.set(name, value);
+    else
+      jar.delete(name);
+  }
+  return jar;
+}
+
+/** 拿一个 CSRF 令牌（匿名也能拿）。 */
+async function boot(){
+  const jar = new Map();
+  const response = await call('/api/session', {method: 'GET', jar});
+  absorb(jar, response.setCookies);
+  return {jar, csrf: response.json.csrf, session: response.json};
+}
+
+/** 走完「拿 csrf → 发码」，返回 cookie 罐、csrf 与验证码。 */
+async function requestEmailCaptcha(email){
+  const {jar, csrf} = await boot();
+  const sent = await call('/api/auth/email-captcha', {body: {email}, jar, csrf});
+  absorb(jar, sent.setCookies);
+  return {jar, csrf, sent, code: lastConsoleEmailCaptcha(email)};
+}
+
+after(async () => {
+  if(!ready)
+    return;
+  for(const email of emails){
+    const users = await select('SELECT id FROM users WHERE email = ?', [email]);
+    for(const user of users)
+      await execute('DELETE FROM sessions WHERE user_id = ?', [user.id]);
+    await execute('DELETE FROM login_email_captcha WHERE email = ?', [email]);
+    await execute('DELETE FROM users WHERE email = ?', [email]);
+    await execute('DELETE FROM rate_events WHERE subject = ?', [subjectOf(email)]);
+  }
+  await closePool();
 });
 
-const payloadOf = response => JSON.parse(response.body.toString('utf8'));
-
-test('登录不可用，但发码可用 —— 两件事分开报告', async () => {
-  const response = await call('/api/session');
-  assert.equal(response.status, 200);
-  assert.deepEqual(payloadOf(response), { user: null, disabled: true, canSendCode: true });
-  assert.equal(response.headers['cache-control'], 'no-store');
+test('认证就绪：配了数据库与 secret', {skip}, () => {
+  assert.equal(authAvailable(), true);
 });
 
-test('发验证码真的发出去了（console 适配器记录 6 位码）', async () => {
+test('会话接口报告可用状态并下发 CSRF 令牌', {skip}, async () => {
+  const {jar, csrf, session} = await boot();
+  assert.equal(session.disabled, false);
+  assert.equal(session.canSendCode, true);
+  assert.equal(session.user, null);
+  assert.match(csrf, /^[0-9a-f]{32}$/);
+  assert.ok(jar.get('nc_csrf'), 'CSRF 令牌要同时写进 cookie（double-submit）');
+});
+
+test('发验证码：真的发出去了，并写进 login_email_captcha', {skip}, async () => {
   const email = newEmail();
-  const response = await post('/api/auth/code', { email });
-  assert.equal(response.status, 200);
-  const payload = payloadOf(response);
-  assert.equal(payload.ok, true);
-  assert.equal(payload.provider, 'console');
-  assert.equal(payload.canVerify, false, '本版本校验还没接上，要如实告诉前端');
-  assert.ok(payload.retryAfter >= 1);
-  assert.match(lastConsoleCode(email), /^\d{6}$/, '邮件通道应收到 6 位验证码');
+  const {jar, sent, code} = await requestEmailCaptcha(email);
+  assert.equal(sent.status, 200);
+  assert.equal(sent.json.canVerify, true);
+  assert.equal(sent.json.provider, 'console');
+  assert.ok(sent.json.retryAfter >= 1);
+  assert.match(code, /^\d{6}$/);
+  assert.ok(jar.get('nc_chal'), '挑战 id 要落到 cookie 里');
+  const rows = await select('SELECT email, consumed_at, attempts FROM login_email_captcha WHERE challenge = ?', [jar.get('nc_chal')]);
+  assert.equal(rows[0].email, email);
+  assert.equal(rows[0].consumed_at, null);
 });
 
-test('邮箱规范化后发信，大小写不影响', async () => {
-  const email = newEmail();
-  const response = await post('/api/auth/code', { email: `  ${email.toUpperCase()} ` });
-  assert.equal(response.status, 200);
-  assert.match(lastConsoleCode(email), /^\d{6}$/, '应按小写邮箱记账');
-});
-
-test('非法邮箱不发信', async () => {
-  const response = await post('/api/auth/code', { email: 'not-an-email' });
+test('非法邮箱不发信', {skip}, async () => {
+  const {jar, csrf} = await boot();
+  const response = await call('/api/auth/email-captcha', {body: {email: 'not-an-email'}, jar, csrf});
   assert.equal(response.status, 400);
-  assert.equal(payloadOf(response).error, 'invalid_email');
+  assert.equal(response.json.error, 'invalid_email');
 });
 
-test('POST 必须同源，否则 403', async () => {
+test('POST 必须同源且带 CSRF 令牌', {skip}, async () => {
+  const {jar, csrf} = await boot();
   const email = newEmail();
-  const noOrigin = await post('/api/auth/code', { email }, { origin: '' });
-  assert.equal(noOrigin.status, 403);
-  const crossOrigin = await post('/api/auth/code', { email }, { origin: 'http://evil.example' });
-  assert.equal(crossOrigin.status, 403);
-  assert.equal(lastConsoleCode(email), '', '被拒的请求不应发出邮件');
+  assert.equal((await call('/api/auth/email-captcha', {body: {email}, jar, csrf: '', origin: `http://${HOST}`})).status, 403);
+  assert.equal((await call('/api/auth/email-captcha', {body: {email}, jar, csrf, origin: 'http://evil.example'})).status, 403);
+  assert.equal((await call('/api/auth/email-captcha', {body: {email}, jar: new Map(), csrf})).status, 403);
 });
 
-test('请求体非法时 400，且不发信', async () => {
-  const response = await handleRequest({ method: 'POST', url: '/api/auth/code', headers: { host: HOST, origin: `http://${HOST}` }, body: '{oops', ip: '127.0.0.1' });
-  assert.equal(response.status, 400);
-  assert.equal(payloadOf(response).error, 'invalid_body');
-});
-
-test('同一邮箱 60 秒内重发返回 429 并带 Retry-After', async () => {
+test('同一邮箱 60 秒内重发 429', {skip}, async () => {
   const email = newEmail();
-  assert.equal((await post('/api/auth/code', { email })).status, 200);
-  const again = await post('/api/auth/code', { email });
+  const {jar, csrf} = await requestEmailCaptcha(email);
+  const again = await call('/api/auth/email-captcha', {body: {email}, jar, csrf});
   assert.equal(again.status, 429);
-  assert.equal(payloadOf(again).error, 'rate_limited');
+  assert.equal(again.json.error, 'rate_limited');
   assert.ok(Number(again.headers['retry-after']) > 0);
-  const body = payloadOf(again);
-  assert.ok(body.retryAfter > 0);
 });
 
-test('登录、验证码校验、退出都还没有开放', async () => {
-  for (const path of ['/api/auth/verify', '/api/auth/login', '/api/auth/logout']) {
-    const response = await post(path, {});
-    assert.equal(response.status, 503, `${path} 应返回 503`);
-    assert.equal(payloadOf(response).error, 'auth_unavailable');
+test('完整流程：发码 → 验证 → 读会话 → 退出', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code, next: '/projects/'}, jar, csrf});
+  assert.equal(verified.status, 200);
+  assert.equal(verified.json.isNew, true);
+  assert.equal(verified.json.user.email, email);
+  // 新账号还没设密码 ⇒ 先去补全页，补完回 /projects/
+  assert.deepEqual(verified.json.missing, ['password', 'nickname'], '缺密码和昵称两项');
+  assert.equal(verified.json.redirect, '/profile/force/?next=%2Fprojects%2F');
+  absorb(jar, verified.setCookies);
+  assert.equal(jar.has('nc_chal'), false);
+
+  const me = await call('/api/session', {method: 'GET', jar});
+  assert.equal(me.json.user.email, email);
+
+  const out = await call('/api/auth/logout', {jar, csrf});
+  assert.equal(out.status, 200);
+  absorb(jar, out.setCookies);
+  assert.equal((await call('/api/session', {method: 'GET', jar})).json.user, null);
+});
+
+test('同一枚验证码只能成功消费一次', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const challenge = jar.get('nc_chal');
+  assert.equal((await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf})).status, 200);
+
+  jar.set('nc_chal', challenge);
+  const second = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  assert.equal(second.status, 400);
+  assert.equal(second.json.error, 'email_captcha_invalid');
+});
+
+test('并发验证同一枚码只成功一次、只建一个账号', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const challenge = jar.get('nc_chal');
+  const attempt = () => {
+    const local = new Map(jar);
+    local.set('nc_chal', challenge);
+    return call('/api/auth/verify', {body: {emailCaptcha: code}, jar: local, csrf});
+  };
+  const results = await Promise.all([attempt(), attempt(), attempt()]);
+  assert.equal(results.filter(result => result.status === 200).length, 1);
+  assert.equal(results.filter(result => result.json?.isNew === true).length, 1);
+  const rows = await select('SELECT COUNT(*) AS total FROM users WHERE email = ?', [email]);
+  assert.equal(Number(rows[0].total), 1);
+});
+
+test('过期的验证码不建立会话', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const challenge = jar.get('nc_chal');
+  await execute('UPDATE login_email_captcha SET expires_at = ? WHERE challenge = ?', [new Date(Date.now() - 60_000), challenge]);
+  const response = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  assert.equal(response.status, 400);
+  assert.equal(response.json.error, 'email_captcha_invalid');
+});
+
+test('回跳目标只认站内路径', {skip}, async () => {
+  const cases = [['/minicamp/#recap', '/minicamp/#recap'], ['//evil.com/x', '/'], ['javascript:alert(1)', '/']];
+  for(const [next, expected] of cases){
+    const email = newEmail();
+    const {jar, csrf, code} = await requestEmailCaptcha(email);
+    const verified = await call('/api/auth/verify', {body: {emailCaptcha: code, next}, jar, csrf});
+    assert.equal(verified.status, 200);
+    // 资料没补全，任何目标都要先绕去 /profile/force/，把原目标带在 next 里
+    assert.equal(verified.json.redirect, `/profile/force/?next=${encodeURIComponent(expected)}`, `next=${next}`);
   }
 });
 
-test('认证接口只收 POST，未知接口 404', async () => {
-  assert.equal((await call('/api/auth/code')).status, 405);
-  assert.equal((await call('/api/auth/login')).status, 405);
-  assert.equal((await call('/api/unknown')).status, 404);
+test('密码登录：正确密码建立会话，错误密码一律 401', {skip}, async () => {
+  const email = newEmail();
+  const {jar: otpJar, csrf: otpCsrf, code} = await requestEmailCaptcha(email);
+  assert.equal((await call('/api/auth/verify', {body: {emailCaptcha: code}, jar: otpJar, csrf: otpCsrf})).status, 200);
+  // 设密码/昵称的界面在 /profile/force/，这里直接写库构造「资料完整」的账号。
+  await execute('UPDATE users SET password_hash = ?, nickname = ? WHERE email = ?', [await hashPassword('good-password-2026'), '阿岚', email]);
+
+  const {jar, csrf} = await boot();
+  const ok = await call('/api/auth/login', {body: {email, password: 'good-password-2026', next: '/minicamp/'}, jar, csrf});
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.redirect, '/minicamp/');
+  absorb(jar, ok.setCookies);
+  assert.equal((await call('/api/session', {method: 'GET', jar})).json.user.email, email);
+
+  const wrong = await call('/api/auth/login', {body: {email, password: 'wrong-password-2026'}, jar, csrf});
+  assert.equal(wrong.status, 401);
+  assert.equal(wrong.json.error, 'credentials_invalid');
+  assert.equal(wrong.setCookies.some(raw => raw.startsWith('nc_sid=')), false);
+
+  const unknown = await call('/api/auth/login', {body: {email: newEmail(), password: 'whatever-123'}, jar, csrf});
+  assert.equal(unknown.status, 401, '未知邮箱必须与密码错误同一句');
 });
 
-test('需要存储的函数仍是占位实现，调用即抛 not_implemented', () => {
-  const stubs = { subjectOf, hashToken, createChallenge, verifyCode, loginWithPassword };
-  for (const [name, stub] of Object.entries(stubs)) {
-    assert.throws(() => stub({}), error => error.code === 'not_implemented', `${name} 应当抛 not_implemented`);
+test('只用验证码登录过的账号没有密码，密码登录 401', {skip}, async () => {
+  const email = newEmail();
+  const {jar: otpJar, csrf: otpCsrf, code} = await requestEmailCaptcha(email);
+  assert.equal((await call('/api/auth/verify', {body: {emailCaptcha: code}, jar: otpJar, csrf: otpCsrf})).status, 200);
+  // 昵称不影响这个用例要验证的东西（没有密码），补上只是免得被送去补全页
+  await execute('UPDATE users SET nickname = ? WHERE email = ?', ['阿岚', email]);
+
+  const {jar, csrf} = await boot();
+  const response = await call('/api/auth/login', {body: {email, password: 'some-password-123'}, jar, csrf});
+  assert.equal(response.status, 401);
+  assert.equal(response.json.error, 'credentials_invalid');
+});
+
+test('密码连续猜错会被限流', {skip}, async () => {
+  const email = newEmail();
+  const {jar: otpJar, csrf: otpCsrf, code} = await requestEmailCaptcha(email);
+  await call('/api/auth/verify', {body: {emailCaptcha: code}, jar: otpJar, csrf: otpCsrf});
+  await execute('UPDATE users SET password_hash = ?, nickname = ? WHERE email = ?', [await hashPassword('good-password-2026'), '阿岚', email]);
+
+  const {jar, csrf} = await boot();
+  let last = null;
+  for(let attempt = 0; attempt < 11; attempt += 1)
+    last = await call('/api/auth/login', {body: {email, password: `wrong-${attempt}-password`}, jar, csrf});
+  assert.equal(last.status, 429);
+  assert.ok(Number(last.headers['retry-after']) > 0);
+});
+
+test('登录成功会清空该邮箱的限流计数', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  // 发过一次码、错猜一次，此时正背着两条记录
+  await call('/api/auth/verify', {body: {emailCaptcha: '000000'}, jar, csrf});
+  assert.ok((await select('SELECT COUNT(*) AS total FROM rate_events WHERE subject = ?', [subjectOf(email)]))[0].total > 0);
+
+  const ok = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  assert.equal(ok.status, 200);
+  const left = await select('SELECT COUNT(*) AS total FROM rate_events WHERE subject = ?', [subjectOf(email)]);
+  assert.equal(Number(left[0].total), 0, '成功登录后不该再留旧账');
+
+  // 计数清零的直接后果：不用等 60 秒就能再发一次码
+  const again = await call('/api/auth/email-captcha', {body: {email}, jar, csrf});
+  assert.equal(again.status, 200, '登录成功后应立刻可以重新发码');
+});
+
+test('密码登录成功同样清空猜错计数', {skip}, async () => {
+  const email = newEmail();
+  const {jar: otpJar, csrf: otpCsrf, code} = await requestEmailCaptcha(email);
+  await call('/api/auth/verify', {body: {emailCaptcha: code}, jar: otpJar, csrf: otpCsrf});
+  await execute('UPDATE users SET password_hash = ?, nickname = ? WHERE email = ?', [await hashPassword('good-password-2026'), '阿岚', email]);
+
+  const {jar, csrf} = await boot();
+  for(let attempt = 0; attempt < 9; attempt += 1)
+    await call('/api/auth/login', {body: {email, password: `wrong-${attempt}-password`}, jar, csrf});
+  assert.equal((await call('/api/auth/login', {body: {email, password: 'good-password-2026'}, jar, csrf})).status, 200);
+
+  // 清零后，再错一次仍是 401 而不是 429
+  const after = await call('/api/auth/login', {body: {email, password: 'still-wrong-password'}, jar, csrf});
+  assert.equal(after.status, 401);
+  assert.equal(after.json.error, 'credentials_invalid');
+});
+
+test('补全资料：未登录 401，短密码 400，成功后 missing 清空', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  absorb(jar, verified.setCookies);
+
+  // 没有会话但 CSRF 合法 ⇒ 401（缺 CSRF 会是 403，闸门在认证之前）
+  const anon = await boot();
+  const anonymous = await call('/api/profile', {body: {password: 'good-password-2026'}, jar: anon.jar, csrf: anon.csrf});
+  assert.equal(anonymous.status, 401);
+  assert.equal(anonymous.json.error, 'unauthenticated');
+
+  const short = await call('/api/profile', {body: {password: 'short'}, jar, csrf});
+  assert.equal(short.status, 400);
+  assert.equal(short.json.error, 'invalid_password');
+
+  const saved = await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚', bio: '在做一个小工具'}, jar, csrf});
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.json.missing, [], '密码设好之后不该再有必填项');
+  assert.equal(saved.json.user.hasPassword, true);
+  assert.equal(saved.json.user.email, email);
+  assert.equal(saved.json.user.nickname, '阿岚');
+  assert.equal(saved.json.user.bio, '在做一个小工具');
+
+  // 会话里也不再报缺项
+  const me = await call('/api/session', {method: 'GET', jar});
+  assert.deepEqual(me.json.missing, []);
+
+  // 设完密码，密码登录就能用了（并且不再被赶去补全页）
+  const fresh = await boot();
+  const login = await call('/api/auth/login', {body: {email, password: 'good-password-2026', next: '/minicamp/'}, jar: fresh.jar, csrf: fresh.csrf});
+  assert.equal(login.status, 200);
+  assert.equal(login.json.redirect, '/minicamp/', '资料完整时应直接去目标页');
+});
+
+test('补全资料：没有可更新字段时 400', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  absorb(jar, verified.setCookies);
+
+  const empty = await call('/api/profile', {body: {}, jar, csrf});
+  assert.equal(empty.status, 400);
+  assert.equal(empty.json.error, 'invalid_profile');
+});
+
+test('/profile/ 未登录直接跳登录页，并带上回跳地址', async () => {
+  const response = await call('/profile/', {method: 'GET'});
+  assert.equal(response.status, 303, '未登录不该先给人看一张 401 页面');
+  assert.equal(response.headers.location, '/login/?next=%2Fprofile%2F');
+  assert.equal(response.headers['cache-control'], 'no-store', '带会话的跳转不能被缓存');
+});
+
+test('/profile 会补斜杠跳到 /profile/', async () => {
+  const response = await call('/profile', {method: 'GET'});
+  assert.equal(response.status, 301);
+  assert.equal(response.headers.location, '/profile/');
+});
+
+test('/profile/ 登录后显示自己的资料', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  absorb(jar, verified.setCookies);
+
+  // 还没设密码 → 先被挡去补全页
+  const before = await call('/profile/', {method: 'GET', jar});
+  assert.equal(before.status, 303);
+  assert.equal(before.headers.location, '/profile/force/?next=%2Fprofile%2F');
+
+  // 补完再看：只有邮箱
+  assert.equal((await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚', bio: '在做一个小工具'}, jar, csrf})).status, 200);
+  const after = await call('/profile/', {method: 'GET', jar});
+  assert.equal(after.status, 200);
+  const html = after.text;
+  assert.match(html, new RegExp(email.replace('.', '\\.')));
+  assert.match(html, /<dt>邮箱<\/dt>/);
+  assert.match(html, /<dt>昵称<\/dt>/);
+  assert.match(html, /阿岚/);
+  assert.match(html, /在做一个小工具/);
+});
+
+test('补全页：缺字段时 200 并标出必填，补完再访问就 303 放行', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code, next: '/profile/force/'}, jar, csrf});
+  absorb(jar, verified.setCookies);
+
+  const page = await call('/profile/force/?next=%2Fprofile%2F', {method: 'GET', jar});
+  assert.equal(page.status, 200);
+  assert.match(page.text, /data-profile-password-required>必填/, '密码应被标成必填');
+  assert.match(page.text, /id="profile-nickname"[^>]*value="新伙伴"/, '昵称默认「新伙伴」');
+  assert.match(page.text, /设置密码/);
+  assert.equal(page.headers['cache-control'], 'no-store', '按人渲染的页面不能缓存');
+
+  // 补完之后，同一个地址不该再给表单
+  assert.equal((await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚'}, jar, csrf})).status, 200);
+  const after = await call('/profile/force/?next=%2Fminicamp%2F', {method: 'GET', jar});
+  assert.equal(after.status, 303);
+  assert.equal(after.headers.location, '/minicamp/', '已完整时应直接去 next');
+});
+
+test('补全页：next 非法时回落到 /profile/', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  absorb(jar, (await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf})).setCookies);
+  assert.equal((await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚'}, jar, csrf})).status, 200);
+  const after = await call('/profile/force/?next=%2F%2Fevil.com', {method: 'GET', jar});
+  assert.equal(after.status, 303);
+  assert.equal(after.headers.location, '/profile/');
+});
+
+test('重发会作废旧码，新码才有效', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code: oldCode} = await requestEmailCaptcha(email);
+  const challenge = jar.get('nc_chal');
+
+  // 抹掉「60 秒间隔」这条记录，模拟「已经等够了再发一次」
+  await execute('DELETE FROM rate_events WHERE subject = ? AND kind = ?', [subjectOf(email), 'send']);
+  const again = await call('/api/auth/email-captcha', {body: {email}, jar, csrf});
+  assert.equal(again.status, 200);
+  absorb(jar, again.setCookies);
+  assert.equal(jar.get('nc_chal'), challenge, '同一浏览器重发应复用同一个挑战');
+  const newCode = lastConsoleEmailCaptcha(email);
+  assert.notEqual(newCode, oldCode, '每次发码都应生成新随机码');
+
+  const stale = await call('/api/auth/verify', {body: {emailCaptcha: oldCode}, jar, csrf});
+  assert.equal(stale.status, 400, '旧码应已失效');
+  const fresh = await call('/api/auth/verify', {body: {emailCaptcha: newCode}, jar, csrf});
+  assert.equal(fresh.status, 200, '新码应当可用');
+});
+
+test('同一枚码错 5 次即作废，之后输对也没用', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  for(let attempt = 0; attempt < 5; attempt += 1){
+    const wrong = await call('/api/auth/verify', {body: {emailCaptcha: '000000'}, jar, csrf});
+    assert.equal(wrong.status, 400, `第 ${attempt + 1} 次猜错应为 400`);
   }
+  const tooLate = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  assert.equal(tooLate.status, 400, '5 次之后正确的码也不该再用');
+  assert.equal(tooLate.json.error, 'email_captcha_invalid');
 });
 
-test('readSession 返回 null、revokeSession 无操作', async () => {
-  assert.equal(await readSession('any-token'), null);
-  assert.equal(await revokeSession('any-token'), undefined);
+test('猜错过多时，连发新码也拒绝（不然换个码就能继续猜）', {skip}, async () => {
+  const email = newEmail();
+  // 直接写 10 条猜错记录，模拟「已经被打到上限」
+  const subject = subjectOf(email);
+  const now = Date.now();
+  for(let i = 0; i < 10; i += 1)
+    await execute('INSERT INTO rate_events (kind, subject, at) VALUES (?, ?, ?)', ['verify_fail', subject, new Date(now - i * 1000)]);
+  const {jar, csrf} = await boot();
+  const response = await call('/api/auth/email-captcha', {body: {email}, jar, csrf});
+  assert.equal(response.status, 429);
+  assert.equal(response.json.error, 'rate_limited');
+  assert.ok(Number(response.headers['retry-after']) > 0);
+});
+
+// ---------------- 纯函数（不依赖数据库，任何环境都跑） ----------------
+
+test('阶梯限额：60 秒 ×5 → 5 分钟 ×3 → 20 分钟', () => {
+  assert.equal(sendIntervalFor(0), 60 * 1000);
+  assert.equal(sendIntervalFor(4), 60 * 1000);
+  assert.equal(sendIntervalFor(5), 5 * 60 * 1000);
+  assert.equal(sendIntervalFor(7), 5 * 60 * 1000);
+  assert.equal(sendIntervalFor(8), 20 * 60 * 1000);
+  assert.equal(sendIntervalFor(99), 20 * 60 * 1000);
 });
 
 test('邮箱规范化与格式校验', () => {
@@ -122,7 +492,7 @@ test('邮箱规范化与格式校验', () => {
   assert.equal(isEmail(''), false);
 });
 
-test('密码哈希可以往返校验，且同一密码每次哈希都不同', async () => {
+test('密码哈希可以往返校验，且每次哈希都不同', async () => {
   const hash = await hashPassword('good-password-2026');
   assert.match(hash, /^scrypt\$16384\$8\$1\$[^$]+\$[^$]+$/);
   assert.equal(await verifyPassword('good-password-2026', hash), true);
@@ -131,19 +501,35 @@ test('密码哈希可以往返校验，且同一密码每次哈希都不同', as
   assert.equal(await verifyPassword('good-password-2026', 'not-a-hash'), false);
 });
 
-test('发码限额是阶梯：60 秒 ×5 → 5 分钟 ×3 → 20 分钟', () => {
-  assert.equal(sendIntervalFor(0), 60 * 1000, '第 1 次');
-  assert.equal(sendIntervalFor(4), 60 * 1000, '第 5 次仍是 60 秒');
-  assert.equal(sendIntervalFor(5), 5 * 60 * 1000, '第 6 次起 5 分钟');
-  assert.equal(sendIntervalFor(7), 5 * 60 * 1000, '第 8 次仍是 5 分钟');
-  assert.equal(sendIntervalFor(8), 20 * 60 * 1000, '第 9 次起 20 分钟');
-  assert.equal(sendIntervalFor(99), 20 * 60 * 1000, '上限不再变');
+test('令牌与挑战的形态', () => {
+  assert.match(hashToken('abc'), /^[0-9a-f]{64}$/);
+  assert.match(createChallenge(), /^[A-Za-z0-9_-]{22}$/);
+  assert.match(subjectOf('someone@example.test'), /^[0-9a-f]{64}$/);
+});
+
+test('回跳白名单：只收站内路径', () => {
+  assert.equal(safeNext('/projects/'), '/projects/');
+  assert.equal(safeNext('//evil.com/x'), '');
+  assert.equal(safeNext('http://evil.com/'), '');
+  assert.equal(safeNext('javascript:alert(1)'), '');
+  assert.equal(safeNext('/login/'), '');
+});
+
+test('没有令牌时 readSession 直接返回 null', async () => {
+  assert.equal(await readSession(''), null);
 });
 
 test('公开页面完全不受认证状态影响', async () => {
-  for (const route of ['/', '/about/', '/login/', '/401/']) {
-    const response = await call(route);
+  for(const route of ['/', '/about/', '/login/', '/401/']){
+    const response = await call(route, {method: 'GET'});
     assert.equal(response.status, 200, `${route} 仍应正常渲染`);
     assert.equal(response.headers['x-nanocamp-source'], 'dynamic');
   }
+});
+
+test('只有连接类错误才算「库不可用」，SQL 写错不算', () => {
+  for(const code of ['ECONNREFUSED', 'ETIMEDOUT', 'PROTOCOL_CONNECTION_LOST', 'ER_ACCESS_DENIED_ERROR'])
+    assert.equal(isUnavailable({code}), true, `${code} 应判为不可用`);
+  for(const code of ['ER_NO_SUCH_TABLE', 'ER_PARSE_ERROR', 'ER_DUP_ENTRY', undefined])
+    assert.equal(isUnavailable({code}), false, `${code} 不应判为不可用`);
 });

@@ -27,7 +27,7 @@ test('验证码是第二条路径，两个面板默认隐藏', async () => {
 
 test('验证码是单个输入框，可粘贴', async () => {
   const page = await pageHtml('/login/');
-  assert.match(page, /id="login-code"[^>]*inputmode="numeric"[^>]*autocomplete="one-time-code"[^>]*maxlength="6"/);
+  assert.match(page, /id="login-captcha"[^>]*inputmode="numeric"[^>]*autocomplete="one-time-code"[^>]*maxlength="6"/);
   assert.match(page, /data-auth-reveal/, '密码框应带显示/隐藏按钮');
 });
 
@@ -52,4 +52,18 @@ test('被删掉的 /signup/ 直接 404', async () => {
   const response = await get('/signup/');
   assert.equal(response.status, 404);
   assert.equal(response.headers['x-nanocamp-source'], 'notfound');
+});
+
+test('/profile/force/ 未登录时直接跳登录页', async () => {
+  const response = await get('/profile/force/');
+  assert.equal(response.status, 303, '没登录不该先给一张表单');
+  const location = response.headers.location;
+  assert.match(location, /^\/login\/\?next=/);
+  assert.match(decodeURIComponent(location), /^\/login\/\?next=\/profile\/force\/\?next=/);
+});
+
+test('/profile/force/ 与 /profile/ 都不在静态路由表里（它们按会话渲染）', async () => {
+  const {routePaths} = await import('../src/pages.mjs');
+  assert.equal(routePaths.includes('/profile/force/'), false);
+  assert.equal(routePaths.includes('/profile/'), false);
 });

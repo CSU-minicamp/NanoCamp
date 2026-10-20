@@ -196,3 +196,23 @@ export function authConfig(){
     idleHours: Number(auth.idleHours) || 24
   };
 }
+
+/**
+ * MySQL 连接配置。
+ *
+ * **库名与实例 name 保持一致**（生产 `Nanocamp`、测试 `Nanocamp-test`），
+ * 生产与测试各用各的库、各用各的账号，隔离靠授权而不是靠约定。
+ * 没有 `database` 时视为「没配数据库」，db.mjs 会直接拒绝工作。
+ * @returns {{host: string, port: number, user: string, password: string, database: string, connectionLimit: number}} 连接参数。
+ */
+export function dbConfig(){
+  const db = loadConfig().db || {};
+  return {
+    host: String(db.host || '127.0.0.1'),
+    port: Number(db.port) || 3306,
+    user: String(db.user || ''),
+    password: String(db.password || ''),
+    database: String(db.database || ''),
+    connectionLimit: Number(db.connectionLimit) || 10
+  };
+}

@@ -33,7 +33,9 @@ npm run dev
 
 ## 部署
 
-站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有 npm 依赖、没有构建步骤**，`git clone` 完就能跑（数据库接入后才会引入 `mysql2`，见[配置](#配置dataconfigjson)）。
+站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有构建步骤**。唯一的运行时依赖是 `mysql2`（纯 JS，不需要编译），只用来连数据库：不启用账号功能时即使不装它，公开页面也照常服务。
+
+> 后端自身的结构、请求流程、每个 API 的入参与错误码、数据表与设计取舍，都在 **[`backend/README.md`](backend/README.md)**。
 
 本地试跑：
 
@@ -57,7 +59,7 @@ npm start
 | `port` | `8080` | 监听端口 |
 | `name` | `Nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
 | `url` | 无 | **可选**：覆盖站点正式域名（即 `content/site.mjs` 的 `site.url`）。canonical、Open Graph、sitemap 与 robots 会整体跟着变。只接受 http / https，非法值忽略并打一行日志。结尾斜杠会自动补上。 |
-| `db` | 无 | **下一版本接入**：MySQL 连接。当前版本的认证存储尚未接数据库，这一项写了也会被忽略。 |
+| `db` | 无 | **下一版本接入**：MySQL 连接。**库名与实例 `name` 保持一致**（生产 `Nanocamp`、测试 `Nanocamp-test`），生产与测试各用各的库、各用各的账号。当前版本的认证尚未接数据库，这一项写了也会被忽略。 |
 | `mail` | `console` | **可选**：发信配置。`provider` 为 `console`（只打日志，不发信）或 `resend`；`resend` 需要 `apiKey` 与已认证域下的 `from`。 |
 | `auth` | 无 | **可选**：`secret`（会话与验证码 HMAC 的密钥，**必须自己生成**）、`trustProxy`（走 nginx 反代时设 `true`，否则来源限流失效）。 |
 
@@ -65,31 +67,45 @@ npm start
 
 配置**在进程内只读一次**（首次用到时读盘，之后走缓存），所以改完要重启服务才生效 —— 和改 `host` / `port` 一样。
 
-#### 账号与邮件（当前仅发信可用）
+#### 账号与邮件
 
-**当前版本没有接数据库，所以只开放了「发验证码」这一半**：
+需要**数据库 + `auth.secret`**：缺任何一个，`/api/auth/*` 都会返回 503（页面照常，登录按钮禁用）。
 
-| 接口 | 状态 |
+| 接口 | 作用 |
 |---|---|
-| `POST /api/auth/code` | ✅ 真发一封验证码邮件（不依赖存储） |
-| `POST /api/auth/{verify,login,logout}` | 503 `auth_unavailable`（校验与会话都要写库） |
-| `GET /api/session` | `{user: null, disabled: true, canSendCode: true}` |
+| `POST /api/auth/email-captcha` | 发 6 位邮箱验证码（挑战落库，10 分钟有效、一次性） |
+| `POST /api/auth/verify` | 验证码登录；邮箱首次通过验证时自动建号 |
+| `POST /api/auth/login` | 邮箱 + 密码登录 |
+| `POST /api/auth/logout` | 撤销会话 |
+| `GET /api/session` | `{user, csrf, disabled, canSendCode}` |
 
-登录页照常渲染：密码按钮是禁用的、发码按钮可用，页面上会写明「账号系统尚未开放」。这是有意的 —— 宁可不提供登录，也不要给一个「重启就没了、只在一个进程里有效」的假登录。
+`disabled`（登录是否可用）和 `canSendCode`（发码是否可用）是两个独立信号 —— 前端据此只锁一半按钮。
 
-数据库在下一个版本接入：`backend/auth.mjs` 里需要存储的函数（`verifyCode` / `loginWithPassword` / `readSession` 等）**签名已经定好、暂时抛 `not_implemented`**，届时只填函数体，`backend/api.mjs` 与前端都不用改。
+**必填资料**：验证码登录会建出没有密码、没有昵称的账号，所以登录成功后如果还缺必填项（密码、昵称），
+服务端会把人送到 `/profile/force/`，填完再回到原目标 —— 这就是「不填完不能继续」。
+必填项定义在 `backend/auth.mjs` 的 `PROFILE_FIELDS`，加一项只改这个数组；「一句话介绍」是可选字段，不在此列。
 
-现在能做的事情：
+**查看资料**：`/profile/` 显示邮箱、昵称与一句话介绍。它按会话渲染，
+所以**不进页面缓存**（`Cache-Control: no-store`，无 ETag）。未登录时 **303 跳 `/login/?next=/profile/`**
+（不先给一张 401 页面），登录后自动回到这里；缺必填项则 303 去 `/profile/force/`。
 
 ```sh
-# 1) 生成密钥，填进 data/config.json 的 auth.secret（接数据库后要用）
+# 1) 装依赖（mysql2 是唯一的运行时依赖）
+npm install --omit=dev
+
+# 2) 生成密钥填进 data/config.json 的 auth.secret
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
-# 2) 直接验证发信（会真发一封，收到即说明域名与密钥都通了）
+# 3) 建表（幂等，可反复执行）
+npm run db:migrate
+#    应用账号没有 DDL 权限（设计如此），报权限错误时改用：
+#    node scripts/migrate.mjs --print | sudo mysql 'Nanocamp-test'
+
+# 4) 验证发信（会真发一封，收到即说明域名与密钥都通了）
 npm run mail:test -- 你的邮箱
 ```
 
-也可以打开 `/login/`，切到「改用邮箱验证码登录」点一次发码 —— 走的是同一条 `requestCode()`。
+表只有四张：`users` / `sessions` / `login_email_captcha` / `rate_events`，都建在 `db.database` 指定的库里。
 
 `data/config.json` 里相关的段大概长这样：
 
@@ -215,7 +231,7 @@ curl -sS -o/dev/null -w '%{http_code}\n' http://127.0.0.1:38083/about/   # 期�
 cd /srv/NanoCamp-test && sudo git pull && sudo systemctl restart nanocamp@Nanocamp-test
 ```
 
-没有 `npm install`、没有构建产物要同步。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
+没有构建产物要同步；启用账号功能时需要 `npm install --omit=dev` 装 `mysql2`。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
 
 用 pm2 守护也可以，两条命令即可：
 

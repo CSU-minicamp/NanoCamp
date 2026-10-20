@@ -1,8 +1,8 @@
 // 登录页前端逻辑：三条路径共用一个表单。
 //
 //   password 邮箱 + 密码 → POST /api/auth/login（本版本 503，按钮禁用）
-//   request  发验证码    → POST /api/auth/code（**本版本真能发信**）
-//   verify   填验证码    → POST /api/auth/verify（本版本 503，不进入这一步）
+//   request  发验证码    → POST /api/auth/email-captcha（**本版本真能发信**）
+//   verify   填验证码    → POST /api/auth/verify
 //
 // 进页面先问一次 /api/session，它会明确告诉我们两件事：
 //   disabled    账号系统（登录/会话）是否可用
@@ -40,15 +40,14 @@
   const emailInput = form.querySelector('#login-email');
   const passwordInput = form.querySelector('#login-password');
   const reveal = form.querySelector('[data-auth-reveal]');
-  const codeInput = form.querySelector('#login-code');
+  const codeInput = form.querySelector('#login-captcha');
   const emailEcho = form.querySelector('[data-auth-email]');
   const resend = form.querySelector('[data-auth-resend]');
   const change = form.querySelector('[data-auth-change]');
   const sendLabel = form.querySelector('[data-auth-step="request"] .button-label');
   const status = form.querySelector('[data-auth-status]');
-  const notice = form.querySelector('[data-auth-next]');
-  const noticeValue = form.querySelector('[data-auth-next-value]');
 
+  let csrf = '';
   let step = 'password';
   let busy = false;
   let canSend = false;
@@ -121,7 +120,7 @@
   async function postJson(path, body) {
     const response = await fetch(path, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-nc-csrf': csrf },
       body: JSON.stringify(body),
       credentials: 'same-origin'
     });
@@ -140,7 +139,7 @@
     if (error === 'rate_limited') return `操作太频繁，请 ${retryAfter || '稍后'} 秒后再试。`;
     if (error === 'invalid_email') return '邮箱格式看起来不对，检查一下再试。';
     if (error === 'credentials_invalid') return '邮箱或密码不正确。如果是第一次来，可以改用验证码登录。';
-    if (error === 'code_invalid') return '验证码不对，或者已经过期。可以重新发一次。';
+    if (error === 'email_captcha_invalid') return '验证码不对，或者已经过期。可以重新发一次。';
     if (error === 'mail_failed') return '邮件服务暂时不可用，稍后再试一次。';
     if (error === 'forbidden') return '页面已经过期，刷新后重试。';
     return '网络不太顺畅，稍后再试一次。';
@@ -149,17 +148,20 @@
   const emailValue = () => (emailInput?.value || '').trim();
   const emailLooksValid = () => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue());
 
-  // 回跳目标只在页面上露一次，顺带告诉用户「登录完会去哪儿」。
-  if (target && notice && noticeValue) {
-    noticeValue.textContent = target;
-    notice.hidden = false;
-  }
-
   // 进页面先问一次状态：登录是否可用、发码是否可用。两件事分开处理。
   (async () => {
     try {
       const response = await fetch('/api/session', { credentials: 'same-origin' });
-      const session = await response.json();
+      const session = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        // 503：账号系统暂时不可用（多数是数据库）。这和「没开放」不是一回事。
+        canVerify = false;
+        canSend = false;
+        setStatus(explain(response.status, session.error), 'error');
+        syncButtons();
+        return;
+      }
+      csrf = session.csrf || '';
       canVerify = !session.disabled;
       canSend = Boolean(session.canSendCode);
       if (!canVerify) setStatus('账号系统尚未开放：验证码可以正常发送，登录功能还在搭建中。');
@@ -205,7 +207,7 @@
   }
 
   /** 发验证码。 */
-  async function requestCode() {
+  async function requestEmailCaptcha() {
     if (!emailLooksValid()) {
       setStatus('先填一个能收信的邮箱。', 'error');
       emailInput?.focus();
@@ -215,7 +217,7 @@
     syncButtons();
     setStatus('正在发送验证码…');
     try {
-      const { status: httpStatus, payload } = await postJson('/api/auth/code', { email: emailValue() });
+      const { status: httpStatus, payload } = await postJson('/api/auth/email-captcha', { email: emailValue() });
       if (httpStatus === 200) {
         if (payload.canVerify) {
           if (emailEcho) emailEcho.textContent = emailValue();
@@ -239,10 +241,10 @@
     }
   }
 
-  /** 提交验证码（本版本不进入这一步）。 */
-  async function verifyCode() {
-    const code = (codeInput?.value || '').replace(/\D/g, '');
-    if (code.length !== 6) {
+  /** 提交邮箱验证码。 */
+  async function submitEmailCaptcha() {
+    const emailCaptcha = (codeInput?.value || '').replace(/\D/g, '');
+    if (emailCaptcha.length !== 6) {
       setStatus('验证码是 6 位数字。', 'error');
       codeInput?.focus();
       return;
@@ -251,7 +253,7 @@
     syncButtons();
     setStatus('正在验证…');
     try {
-      const { status: httpStatus, payload } = await postJson('/api/auth/verify', { code, next: target || undefined });
+      const { status: httpStatus, payload } = await postJson('/api/auth/verify', { emailCaptcha, next: target || undefined });
       if (httpStatus === 200 && payload?.ok) {
         setStatus('登录成功，正在返回…');
         location.assign(payload.redirect || '/');
@@ -276,10 +278,10 @@
       return;
     }
     if (step === 'request') {
-      if (canSend && countdownLeft === 0) requestCode();
+      if (canSend && countdownLeft === 0) requestEmailCaptcha();
       return;
     }
-    if (canVerify) verifyCode();
+    if (canVerify) submitEmailCaptcha();
   });
 
   // 「改用验证码 / 改用密码」：在两条路径之间切换。
@@ -294,7 +296,7 @@
   // 「重新发送」：倒计时期间按钮自己就是禁用的；服务端还有一层 60 秒限额。
   resend?.addEventListener('click', () => {
     if (busy || resend.disabled) return;
-    requestCode();
+    requestEmailCaptcha();
   });
 
   // 「改邮箱」：回到发码那一步并保留已填邮箱，不清倒计时（服务端限额仍按邮箱计算）。

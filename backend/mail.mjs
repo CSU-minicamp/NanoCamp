@@ -13,12 +13,12 @@ import {mailConfig} from './config.mjs';
 import {loginCodeMessage} from '../content/mail.mjs';
 
 /** 生成 6 位数字验证码（密码学安全随机源，不用 Math.random）。 */
-export const createCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
+export const createEmailCaptcha = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
 
 // 仅供测试读取：console 模式下把最近一次验证码记在内存里，测试脚本据此走完整的验证流程。
 // 生产用 resend，不会走到这里；这里存的是本机调试用的码，不是任何真实凭证。
 const consoleCodes = new Map();
-export const lastConsoleCode = to => consoleCodes.get(String(to).toLowerCase()) || '';
+export const lastConsoleEmailCaptcha = to => consoleCodes.get(String(to).toLowerCase()) || '';
 
 /** 验证码邮件的文案在 content/mail.mjs（文案归内容、发送归后端），这里只管怎么发。 */
 
