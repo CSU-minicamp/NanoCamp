@@ -9,6 +9,8 @@ import {
   subjectOf, hashToken, createChallenge, readSession, authAvailable
 } from '../backend/auth.mjs';
 import {safeNext} from '../backend/api.mjs';
+import {pauseFile} from '../backend/config.mjs';
+import {writeFileSync, rmSync} from 'node:fs';
 import {lastConsoleEmailCaptcha} from '../backend/mail.mjs';
 
 // 打真 MySQL：先把 data/config.json 的 db 段配好、跑过 npm run db:migrate。
@@ -471,6 +473,34 @@ test('猜错过多时，连发新码也拒绝（不然换个码就能继续猜�
   assert.equal(response.status, 429);
   assert.equal(response.json.error, 'rate_limited');
   assert.ok(Number(response.headers['retry-after']) > 0);
+});
+
+test('运维开关：暂停发信时拒绝发码，但已收到的码仍可用', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+
+  writeFileSync(pauseFile, '');
+  try{
+    const blocked = await call('/api/auth/email-captcha', {body: {email: newEmail()}, jar, csrf});
+    assert.equal(blocked.status, 503);
+    assert.equal(blocked.json.error, 'mail_paused');
+
+    const me = await call('/api/session', {method: 'GET', jar});
+    assert.equal(me.json.mailPaused, true, '会话里要能看出暂停状态');
+    assert.equal(me.json.canSendCode, false, '暂停时只锁发码');
+
+    // 暂停不影响校验：暂停前发出去的码仍然能登录
+    const ok = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+    assert.equal(ok.status, 200);
+  }
+  finally{
+    rmSync(pauseFile, {force: true});
+  }
+
+  const resumed = await call('/api/auth/email-captcha', {body: {email: newEmail()}, jar, csrf});
+  assert.equal(resumed.status, 200, '删掉开关文件后应立刻恢复');
+  const session = await call('/api/session', {method: 'GET', jar});
+  assert.equal(session.json.mailPaused, false);
 });
 
 // ---------------- 纯函数（不依赖数据库，任何环境都跑） ----------------

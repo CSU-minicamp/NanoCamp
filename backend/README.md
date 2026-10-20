@@ -257,16 +257,96 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 ```bash
 npm run dev         # node --watch，本地开发
 npm start           # 生产启动
-npm test            # 151 条测试（含 21 条打真库）
+npm test            # 154 条测试（含 21 条打真库）
 npm run check       # 全站完整性：页面数、锚点、搜索索引、sitemap、元数据
 
-npm run db:migrate  # 建表（幂等）
-node scripts/migrate.mjs --print | sudo mysql 'Nanocamp-test'   # 应用账号没有 DDL 权限时
+npm run db:migrate  # 建表（幂等；需要应用账号有 DDL 权限）
+node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'  # 没 DDL 权限时
 npm run db:check    # 连接 / 版本 / 四张表 / 行数
 npm run mail:test -- 你的邮箱                                   # 真发一封，验证域名与密钥
 ```
 
 日志只走 stdout / stderr，不写文件、不做轮转（systemd 收进 journald）。
+
+### 暂停发信（运维开关）
+
+邮件服务商开始退信、发信额度被刷、或者正在排查投递问题时，可以在**不重启**的情况下立刻停掉新增发信：
+
+```bash
+npm run mail:pause    # 等于 touch data/PAUSE_MAIL
+npm run mail:resume   # 等于 rm data/PAUSE_MAIL
+```
+
+| 项 | 说明 |
+|---|---|
+| 影响范围 | 只停「发新码」。**已发出的验证码仍可校验**，密码登录、退出、改资料都不受影响 |
+| 生效速度 | 立即。开关是**文件存在性检查**（每次请求 stat 一次），不走配置缓存 |
+| 客户端表现 | `/api/session` 返回 `mailPaused: true`，登录页把「获取验证码」置灰并提示；直接调接口得 `503 {"error":"mail_paused"}` |
+| PM2 / 多进程 | 因为状态在文件里而不是进程内存里，`pm2 start -i 4` 的每个 worker 会同时看到，不需要 `pm2 reload` |
+| 忘记恢复 | 登录页会一直显示「验证码暂停发送中」，不会静默 |
+| 版本库 | `data/` 不进版本库，`git pull` 不会覆盖或删掉这个文件 |
+
+如果你后来把「暂停」做成进程内变量（例如加缓存），**多实例就会失效** —— 只有收到请求的那个 worker 知道。
+这个开关刻意用文件，就是为了避开这个坑。
+
+### 首次上线：建库建表
+
+应用账号按设计**只有 DML 权限**，建表必须用有 DDL 权限的账号（root；Ubuntu 上是 `sudo mysql`，
+root 走 auth_socket，不需要密码）。
+
+```bash
+# 1) 依赖：只有 mysql2 一个（纯 JS，不用编译）
+npm install --omit=dev
+
+# 2) 建库 + 专用账号（库名与实例 name 一致；带连字符的名字在 SQL 里必须用反引号）
+DB='Nanocamp-test'; USER='nanocamp-test'
+PASS=$(node -e "console.log('test-' + require('crypto').randomBytes(12).toString('base64url'))")
+
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS \`$DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+sudo mysql -e "CREATE USER IF NOT EXISTS '$USER'@'localhost' IDENTIFIED BY '$PASS';"
+sudo mysql -e "GRANT SELECT, INSERT, UPDATE, DELETE ON \`$DB\`.* TO '$USER'@'localhost';"
+
+# 3) 把 host / port / user / password / database 写进 data/config.json 的 db 段
+
+# 4) 建表：把 DDL 交给 root 执行（幂等，可反复跑）
+node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 "$DB"
+
+# 5) 用应用账号自检
+npm run db:check
+```
+
+也可以直接 `npm run db:migrate`（前提是给应用账号授了 CREATE）—— 但**不建议**：
+DDL 权限留在应用上，一个 SQL 注入就能改表结构、删库。
+
+### 从旧结构升级
+
+**还没上线时最简单**：直接删表重建（`migrate` 是 `CREATE TABLE IF NOT EXISTS`，不会改已存在的表）。
+
+```bash
+sudo mysql 'Nanocamp-test' -e "SET FOREIGN_KEY_CHECKS=0; DROP TABLE sessions, login_email_captcha, users, rate_events; SET FOREIGN_KEY_CHECKS=1;"
+node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'
+```
+
+已经有真实数据、不能删表时，才用下面这套 ALTER：
+
+```sql
+RENAME TABLE login_codes TO login_email_captcha;
+
+ALTER TABLE `Nanocamp-test`.users
+  ADD COLUMN nickname VARCHAR(24) NOT NULL DEFAULT '',
+  ADD COLUMN bio VARCHAR(160) NOT NULL DEFAULT '';
+
+-- 先清孤儿会话，否则下一步加外键会失败
+DELETE s FROM `Nanocamp-test`.sessions s
+  LEFT JOIN `Nanocamp-test`.users u ON u.id = s.user_id
+  WHERE u.id IS NULL;
+
+ALTER TABLE `Nanocamp-test`.sessions
+  ADD CONSTRAINT fk_sessions_user
+  FOREIGN KEY (user_id) REFERENCES `Nanocamp-test`.users (id) ON DELETE CASCADE;
+```
+
+表结构的唯一真相是 `backend/db.mjs` 的 `schemaStatements`，`--print` 打出来的就是它。
 
 ---
 
@@ -283,6 +363,7 @@ npm run mail:test -- 你的邮箱                                   # 真发一�
 | 403 | 跨站 Origin、缺 CSRF 令牌 | 请求来源不被接受 |
 | 404 | 路径不存在、未知 `/api/*` | |
 | 405 | 方法不对 | 带 `Allow` 头 |
+| 413 | 请求体超过 64 KB | 先回一句话再断开（客户端还在上传，连接不能复用） |
 | 429 | 发码 / 猜错限流 | 带 `Retry-After` |
 | 500 | 未捕获异常（渲染、非连接类 SQL 错误） | 堆栈进 stderr，正常不该出现 |
 | 502 | 上游邮件服务失败 | 我们是网关角色 |
@@ -302,6 +383,8 @@ npm run mail:test -- 你的邮箱                                   # 真发一�
 - **会话页面不进缓存**：`dynamicRoutes` 的缓存是按路由的，同一 URL 对不同人内容不同，缓存会串号。
 - **私人响应 `no-store` 且不发 ETag**：`no-cache + ETag` 那套对「因人而异」的响应没意义。
 - **邮件失败是 502 不是 400**：不是客户端的问题，也不该让调用方以为可以改参数重试。
+- **超限请求体回 413 而不是直接断连**：断连时客户端只看到「连接被重置」，完全不知道自己错在哪。
+- **退出登录失败回 503 且不清 cookie**：会话没撤掉却把 cookie 清了，等于让人以为自己退了。
 
 ---
 

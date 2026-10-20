@@ -59,13 +59,23 @@
     busy = true;
     logout.disabled = true;
     try {
-      await fetch('/api/auth/logout', {
+      const response = await fetch('/api/auth/logout', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-nc-csrf': csrf },
         credentials: 'same-origin'
       });
+      if (!response.ok) {
+        // 服务端没撤掉会话就别装作退出成功：提示一下，让人可以重试。
+        setStatus(explain(response.status, 'unavailable'), 'error');
+        busy = false;
+        logout.disabled = false;
+        return;
+      }
     } catch {
-      // 退出失败也照样送去登录页：本地状态已经没意义了。
+      setStatus(explain(0), 'error');
+      busy = false;
+      logout.disabled = false;
+      return;
     }
     location.replace('/login/');
   });

@@ -14,7 +14,10 @@ if(!dbReady()){
 const config = dbConfig();
 
 // --print：只把 DDL 打到 stdout，方便管道给 `sudo mysql <库名>` 执行。
+// 开头带 SET NAMES utf8mb4：mysql 客户端在 Windows / 部分发行版默认 latin1，
+// 中文列注释会被当成 latin1 存进去、永久变成乱码。
 if(process.argv.includes('--print')){
+  console.log('SET NAMES utf8mb4;\n');
   console.log(schemaStatements.map(statement => `${statement};`).join('\n\n'));
   process.exit(0);
 }

@@ -59,27 +59,37 @@ if(url)
  * @param {number} [limit=65536] 允许的最大字节数。
  * @returns {Promise<Buffer|null>} 请求体；超限或读取出错时为 null。
  */
+/** 请求体超过上限时抛这个，由 server 回调转成 413。 */
+class BodyTooLargeError extends Error {}
+
 function readBody(req, limit = 64 * 1024){
-  return new Promise(resolve => {
+  // 先看声明长度：能直接拒就不用读一个字节。
+  const declared = Number(req.headers['content-length'] || 0);
+  if(declared > limit)
+    return Promise.reject(new BodyTooLargeError());
+  return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     let settled = false;
-    const finish = value => {
+    const finish = (error, value) => {
       if(settled) return;
       settled = true;
-      resolve(value);
+      if(error) reject(error);
+      else resolve(value);
     };
     req.on('data', chunk => {
       size += chunk.length;
       if(size > limit){
-        req.destroy();  // 超限不再往下读，直接断开
-        finish(null);
+        // 别再读（pause 后 socket 背压），也别在这里destroy；先让上层把 413 写回去，再断开，否则客户端只会看到「连接被重置」。
+        req.pause();
+        finish(new BodyTooLargeError());
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => finish(Buffer.concat(chunks)));
-    req.on('error', () => finish(null));
+    req.on('end', () => finish(null, Buffer.concat(chunks)));
+    // 读流出错（客户端中断上传）：当成「没有请求体」，交给接口层判 400，不当成服务端故障。
+    req.on('error', () => finish(null, null));
   });
 }
 
@@ -106,22 +116,36 @@ function clientIp(req){
  */
 const server = http.createServer(async (req, res) => {
   let response;
+  let closeAfter = false;
   try{
     // 页面只有 GET/HEAD，请求体留空；POST 才会去读流。
     const body = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' ? await readBody(req): null;
     response = await handleRequest({method: req.method, url: req.url, headers: req.headers, body, ip: clientIp(req)});
   }
   catch(error){
-    // 渲染函数报错时返回可读的 500，而不是把连接悬在那里；堆栈进 stderr，由 journald 或重定向的文件收着。
-    fail(`${req.method} ${req.url} 渲染失败：`, error);
-    response = {
-      status: 500,
-      headers: {'content-type': 'text/plain; charset=utf-8', 'x-nanocamp-source': 'error'},
-      body: Buffer.from('页面错误\n', 'utf8'),
-    };
+    if(error instanceof BodyTooLargeError){
+      // 413：请求体太大。回一句话再断开（客户端还在上传，不能复用这条连接）。
+      response = {
+        status: 413,
+        headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', connection: 'close', 'x-nanocamp-source': 'error'},
+        body: Buffer.from('请求体过大\n', 'utf8'),
+      };
+      closeAfter = true;
+    }
+    else{
+      // 渲染函数报错时返回可读的 500，而不是把连接悬在那里；堆栈进 stderr，由 journald 或重定向的文件收着。
+      fail(`${req.method} ${req.url} 渲染失败：`, error);
+      response = {
+        status: 500,
+        headers: {'content-type': 'text/plain; charset=utf-8', 'x-nanocamp-source': 'error'},
+        body: Buffer.from('页面错误\n', 'utf8'),
+      };
+    }
   }
   res.writeHead(response.status, response.headers);
   res.end(req.method === 'HEAD'? undefined: response.body);
+  if(closeAfter)
+    req.destroy();
 });
 
 // 反向代理 / systemd 停止服务时先停止接收新连接，再把在途请求处理完。

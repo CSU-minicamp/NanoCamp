@@ -59,7 +59,7 @@ npm start
 | `port` | `8080` | 监听端口 |
 | `name` | `Nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
 | `url` | 无 | **可选**：覆盖站点正式域名（即 `content/site.mjs` 的 `site.url`）。canonical、Open Graph、sitemap 与 robots 会整体跟着变。只接受 http / https，非法值忽略并打一行日志。结尾斜杠会自动补上。 |
-| `db` | 无 | **下一版本接入**：MySQL 连接。**库名与实例 `name` 保持一致**（生产 `Nanocamp`、测试 `Nanocamp-test`），生产与测试各用各的库、各用各的账号。当前版本的认证尚未接数据库，这一项写了也会被忽略。 |
+| `db` | 无 | MySQL 连接，**启用账号功能时必填**：缺 `database` 时 `/api/*` 一律 503，公开页面不受影响。**库名与实例 `name` 保持一致**（生产 `Nanocamp`、测试 `Nanocamp-test`），生产与测试各用各的库、各用各的账号，隔离靠授权。参数只读一次，改完要重启。 |
 | `mail` | `console` | **可选**：发信配置。`provider` 为 `console`（只打日志，不发信）或 `resend`；`resend` 需要 `apiKey` 与已认证域下的 `from`。 |
 | `auth` | 无 | **可选**：`secret`（会话与验证码 HMAC 的密钥，**必须自己生成**）、`trustProxy`（走 nginx 反代时设 `true`，否则来源限流失效）。 |
 
@@ -99,7 +99,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 # 3) 建表（幂等，可反复执行）
 npm run db:migrate
 #    应用账号没有 DDL 权限（设计如此），报权限错误时改用：
-#    node scripts/migrate.mjs --print | sudo mysql 'Nanocamp-test'
+#    node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'
 
 # 4) 验证发信（会真发一封，收到即说明域名与密钥都通了）
 npm run mail:test -- 你的邮箱
@@ -238,6 +238,10 @@ cd /srv/NanoCamp-test && sudo git pull && sudo systemctl restart nanocamp@Nanoca
 ```sh
 cd /srv/NanoCamp-test
 pm2 start backend/main.mjs --name NanoCamp-test --interpreter node   # .mjs 要显式指定解释器
+
+# 暂停发信：不重启，多 worker 同时生效（详见 backend/README.md）
+npm run mail:pause
+npm run mail:resume
 # 或者借 package.json 的 start 脚本（更稳，不受 pm2 对扩展名判断的影响）
 pm2 start npm --name NanoCamp-test -- start
 pm2 save && pm2 startup        # 否则机器重启后不会自动拉起

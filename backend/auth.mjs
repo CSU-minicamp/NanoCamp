@@ -8,7 +8,7 @@
 import {createHash, createHmac, randomBytes, scrypt, timingSafeEqual} from 'node:crypto';
 import {promisify} from 'node:util';
 
-import {authConfig} from './config.mjs';
+import {authConfig, mailPaused} from './config.mjs';
 import {dbReady, select, execute} from './db.mjs';
 import {createEmailCaptcha, sendLoginCode} from './mail.mjs';
 
@@ -142,7 +142,7 @@ async function burnPasswordTime(password){
 }
 
 // ---------------- 频率事件 ----------------
-
+// TODO: 目前没有IP级限流、db的rate_event没有定时清理
 /** 记一条限流事件。subject 是 HMAC 后的邮箱或 IP。 */
 const recordEvent = (kind, subject, at) => execute('INSERT INTO rate_events (kind, subject, at) VALUES (?, ?, ?)', [kind, subject, at]);
 
@@ -222,6 +222,9 @@ export async function requestEmailCaptcha({email, ip = '', challenge = '', deliv
   const normalized = normalizeEmail(email);
   if(!isEmail(normalized))
     throw new AuthError('invalid_email', '邮箱格式无效');
+  // 运维开关：暂停发信时直接拒绝（校验与登录仍然可用）。
+  if(mailPaused())
+    throw new AuthError('mail_paused', '发信已暂停（data/PAUSE_MAIL）');
   const now = new Date();
   const subject = hmac(normalized);
   // 一条查询同时拿「发码记录」和「猜错记录」：条数决定档位与是否封禁，最后一条决定还要等多久。
@@ -521,11 +524,15 @@ export async function readSession(token){
   if(row.expires_at.getTime() <= now)
     return null;
   if(now - row.last_seen_at.getTime() > authConfig().idleHours * 60 * 60 * 1000){
-    await revokeSession(token);  // 空闲超时的会话顺手撤掉
+    // 空闲超时：顺手撤掉这条会话。撤不掉也只是留一条过期行，不该让请求变成 503。
+    await revokeSession(token).catch(error => console.error('[auth] 清理过期会话失败：', error.message));
     return null;
   }
-  if(now - row.last_seen_at.getTime() > TOUCH_INTERVAL_MS)
-    await execute('UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?', [new Date(now), hashToken(token)]);
+  if(now - row.last_seen_at.getTime() > TOUCH_INTERVAL_MS){
+    // 续活跃时间失败不影响这次请求：下次再来会再试一次。
+    await execute('UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?', [new Date(now), hashToken(token)])
+      .catch(error => console.error('[auth] 刷新会话活跃时间失败：', error.message));
+  }
   return {user: toUser(row), expiresAt: row.expires_at};
 }
 

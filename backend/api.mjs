@@ -13,6 +13,7 @@ import {
   missingFields, updateProfile
 } from './auth.mjs';
 import {isUnavailable, dbHealthy} from './db.mjs';
+import {mailPaused} from './config.mjs';
 import {site} from '../content/site.mjs';
 
 const SESSION_COOKIE = 'nc_sid';
@@ -165,7 +166,7 @@ function responseJson(status, payload, headers = {}){
 }
 
 /** 错误码 → HTTP 状态码。 */
-const errorStatus = {invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
+const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
 
 /**
  * 处理 /api/* 请求。
@@ -202,7 +203,9 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     // CSRF double-submit 的令牌：匿名访客也要发一个，发码/登录都用得上。
     const csrf = cookies[CSRF_COOKIE] || randomBytes(16).toString('hex');
     // missing：这个账号还缺哪些必填资料（目前只有密码）。前端据此把人拦在补全页。
-    const response = responseJson(200, {user: session?.user ?? null, csrf, disabled: false, canSendCode: true, missing: session? missingFields(session.user): []});
+    // mailPaused：运维把发信暂停了（data/PAUSE_MAIL 存在）。前端据此只锁「发码」，登录照常用。
+    const paused = mailPaused();
+    const response = responseJson(200, {user: session?.user ?? null, csrf, disabled: false, canSendCode: !paused, mailPaused: paused, missing: session? missingFields(session.user): []});
     if(!cookies[CSRF_COOKIE])
       response.headers['set-cookie'] = [setCookie(CSRF_COOKIE, csrf, {httpOnly: false, maxAge: sessionCookieMaxAge(), host})];
     return response;
@@ -219,7 +222,17 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     return responseJson(503, {error: 'unavailable'});
   // 退出没有请求体，不能走下面统一的 JSON 解析，否则会被判 invalid_body。
   if(pathname === '/api/auth/logout'){
-    await revokeSession(cookies[SESSION_COOKIE]);
+    try{
+      await revokeSession(cookies[SESSION_COOKIE]);
+    }
+    catch(error){
+      // 会话没撤掉就不能假装成功：cookie 一清，用户以为自己退出了，其实那条会话还能用。
+      if(isUnavailable(error)){
+        console.error('[api] 数据库不可用（退出登录）：', error.message);
+        return responseJson(503, {error: 'unavailable'});
+      }
+      throw error;
+    }
     return responseJson(200, {ok: true}, {
       'set-cookie': [
         setCookie(SESSION_COOKIE, '', {maxAge: 0, host}),

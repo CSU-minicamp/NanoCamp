@@ -1,5 +1,5 @@
 // 新增模块（邮件、数据库、认证接口）读配置的入口。
-import {readFileSync} from 'node:fs';
+import {existsSync, readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 
 /** 实例配置文件的绝对路径。整个 data/ 目录不进版本库，每台机器各写一份。 */
@@ -216,3 +216,15 @@ export function dbConfig(){
     connectionLimit: Number(db.connectionLimit) || 10
   };
 }
+
+/**
+ * 运维开关文件：**存在即暂停所有新增发信**（验证码照常可以校验，登录不受影响）。
+ *
+ * 为什么用文件而不是配置项：配置只在启动时读一次，改完要重启；而「暂停发信」是救火动作，
+ * 需要在服务不停机的情况下立刻生效。`touch data/PAUSE_MAIL` 停，`rm data/PAUSE_MAIL` 恢复。
+ * @returns {boolean} 是否处于暂停状态。
+ */
+export const pauseFile = fileURLToPath(new URL('../data/PAUSE_MAIL', import.meta.url));
+
+/** 现在是否暂停发信。每次调用都看文件在不在（一次 stat，几微秒），不走缓存。 */
+export const mailPaused = () => existsSync(pauseFile);

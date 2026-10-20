@@ -135,7 +135,9 @@
 
   /** 把服务端的错误码映射成人话。不区分「邮箱是否存在」「没设密码」「密码错」，避免账号枚举。 */
   function explain(httpStatus, error, retryAfter) {
-    if (httpStatus === 503 || error === 'auth_unavailable') return '账号系统尚未开放，暂时无法完成登录。';
+    if (error === 'mail_paused') return '验证码暂停发送中，过一会儿再试；已经收到的验证码仍然可以用。';
+    if (error === 'unavailable' || error === 'auth_unavailable') return '账号系统暂时不可用，稍后再试。';
+    if (httpStatus === 503) return '账号系统暂时不可用，稍后再试。';
     if (error === 'rate_limited') return `操作太频繁，请 ${retryAfter || '稍后'} 秒后再试。`;
     if (error === 'invalid_email') return '邮箱格式看起来不对，检查一下再试。';
     if (error === 'credentials_invalid') return '邮箱或密码不正确。如果是第一次来，可以改用验证码登录。';
@@ -164,7 +166,10 @@
       csrf = session.csrf || '';
       canVerify = !session.disabled;
       canSend = Boolean(session.canSendCode);
-      if (!canVerify) setStatus('账号系统尚未开放：验证码可以正常发送，登录功能还在搭建中。');
+      if (session.mailPaused)
+        setStatus('验证码暂停发送中，过一会儿再试；已经收到的验证码仍然可以用。', 'error');
+      else if (!canVerify)
+        setStatus('账号系统尚未开放：验证码可以正常发送，登录功能还在搭建中。');
     } catch {
       canSend = false;
       canVerify = false;

@@ -10,6 +10,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "dev": "node --watch backend/main.mjs",
     "inspect": "node scripts/inspect.mjs",
+    "mail:pause": "node -e \"require('node:fs').writeFileSync('data/PAUSE_MAIL','')\"",
+    "mail:resume": "node -e \"require('node:fs').rmSync('data/PAUSE_MAIL',{force:true})\"",
     "mail:test": "node scripts/mail-smoke.mjs",
     "start": "node backend/main.mjs",
     "test": "node --test",
