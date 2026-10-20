@@ -1,244 +1,214 @@
-/* ============================================================================
-   NanoCamp 首页视觉层（只在首页加载，且 /intro/ 海报文档不加载它）
-   目标：把首页的整体质感向 /minicamp/ 靠拢——hero 之外整页共用一张斜带 + 细网格背景
-   （章节之间不留接缝），配等宽字距的小标签、硬边标签块，join-section 保留斜线纹理。
-   注意：字体大小保持现状（minicamp 的字号偏大），这里只动背景、字距、字重与颜色。
-   ============================================================================ */
+/* Homepage content and motion. Shared navigation/footer styles live in base.css. */
 
-/* --- 1. 整页一张背景：hero 之外的所有区块共用它，章节之间不留接缝 ---------- */
-/* 颜色直接取自 logo 本身的双色：标志左半 #7ab9fd（天蓝）、右半 #7cdab3（薄荷绿）。
-   两者兑淡到接近纸白之后做一条自上而下的蓝→绿渐变，整页就这一层，没有斜带也没有网格。
-   html 先落底色，body 的背景就不会被提升成画布背景（那样百分比尺寸会按视口算），
-   于是 body 的这张渐变按整页盒子铺开，跨章节连续、不留接缝。
-   注：hero 是 <iframe src="/intro/">，海报文档自带不透明底色，首屏那一屏会盖住渐变顶端；
-   渐变铺满整个 body 盒子，所以滚过首屏后看到的是它偏上的一段（接近天蓝），越往下越偏薄荷。 */
-html { background-color: #e6f2fc; }
-body[data-page="home"] {
-  background-color: #e6f2fc;
-  background-image: linear-gradient(180deg, #e5f1ff 0%, #e6f4f8 40%, #e4f6ee 72%, #e3f6e9 100%);
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-}
-/* hero 之外的区块不再自带底色，统一露出上面这张背景。
-   页脚不在此列：它与加入区合成一条薄荷收尾带，底色由 base.css 统一给（见「收尾区」）。 */
+body[data-page="home"]{--ink:#282e46;--blue:#5164d7;--paper:#fffdf8;background:#fffdf8;color:var(--ink)}
+body[data-page="home"] .container{width:86%;max-width:1160px}
+body[data-page="home"] .button{border-radius:30px;box-shadow:none;font-size:14px;min-height:46px;font-family:var(--font)}
+body[data-page="home"] .button-secondary{border:1px solid #c3c4d1;background:transparent;color:#373c57}
+body[data-page="home"] .home-icon{width:100px;height:100px;display:block;flex-shrink:0;filter:drop-shadow(0 8px 8px #64669d10)}
+.play-kicker{display:block;font:600 10px/1.6 var(--mono);letter-spacing:.16em;color:#818398;margin-bottom:17px}
+.play-section-heading{display:flex;justify-content:space-between;align-items:end;gap:35px;margin-bottom:45px}
+body[data-page="home"] main h2{font:750 clamp(30px,3vw,43px)/1.4 var(--display);letter-spacing:-.035em;color:#2d334b}
+.play-section-heading>p{color:#777b8b;font-size:14px;line-height:1.95;margin-bottom:3px}
+.play-about{padding:100px 0 95px}
+.play-paths{display:grid;grid-template-columns:repeat(3,1fr);gap:23px}
+.play-paths>a{position:relative;display:block;padding:29px 32px 32px;border:1px solid #bed2f0;border-radius:22px;background:#d8e6ff;transition:transform .25s,box-shadow .25s}
+.play-paths>a:nth-child(2){background:#e5d9ff;border-color:#d4c4f5}
+.play-paths>a:nth-child(3){background:#cfeede;border-color:#b6dfca}
+.play-paths .home-icon{margin-bottom:25px}
+.path-number{display:block;font:10px var(--mono);letter-spacing:.12em;color:#8a90a3;margin-bottom:12px}
+.play-paths h3{font:750 23px/1.5 var(--display);color:#3a4565}
+.play-paths p{font-size:14px;line-height:1.9;color:#747d92;margin-top:10px}
+.path-arrow{position:absolute;right:28px;top:32px;display:grid;place-items:center;border:1px solid #d6deea;border-radius:50%;height:32px;width:32px;color:#66799b}
+.play-paths>a:hover{transform:translateY(-5px);box-shadow:0 15px 28px #35325c0b}
+.play-camp{padding:80px 0 95px;background:#fff0cf;border-block:1px solid #f3dfb1}
+.camp-layout{display:grid;grid-template-columns:1.05fr 1fr;gap:85px;align-items:center}
+.camp-memory{padding:16px 16px 20px;background:#fff;border:1px solid #e2e0db;box-shadow:0 14px 30px #3430470c;transform:rotate(-3deg);border-radius:5px;position:relative}
+.camp-memory::before{content:"";position:absolute;z-index:2;width:100px;height:32px;top:-17px;left:38%;background:#d9ceefaa;transform:rotate(7deg);clip-path:polygon(2% 0,99% 6%,97% 100%,0 96%)}
+.memory-label{display:flex;justify-content:space-between;font:8px var(--mono);letter-spacing:.07em;color:#8d8e96;padding:2px 1px 14px}
+.camp-memory .media-frame{border:0;border-radius:2px;box-shadow:none;aspect-ratio:1.5;min-height:0;height:auto}
+.camp-memory .media-open{height:100%;min-height:0;aspect-ratio:auto}
+.camp-memory .media-open img{object-fit:cover;object-position:center;width:100%;height:100%}
+.camp-memory .media-label{display:none}
+.memory-caption{display:flex;justify-content:space-between;align-items:center;gap:15px;padding-top:18px;color:#7c8191;font-size:10px}
+.memory-caption>span:first-child{font:700 25px var(--latin);letter-spacing:-.05em;color:#4d6082}
+.camp-story{position:relative;padding:18px 0}
+.camp-story h2{margin-bottom:20px}
+.title-dot{color:#98d9bb}
+.camp-status{display:inline-block;border:1px solid #e4dfd0;background:#f8f4e7;color:#8c7b42;border-radius:20px;padding:5px 12px;font-size:10px}
+.camp-story>p{font-size:14px;line-height:1.95;color:#787c88;margin:23px 0;max-width:440px}
+.camp-story .camp-puzzle{position:absolute;width:75px;height:75px;right:0;bottom:10px;transform:rotate(12deg)}
+.play-projects{padding:90px 0 26px;background:#b9dfc9;border-block:1px solid #a7d3ba;position:relative;overflow:hidden}
+.play-projects::before,.play-projects::after{content:"";position:absolute;border:1px solid #9bc7ad;border-radius:50%;width:650px;height:650px;pointer-events:none;left:-530px;top:120px}
+.play-projects>.container{position:relative;z-index:1}
+.play-projects::after{left:auto;right:-560px;top:250px;width:760px;height:760px}
+.play-projects .play-section-heading h2>span{color:#287552}
+.play-projects .play-kicker{color:#47775f}
+.play-link{display:inline-flex;align-items:center;gap:25px;font-size:13px;font-weight:600;color:#405f51;padding:10px 0;border-bottom:1px solid #a8beb0}
+.play-link:hover{color:#316bbb;border-color:currentColor}
+.jukebox{display:grid;grid-template-columns:1.05fr 1fr;gap:90px;align-items:start;padding:12px 0 35px;--playing-color:#79adf2}
+.record-player{width:100%;max-width:520px;transform:rotate(-6deg);margin-top:40px;position:relative;filter:drop-shadow(10px 22px 14px #314b3d1b)}
+.player-lid{padding:23px 23px 0;background:linear-gradient(120deg,#f4f3ed,#d9dbd7);border:2px solid #c1c5bd;border-radius:22px 22px 15px 15px;box-shadow:inset 0 2px 0 #fff,inset 0 0 0 6px #e9e9e1,0 5px 0 #b7bdb5;position:relative;z-index:2}
+.player-screen{position:relative;aspect-ratio:1.62;background:#202928;padding:12px;border-radius:8px;box-shadow:inset 0 0 0 1px #101916,0 2px 1px #fff9}
+.player-image{display:block;width:100%;height:100%;background:#e7ecf3;overflow:hidden;border-radius:2px}
+.player-image img{display:block;object-fit:contain;width:100%;height:100%}
+.player-image[hidden],.record-panel[hidden],.record-picker[hidden],.record-hint[hidden]{display:none}
+.record-placeholder{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#4e6380;background:#edf1fa}
+.record-placeholder .home-icon{width:70px;height:70px}
+.record-placeholder strong{font-size:18px}
+.record-placeholder small{font-size:10px}
+.player-brand{display:flex;justify-content:space-between;align-items:center;padding:13px 5px;font:700 13px var(--latin);color:#848d84}
+.player-brand>span{font:7px var(--mono);letter-spacing:.13em}
+.player-hinge{height:11px;width:80%;margin:auto;background:repeating-linear-gradient(90deg,#aab2aa 0 10%,#dce0d7 10% 12%,#b8c0b7 12% 40%);border-radius:4px}
+.player-deck{height:225px;background:linear-gradient(130deg,#f1f1e9,#d5dad2);border:2px solid #c0c7bd;border-radius:12px 12px 25px 25px;box-shadow:inset 0 0 0 7px #e8eae2,0 8px 0 #b1bab0;position:relative;padding:14px 68px 22px 35px;display:grid;place-items:center}
+.deck-disc{width:180px;aspect-ratio:1;border-radius:50%;background:conic-gradient(from 25deg,#ffffff18,transparent 25%,#ffffff90 28%,transparent 45%,#ffffff50 65%,transparent 85%),var(--playing-color);box-shadow:inset 0 0 0 2px #fff5,0 4px 5px #3e4d3b40;position:relative;display:grid;place-items:center;transition:background-color .3s}
+.deck-disc::before{content:"";width:48px;height:48px;background:#b4c3b1;border:7px solid #b5caab;border-radius:50%;box-shadow:0 0 0 1px #788c7d,0 0 0 9px #ffffff35}
+.deck-disc::after{content:"";position:absolute;width:21px;height:21px;background:#6b7870;border:4px solid #a7b7a1;border-radius:50%}
+.deck-disc>span{position:absolute;bottom:23px;font:700 7px/1.2 var(--mono);letter-spacing:.06em;text-align:center;color:#283f55;transform:rotate(-15deg)}
+.deck-controls{position:absolute;right:20px;top:24px;display:grid;justify-items:center;gap:12px}
+.deck-light{width:5px;height:5px;border-radius:50%;background:#80ad84;box-shadow:0 0 0 3px #ced8c9}
+.deck-key{display:grid;place-items:center;border-radius:50%;background:linear-gradient(#fff,#d3d7d0);box-shadow:0 2px 2px #7c867c55,inset 0 0 0 1px #f6f6f0;width:28px;height:28px;font-size:12px;color:#9da89c}
+.deck-speaker{height:32px;width:30px;background:radial-gradient(circle,#9ba597 1px,transparent 1px) 0 0/5px 5px;margin-top:6px}
+.deck-note{position:absolute;bottom:12px;left:25px;font:6px var(--mono);letter-spacing:.15em;color:#879382}
+.record-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 12px}
+.record-choice{border:0;background:none;padding:0 5px 6px;text-align:center;cursor:pointer;color:#516759;min-width:0;border-radius:10px}
+.record-disc{display:block;position:relative;width:100%;max-width:126px;aspect-ratio:1;margin:auto;border-radius:50%;background:conic-gradient(from 20deg,transparent,#ffffff70 15%,transparent 25%,#ffffff60 55%,transparent 65%,#ffffff30),var(--disc-color,#79adf2);box-shadow:inset 0 0 0 1px #fff7,0 4px 7px #4c6b5026;transition:transform .25s,box-shadow .25s}
+.disc-mint{--disc-color:#7ed0b0}
+.disc-lilac{--disc-color:#b5a1e9}
+.disc-peach{--disc-color:#efa786}
+.disc-yellow{--disc-color:#ecd075}
+.disc-pink{--disc-color:#e9a4c0}
+.record-hole{position:absolute;width:25%;height:25%;left:37.5%;top:37.5%;border:7px solid #ffffff60;box-shadow:0 0 0 1px #53764b55;border-radius:50%;background:#b9dfc9}
+.record-number{position:absolute;top:17%;left:0;right:0;font:700 9px var(--mono);letter-spacing:.04em;color:#28495a}
+.record-mini{position:absolute;bottom:18%;left:0;right:0;font:600 6px var(--mono);letter-spacing:.1em;color:#28495a}
+.record-label{display:block;font-size:10px;font-weight:600;line-height:1.5;margin:9px auto 0;max-width:130px;min-height:30px;overflow-wrap:anywhere}
+.record-choice:hover .record-disc{transform:translateY(-5px) rotate(12deg)}
+.record-choice[aria-selected="true"] .record-disc{box-shadow:0 0 0 4px #b9dfc9,0 0 0 6px #315d46,0 5px 12px #4c6b5033;transform:rotate(-8deg)}
+.record-hint{font-size:10px;color:#48725b;margin:12px 0 21px;text-align:right}
+.record-panel{padding:23px 0 0;border-top:1px solid #99c5aa;margin-top:20px}
+.is-ready .record-panel{margin-top:0;min-height:240px}
+.record-panel .play-kicker{font-size:9px;margin-bottom:10px}
+.record-panel h3{font:750 26px/1.35 var(--display);color:#314d3e;overflow-wrap:anywhere}
+.record-panel>p{font-size:13px;line-height:1.95;color:#3b624b;margin:14px 0 13px;max-width:440px}
+.record-panel .play-link{font-size:12px}
+.project-endnote{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #99c5aa;padding-top:10px;font:9px var(--mono);letter-spacing:.1em;color:#47715a}
+body[data-page="home"] .project-endnote .home-icon{width:55px;height:55px;transform:rotate(10deg)}
 
-/* --- 2. 分隔线统一成 minicamp 的蓝绿细线 ---------------------------------- */
-body[data-page="home"] .community-rows,
-body[data-page="home"] .community-row,
-body[data-page="home"] .community-intro-strip {
-  border-color: #b7d1c9;
-}
-body[data-page="home"] .community-ecosystem {
-  border-block-color: #bcd7df;
-  /* 这个区块在 collage.css 里自带一层不透明薄荷底 #e5f3ec。上面第 1 节把整页改成一张
-     连续渐变之后，那层底就成了一条横贯页面的硬边色块，把渐变截断。这里让它也露出背景。 */
-  background: transparent;
-}
-/* 底色去掉之后还剩一条硬边：这个区块自带的 ::before 是两团径向柔光（见 collage.css），
-   absolute inset:0 正好贴着区块边框起止，柔光在边界那一行从零直接跳到满值。右上那团
-   最强，实测单行跳 11~15/255。给它加一层上下渐隐的遮罩，柔光淡入淡出，边界就看不出来了。 */
-body[data-page="home"] .community-ecosystem::before {
-  mask-image: linear-gradient(180deg, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
-}
 
-/* --- 3. 小标签字体：等宽字距 + 硬边标签块 --------------------------------- */
-/* 社区行的左侧标签：前面加一小段实线，字重压紧 */
-body[data-page="home"] .row-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  font-weight: 800;
-  letter-spacing: .005em;
-  color: #1f5a4a;
-}
-body[data-page="home"] .row-label::before {
-  content: "";
-  flex: none;
-  width: 20px;
-  height: 2px;
-  background: #5da98a;
-}
-/* 行尾动作：等宽字距，箭头换成会翻色的圆形印章 */
-body[data-page="home"] .row-action {
-  gap: 13px;
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  font-variant-numeric: tabular-nums;
-  color: #1f5a4a;
-}
-body[data-page="home"] .row-action b {
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-  /* 静止态只有一个箭头：不描边、不加圆底；圆底留给 hover */
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #2f7d5d;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1;
-  transition: transform .3s var(--ease), background .3s var(--ease), color .3s var(--ease);
-}
-body[data-page="home"] .community-row:hover .row-action b,
-body[data-page="home"] .community-row:focus-within .row-action b {
-  background: #2f7d5d;
-  color: #fff;
-  transform: translate(2px, -2px);
-}
-/* 活动徽章 / 活动事实：等宽字距 + 硬边阴影 */
-body[data-page="home"] .event-badge {
-  padding: 5px 11px;
-  border-radius: 3px;
-  border-color: #c2b3d7;
-  background: #faf7fe;
-  color: #514569;
-  box-shadow: 3px 3px 0 #ddd2ef;
-  font-family: var(--mono);
-  letter-spacing: .06em;
-  font-variant-numeric: tabular-nums;
-}
-body[data-page="home"] .event-facts {
-  font-family: var(--mono);
-  letter-spacing: .06em;
-  color: #5b5170;
-}
-body[data-page="home"] .event-facts span + span {
-  border-left-color: #c2b3d7;
-}
-/* 档案卡上的小标签与底部动作 */
-body[data-page="home"] .archive-links > a > span {
-  font-family: var(--mono);
-  letter-spacing: .08em;
-  font-variant-numeric: tabular-nums;
-}
-body[data-page="home"] .archive-links b {
-  font-family: var(--mono);
-  letter-spacing: .05em;
-}
 
-/* --- 4. 加入区：这套样式已升为全站标准，搬进 base.css 的「收尾区」 --------
-   原来首页在这里单独画分段背景、斜纹层、右下角小签和纸卡阴影，其余页面另有一套；
-   既然两版要统一，就只留 base.css 那一份，首页不再保留副本（含 nc-join-lines 关键帧）。 */
 
-/* --- 6. 响应式：小屏把网格和斜带都收窄一点 ---------------------------------- */
-@media (max-width: 640px) {
-  body[data-page="home"] .row-label::before { width: 14px; }
-  body[data-page="home"] .row-action b { width: 25px; height: 25px; }
-}
 
-/* --- 8. 活动面板：媒体框不再横向溢出压住右栏文字 ---------------------------- */
-/* 通用样式是 .event-visual .media-frame{height:100%} 配 .media-frame{aspect-ratio:4/3}，
-   也就是"高度撑满行高、宽度由高度反推"：行高 630px 时算出 840px 宽，直接盖到右边的文字上。
-   这里改成按列宽铺满、由宽度定高度（保持 4:3，整张合照不被裁），并在列内垂直居中。 */
-/* 只在多列（桌面）档覆盖：手机档 styles.css 已经给了
-   .event-visual .media-frame{height:270px;min-height:0;aspect-ratio:auto}，覆盖会把它压成 0 高。 */
-@media (min-width: 641px) {
-  body[data-page="home"] .home-camp .event-visual {
-    display: flex;
-    align-items: center;
-  }
-  body[data-page="home"] .home-camp .event-visual .media-frame {
-    width: 100%;
-    height: auto;
-  }
-}
-/* 带 transform 的 .event-visual 会进入定位层，绘制在普通流文字之上；文字抬一层更保险。 */
-body[data-page="home"] .home-camp .event-copy {
-  position: relative;
-  z-index: 1;
-}
 
-/* 加入区的 reduce-motion 处理已随样式一起搬进 base.css。 */
 
-/* --- 7. 首页作品区：横向滚动（卡片数据与滚动参数见 content/home-showcase*.json） --- */
-body[data-page="home"] .projects-scroller {
-  position: relative;
-}
-body[data-page="home"] .projects-track {
-  display: flex;
-  gap: var(--card-gap, 22px);
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  /* 负外边距抵消内边距：卡片抬起/投影不会被 overflow 裁掉，版式位置也不变 */
-  margin: -10px -2px 0;
-  padding: 10px 2px 14px;
-  /* 注意是 auto：自动滚动每帧直接改 scrollLeft，smooth 会把每帧都变成一段补间动画。
-     箭头手动翻页时由 JS 显式传 behavior:'smooth'。 */
-  scroll-behavior: auto;
-  scrollbar-width: none;
-}
-body[data-page="home"] .projects-track[data-snap] { scroll-snap-type: x mandatory; }
-/* 会自己动的横滑区里滚动条太吵，隐藏掉；hint 文案负责提示可以拖动 */
-body[data-page="home"] .projects-track::-webkit-scrollbar { height: 0; }
-/* 每屏几张由 JSON 的 perView 决定，这里只按断点取对应那个数字 */
-body[data-page="home"] .projects-track > .project-card {
-  flex: 0 0 calc((100% - (var(--per-wide, 3) - 1) * var(--card-gap, 22px)) / var(--per-wide, 3));
-  min-width: 0;
-  scroll-snap-align: start;
-}
-@media (max-width: 1000px) {
-  body[data-page="home"] .projects-track > .project-card {
-    flex-basis: calc((100% - (var(--per-medium, 2) - 1) * var(--card-gap, 22px)) / var(--per-medium, 2));
-  }
-}
-@media (max-width: 640px) {
-  body[data-page="home"] .projects-track > .project-card {
-    flex-basis: calc((100% - (var(--per-narrow, 1) - 1) * var(--card-gap, 22px)) / var(--per-narrow, 1));
-  }
-}
-body[data-page="home"] .scroller-foot {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-top: 20px;
-}
-body[data-page="home"] .scroller-hint {
-  color: #5b7085;
-  font-size: 11px;
-  letter-spacing: .08em;
-}
-body[data-page="home"] .scroller-controls {
-  display: flex;
-  gap: 10px;
-  margin-left: auto;
-}
-body[data-page="home"] .scroller-arrow {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid #b9cbe0;
-  border-radius: 50%;
-  background: #fff;
-  color: #245fd6;
-  transition: background .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), transform .25s var(--ease), opacity .25s var(--ease);
-}
-body[data-page="home"] .scroller-arrow svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-body[data-page="home"] .scroller-arrow:is(:hover, :focus-visible):not(:disabled) {
-  background: #245fd6;
-  border-color: #245fd6;
-  color: #fff;
-  transform: translateY(-2px);
-}
-body[data-page="home"] .scroller-arrow:disabled { opacity: .35; }
-/* 一屏就放得下时箭头没有意义，projects-scroll.js 会加上 is-static */
-body[data-page="home"] .projects-scroller.is-static .scroller-controls { display: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  body[data-page="home"] .projects-track { scroll-behavior: auto; }
-  body[data-page="home"] .scroller-arrow:is(:hover, :focus-visible) { transform: none; }
-  /* 不自动滚时，做无缝循环用的那组副本没有意义，直接收掉 */
-  body[data-page="home"] .projects-track > .project-card[aria-hidden="true"] { display: none; }
+
+
+
+body[data-page="home"] :is(.play-paths>a,.record-choice,.play-link):focus-visible{outline:3px solid #487bca;outline-offset:6px}
+@media(max-width:1150px){
+.camp-layout{gap:50px}
+.jukebox{gap:55px}
+.record-player{margin-top:50px}
+.player-deck{height:210px}
+.deck-disc{width:165px}
+.record-label{font-size:9px}}
+@media(max-width:900px){
+.play-section-heading{gap:20px}
+.play-section-heading>p{font-size:12px}
+.play-paths>a{padding:24px}
+.play-paths h3{font-size:20px}
+.play-paths p{font-size:12px}
+.camp-layout{gap:38px}
+body[data-page="home"] .camp-story .camp-puzzle{display:none}
+.jukebox{gap:40px}
+.player-lid{padding:15px 15px 0}
+.player-screen{padding:9px}
+.player-deck{height:185px;padding-left:20px;padding-right:50px}
+.deck-disc{width:145px}
+.deck-controls{right:15px;top:20px;gap:8px}
+.deck-key{width:24px;height:24px}
+.record-picker{gap:13px 5px}
+.record-number{font-size:7px}
+.record-mini{font-size:5px}
+.record-hole{border-width:4px}
+.record-panel h3{font-size:23px}}
+
+@media(max-width:640px){
+body[data-page="home"] .container{width:88%}
+.play-about{padding:65px 0 45px}
+.play-section-heading{display:block;margin-bottom:30px}
+body[data-page="home"] main h2{font-size:29px}
+.play-section-heading>p{margin-top:20px;font-size:13px}
+.play-kicker{font-size:9px;margin-bottom:12px}
+.play-paths{grid-template-columns:1fr;gap:14px}
+.play-paths>a{padding:26px 25px 26px 115px;min-height:168px;border-radius:18px}
+.play-paths .home-icon{position:absolute;left:16px;top:35px;width:83px;height:83px;margin:0}
+.play-paths h3{font-size:21px}
+.play-paths p{font-size:12px;margin-top:7px}
+.path-number{font-size:8px;margin-bottom:6px}
+.path-arrow{right:15px;top:17px;width:25px;height:25px;font-size:13px}
+.play-camp{padding:35px 0 65px}
+.camp-layout{grid-template-columns:1fr;gap:40px}
+.camp-memory{width:94%;margin:0 auto}
+.camp-story{padding:0}
+.camp-story h2 br{display:none}
+.camp-story>p{font-size:13px;margin:18px 0}
+body[data-page="home"] .camp-story .camp-puzzle{display:none}
+.memory-caption{font-size:8px}
+.memory-caption>span:first-child{font-size:24px}
+.play-projects{padding:55px 0 20px}
+.play-projects .play-section-heading .play-link{margin-top:16px;font-size:12px}
+.jukebox{grid-template-columns:1fr;gap:45px;padding-top:0;padding-bottom:25px}
+.record-player{width:89%;max-width:370px;margin:12px auto 0;transform:rotate(-4deg)}
+.player-lid{padding:16px 16px 0}
+.player-deck{height:180px}
+.deck-disc{width:145px}
+.player-brand{font-size:11px;padding:10px 3px}
+.player-brand>span{font-size:6px}
+.record-picker{gap:16px 12px}
+.record-disc{max-width:110px}
+.record-label{font-size:10px;min-height:30px}
+.record-number{font-size:8px}
+.record-mini{font-size:6px}
+.record-hint{text-align:center;margin:16px 0 24px}
+.record-panel h3{font-size:24px}
+.is-ready .record-panel{min-height:230px}
+.project-endnote{font-size:7px;letter-spacing:.04em}
+.project-endnote .home-icon{width:45px!important;height:45px!important}
+
+
+
 }
+@media(prefers-reduced-motion:reduce){
+.record-disc,.deck-disc,.play-paths>a{transition:none}
+.record-choice:hover .record-disc,.play-paths>a:hover{transform:none}}
+
+body[data-page="home"] :is(.button,.play-link,.record-choice,.menu-toggle):focus-visible{outline:3px solid #6452ca;outline-offset:4px}
+body[data-page="home"] .button:not(.header-actions *){box-shadow:0 3px 0 #d7c69b;transition:transform .22s,box-shadow .22s,background .22s;overflow:hidden}
+body[data-page="home"] .button:not(.header-actions *)::before,body[data-page="home"] .button:not(.header-actions *)::after{display:none}
+body[data-page="home"] .button-secondary{background:#fffaf0;border:1px solid #d8bc7c;color:#594b27;padding-inline:22px}
+body[data-page="home"] .button:not(.header-actions *):hover{transform:translateY(-3px);box-shadow:0 6px 0 #d7c69b,0 10px 24px #5e47161a}
+body[data-page="home"] .button:active{transform:translateY(2px);translate:0;box-shadow:none}
+body[data-page="home"] .button .link-arrow{transition:transform .25s}
+.button:hover .link-arrow{transform:translateX(4px)}
+
+
+.play-link{border:1px solid #659c7d;border-radius:30px;padding:10px 18px;background:#ffffff45;transition:background .2s,translate .2s,box-shadow .2s;color:#244f38}
+.play-link>span{transition:translate .2s}
+.play-link:hover{background:#f6fff8;translate:0 -2px;box-shadow:0 4px 0 #719a7c30;color:#244f38}
+.play-link:hover>span{translate:3px -2px}
+.play-link:active{translate:0 1px}
+.play-paths>a{box-shadow:inset 0 1px 0 #fff8,0 4px 0 #24345408;transition:transform .3s,box-shadow .3s,border-color .3s}
+.path-arrow{background:#ffffff60;border-color:#ffffffa0;transition:transform .3s,background .3s}
+.play-paths>a:hover .path-arrow{transform:rotate(45deg);background:white}
+.play-paths>a:hover .home-icon{transform:translateY(-5px) rotate(-5deg)}
+.play-paths .home-icon{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.record-choice:active .record-disc{transform:scale(.94)}
+.is-motion-visible .deck-disc{animation:record-turn 18s linear infinite}
+@keyframes record-turn{to{transform:rotate(360deg)}}
+.player-screen{transition:box-shadow .3s}
+.record-player:hover .player-screen{box-shadow:0 0 0 2px #abc7ba,0 0 25px #89c9ad50}
+html.home-motion-paused .deck-disc{animation-play-state:paused}
+html.home-motion-paused body[data-page="home"] :is(.button,.home-icon,.record-disc,.play-paths>a,.play-link){transition:none}
+
+@media(prefers-reduced-motion:reduce){
+body[data-page="home"] :is(.deck-disc,.button,.record-disc,.home-icon,.play-paths>a,.play-link,.desktop-nav>a,.header-inner,.site-header){animation:none!important;transition:none!important}}

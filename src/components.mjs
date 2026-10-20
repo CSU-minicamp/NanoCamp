@@ -34,7 +34,12 @@ export function logoMark(kind = 'wordmark', classes = '', lazy = false) {
 }
 
 export const arrowIcon = (external = false) => `<svg class="link-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="${external ? 'M5 15 15 5M5 5h10v10' : 'M3 10h13m-5-5 5 5-5 5'}"/></svg>`;
-export const joinButton = (label = '加入社区', classes = '') => `<button type="button" class="button button-primary ${classes}" data-join><span class="button-label">${label}</span><span class="button-plus" aria-hidden="true">+</span></button><a class="button button-primary join-fallback ${classes}" href="/faq/#join-channel">${label}<span aria-hidden="true">↗</span></a>`;
+// The external SVG sprite is shared with base.js; no duplicated icon drawings.
+export function uiIcon(kind, classes = '') {
+  const name = ['home','minicamp','activities','projects','community','partners','search','join','chat','calendar'].includes(kind) ? kind : 'home';
+  return `<svg class="ui-icon ${classes}" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="/images/interface-icons.svg#icon-${name}"></use></svg>`;
+}
+export const joinButton = (label = '加入社区', classes = '') => `<button type="button" class="button button-primary ${classes}" data-join>${uiIcon('join', 'button-community-icon')}<span class="button-label">${label}</span><span class="button-plus" aria-hidden="true">+</span></button><a class="button button-primary join-fallback ${classes}" href="/faq/#join-channel">${uiIcon('join', 'button-community-icon')}${label}<span aria-hidden="true">↗</span></a>`;
 export const pageLink = (href, label, classes = '') => `<a class="button button-secondary ${classes}" href="${href}"><span class="button-label">${label}</span>${arrowIcon()}</a>`;
 // Section headings carry the hierarchy; keep the shared call signature.
 export const eyebrow = () => '';
@@ -43,7 +48,7 @@ export function header(active) {
   return `<a class="skip-link" href="#main">跳到主要内容</a><header class="site-header"><div class="container header-inner">
     <a class="brand" href="/" aria-label="NanoCamp 首页">${wordmark()}</a>
     <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">${desktopNavigation(active)}</nav>
-    <div class="header-actions">${active === 'community' ? '<a class="button button-primary button-small" href="#contact">联系我们</a>' : joinButton(site.join.qrCode || site.join.contact ? '加入社区' : '加入方式', 'button-small')}<button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="打开导航菜单"><span></span><span></span></button></div>
+    <div class="header-actions">${active === 'community' ? `<a class="button button-primary button-small" href="#contact">${uiIcon('chat', 'button-community-icon')}联系我们</a>` : joinButton(site.join.qrCode || site.join.contact ? '加入社区' : '加入方式', 'button-small')}<button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="打开导航菜单"><span></span><span></span></button></div>
     <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>${mobileNavigation(active)}</nav>
   </div></header>`;
 }
@@ -65,9 +70,9 @@ const navLinks = [
 function navLink(link, active, label = link.label) {
   const current = (active || 'home') === link.key ? ' aria-current="page"' : '';
   if (link.search) {
-    return `<a href="${link.href}" class="nav-search" aria-label="站内搜索"${current} data-search-shortcut><svg class="nav-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="nav-search-label">${label}</span></a>`;
+    return `<a href="${link.href}" class="nav-search" aria-label="站内搜索"${current} data-search-shortcut>${uiIcon('search', 'nav-search-icon')}<span class="nav-search-label">${label}</span></a>`;
   }
-  return `<a href="${link.href}"${current}>${label}</a>`;
+  return `<a href="${link.href}"${current} class="nav-destination">${uiIcon(link.key, 'nav-symbol')}<span class="nav-item-label">${label}</span></a>`;
 }
 
 function desktopNavigation(active) {
@@ -93,10 +98,10 @@ export function media({ src, alt = '活动照片', label = '现场照片', id = 
   return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} has-image"><a class="media-open" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image><span class="media-zoom" aria-hidden="true">${zoom}</span></a>${labelRow}</div>`;
 }
 
-export function joinSection() {
-  const available=Boolean(site.join.qrCode || site.join.contact);
-  const paperButton=joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small');
-  return '<section class="join-section join-shared" aria-labelledby="join-heading"><div class="container join-inner"><div class="join-copy"><h2 id="join-heading">下一个有趣的想法，<br>从遇见你开始。</h2><p>带上好奇心，来认识和你一起动手的伙伴。</p>' + (available ? joinButton('加入 NanoCamp') : pageLink('/community/','了解参与方式','button-white')) + '</div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong>' + paperButton + '</div></div></section>';
+// Shared invitation: homepage and every existing join section use this component.
+export function joinSection({ showAvailabilityNote = false } = {}) {
+  const available = Boolean(site.join.qrCode || site.join.contact);
+  return `<section class="join-section" aria-labelledby="join-heading"><div class="container join-inner"><div class="join-copy"><h2 id="join-heading">有想做的，<br>就会有人一起。</h2><p>说一句你想做什么，自然会有人接话。</p></div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong><span>${showAvailabilityNote && !available ? '加入渠道尚未公布，可先阅读参与指南。' : '欢迎每一份好奇心。'}</span>${joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small')}</div></div></section>`;
 }
 
 export function shareButton(label = '复制页面链接') {
@@ -133,13 +138,13 @@ export function dialogs() {
 }
 
 export function documentPage({ title, description, active, body, route, noindex = false }) {
-  // 首页保留专属加入区；其余内容页和错误页在这里追加一次共用加入区。
+  // 首页在内容中放置共享加入区；其余内容页和错误页在这里追加一次。
   if (active && active !== 'search') body += joinSection();
   const fontAssets = '<link rel="preload" href="/fonts/nano-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/fonts/nano-display-ui.woff2" as="font" type="font/woff2" crossorigin>';
-  const homeAssets = !active ? '<link rel="stylesheet" href="/hero.css"><link rel="stylesheet" href="/home.css">' : '';
+  const homeAssets = !active ? '<link rel="stylesheet" href="/hero.css"><link rel="stylesheet" href="/home.css"><link rel="stylesheet" href="/home-experiment.css">' : '';
   const partnerAssets = active === 'partners' ? '<script defer src="/partners.js"></script><script defer src="/partner-draft.js"></script><script defer src="/partner-scenes.js"></script>' : '';
   const favicon = safeUrl(site.symbol === '/images/nanocamp-symbol.png' ? '/images/nanocamp-favicon.png' : site.symbol, true);
   const workshop = ['resources', 'partners'].includes(active);
   const album = !active || ['minicamp','projects'].includes(active);
-  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}${homeAssets}<link rel="stylesheet" href="/interactions.css"><script defer src="/base.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-advanced.js"></script><script defer src="/projects-scroll.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
+  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}<link rel="stylesheet" href="/interactions.css">${homeAssets}<script defer src="/base.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-playground.js"></script><script defer src="/home-experiment.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
 }
