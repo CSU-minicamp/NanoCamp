@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { handleRequest, routeInfo } from '../backend/app.mjs';
-import { routePaths, renderPage } from '../src/pages.mjs';
+import { routePaths, indexablePaths, noindexPaths, renderPage } from '../src/pages.mjs';
 import { renderIntroPage } from '../src/intro.mjs';
 import { site } from '../content/site.mjs';
 
@@ -68,7 +68,7 @@ for (const route of [...routePaths,'/404.html']) {
   }
   require(attr(meta(html,'og:image') || '','content')===new URL('/images/nanocamp-social.png',site.url).href, route + ': missing share image');
   require(attr(meta(html,'twitter:card') || '','content')==='summary_large_image', route + ': incorrect social card');
-  if (['/search/','/404.html'].includes(route)) require(attr(meta(html,'robots') || '','content').includes('noindex'), route + ': should not be indexed');
+  if (['/404.html', ...noindexPaths].includes(route)) require(attr(meta(html,'robots') || '','content').includes('noindex'), route + ': should not be indexed');
   for (const match of html.matchAll(/<script\s+type="application\/(?:ld\+)?json"[^>]*>([\s\S]*?)<\/script>/g)) {
     require(!match[1].includes('<'), route + ': unsafe inline JSON');
     JSON.parse(match[1]);
@@ -120,7 +120,7 @@ for (const file of assets) if (file.endsWith('.js')) {
 
 const sitemap = (await handleRequest({method:'GET',url:'/sitemap.xml',headers:{}})).body.toString('utf8');
 const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match=>decode(match[1]));
-const expected = routePaths.filter(route=>route!=='/search/').map(route=>new URL(route,site.url).href);
+const expected = indexablePaths.map(route=>new URL(route,site.url).href);
 require(locations.length===expected.length && new Set(locations).size===expected.length && expected.every(url=>locations.includes(url)), 'Sitemap does not match indexable pages');
 
 const robots = (await handleRequest({method:'GET',url:'/robots.txt',headers:{}})).body.toString('utf8');

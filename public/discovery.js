@@ -78,7 +78,10 @@
     link.setAttribute('aria-keyshortcuts','Control+k Meta+k');
   });
   document.addEventListener('keydown',event=>{
-    if(event.key.toLowerCase()!=='k' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.repeat || event.isComposing || document.querySelector('dialog[open]')) return;
+    // 扩展、密码管理器、辅助技术派发的合成 keydown 可能没有 key（undefined），
+    // 直接 .toLowerCase() 会抛 TypeError 并且把整个快捷键掐掉。先兜一层。
+    const key = String(event.key ?? '').toLowerCase();
+    if(key!=='k' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.repeat || event.isComposing || document.querySelector('dialog[open]')) return;
     if(event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')) return;
     event.preventDefault();
     const input=[...document.querySelectorAll('.nav-search-form input')].find(node=>node.getClientRects().length) || document.querySelector('[data-search-ui]:not([hidden]) #site-query');

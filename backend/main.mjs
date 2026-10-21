@@ -21,24 +21,18 @@
 // 路由与渲染逻辑都在 backend/app.mjs，本文件只负责读配置、监听与收发字节。
 
 import http from 'node:http';
-import {existsSync, readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
+import {existsSync} from 'node:fs';
 
 import {assetRoot} from './base.mjs';
 import {handleRequest, routeInfo} from './app.mjs';
+import {authConfig, configPath, serverSettings, SERVER_DEFAULTS} from './config.mjs';
 import {site} from '../content/site.mjs';
-
-/** 实例配置文件的绝对路径。整个 data/ 目录不进版本库，每台机器各写一份。 */
-const configPath = fileURLToPath(new URL('../data/config.json', import.meta.url));
-
-/** 内置默认值：绑本机所有网卡，便于部署后直接访问。 */
-const DEFAULTS = Object.freeze({host: '0.0.0.0', port: 8080, name: 'Nanocamp'});
 
 /** 优雅退出的兜底时限：超过这个时间还有连接没释放就强制退出。 */
 const SHUTDOWN_GRACE_MS = 5000;
 
 /** 日志前缀。配置读出来之前先用默认名，读完之后换成 config.json 里的 name。 */
-let tag = `[${DEFAULTS.name}]`;
+let tag = `[${SERVER_DEFAULTS.name}]`;
 
 /** 信息输出，走 stdout。 */
 const log = (...args) => console.log(tag, ...args);
@@ -46,65 +40,74 @@ const log = (...args) => console.log(tag, ...args);
 /** 错误输出，走 stderr —— journald 会按优先级分流，重定向到文件时也方便单独筛出来。 */
 const fail = (...args) => console.error(tag, ...args);
 
-/**
- * 读取实例配置，只认 host / port / name / url 四个字段，其余键一律忽略。
- *
- * 容错原则是「绝不因为配置问题起不来」：文件不存在（正常情况）、读不动、不是合法 JSON、字段缺失或类型写错，都用默认值兜住，最多打一行日志。
- *
- * @returns {{host: string, port: number, name: string, url?: string}} 合并默认值后的监听地址、端口、实例名，以及可选的域名覆盖。
- */
-function readSettings(){
-  const settings = {...DEFAULTS};
-  let raw;
-  try{
-    raw = JSON.parse(readFileSync(configPath, 'utf8'));
-  }
-  catch(error){
-    if(error.code !== 'ENOENT')  // 文件不存在是正常情况（用默认值）；存在但读不动或不是合法 JSON 才提示。
-      fail(`${configPath} 读取失败，改用默认值：${error.message}`);
-    return settings;
-  }
-  // 有效才赋值
-  if(typeof raw?.host === 'string' && raw.host.trim())
-    settings.host = raw.host.trim();
-  if(Number.isInteger(raw?.port) && raw.port > 0 && raw.port < 65536)
-    settings.port = raw.port;
-  if(typeof raw?.name === 'string' && raw.name.trim())
-    settings.name = raw.name.trim();
-  /**
-   * 把配置里的 url 规范化成可以喂给 new URL(route, base) 的形式，非法值返回 null。
-   *
-   * 只接受 http / https，并且用 URL 解析器自己补上结尾斜杠（https://x.club → https://x.club/），这样 canonical 拼出来才是 `https://x.club/about/` 而不是少一层。
-   *
-   * @param {unknown} value 待校验的值。
-   * @returns {string|null} 规范化后的域名，或 null 表示非法。
-   */
-  function normalizeSiteUrl(value){
-    if(typeof value !== 'string' || !value.trim())
-      return null;
-    let url;
-    try{
-      url = new URL(value.trim());
-    }
-    catch{
-      return null;
-    }
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
-  }
-  const url = normalizeSiteUrl(raw?.url);
-  if(url)
-    settings.url = url;
-  else if(raw?.url)
-    fail(`data/config.json 里的 url 不是合法的 http/https 地址，已忽略：${JSON.stringify(raw.url)}`);
-  return settings;
-}
-
-const {host, port, name, url} = readSettings();
+// 监听配置统一由 config.mjs 读取，这里只把解析告警打到带实例名前缀的 stderr 上。
+const settings = serverSettings();
+const {host, port, name, url} = settings;
 tag = `[${name}]`;
+for(const warning of settings.warnings)
+  fail(warning);
 // 域名是部署属性而不是内容属性：版本库里的 site.url 是生产域名，本实例若在 config 里写了 url 就以它为准。
 // site 是模块级单例对象，这里改属性对 src/metadata.mjs 的 canonicalUrl 立即生效（两边是同一个对象引用）。
 if(url)
   site.url = url;
+
+/**
+ * 读取请求体（只有 POST 这类方法才需要）。
+ *
+ * 超过上限的请求直接丢弃并返回 null —— 登录接口只收一两个字段，没有理由让一个 10 MB 的请求体把内存吃掉。
+ * @param {import('node:http').IncomingMessage} req 请求对象。
+ * @param {number} [limit=65536] 允许的最大字节数。
+ * @returns {Promise<Buffer|null>} 请求体；超限或读取出错时为 null。
+ */
+/** 请求体超过上限时抛这个，由 server 回调转成 413。 */
+class BodyTooLargeError extends Error {}
+
+function readBody(req, limit = 64 * 1024){
+  // 先看声明长度：能直接拒就不用读一个字节。
+  const declared = Number(req.headers['content-length'] || 0);
+  if(declared > limit)
+    return Promise.reject(new BodyTooLargeError());
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let settled = false;
+    const finish = (error, value) => {
+      if(settled) return;
+      settled = true;
+      if(error) reject(error);
+      else resolve(value);
+    };
+    req.on('data', chunk => {
+      size += chunk.length;
+      if(size > limit){
+        // 别再读（pause 后 socket 背压），也别在这里destroy；先让上层把 413 写回去，再断开，否则客户端只会看到「连接被重置」。
+        req.pause();
+        finish(new BodyTooLargeError());
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => finish(null, Buffer.concat(chunks)));
+    // 读流出错（客户端中断上传）：当成「没有请求体」，交给接口层判 400，不当成服务端故障。
+    req.on('error', () => finish(null, null));
+  });
+}
+
+/**
+ * 取来源地址用于限流。
+ *
+ * 只有显式开了 auth.trustProxy（生产走 nginx 反代）才采信 x-forwarded-for，否则客户端随手加一个头就能绕过来源级限额。
+ * @param {import('node:http').IncomingMessage} req 请求对象。
+ * @returns {string} 来源地址。
+ */
+function clientIp(req){
+  if(authConfig().trustProxy){
+    const forwarded = req.headers['x-forwarded-for'];
+    const first = Array.isArray(forwarded)? forwarded[0]: String(forwarded || '').split(',')[0];
+    if(first.trim()) return first.trim();
+  }
+  return req.socket.remoteAddress || '';
+}
 
 /**
  * HTTP 请求处理：把请求交给 app.mjs 的 handleRequest，再把结果写回 socket。
@@ -113,20 +116,36 @@ if(url)
  */
 const server = http.createServer(async (req, res) => {
   let response;
+  let closeAfter = false;
   try{
-    response = await handleRequest(req);
+    // 页面只有 GET/HEAD，请求体留空；POST 才会去读流。
+    const body = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' ? await readBody(req): null;
+    response = await handleRequest({method: req.method, url: req.url, headers: req.headers, body, ip: clientIp(req)});
   }
   catch(error){
-    // 渲染函数报错时返回可读的 500，而不是把连接悬在那里；堆栈进 stderr，由 journald 或重定向的文件收着。
-    fail(`${req.method} ${req.url} 渲染失败：`, error);
-    response = {
-      status: 500,
-      headers: {'content-type': 'text/plain; charset=utf-8', 'x-nanocamp-source': 'error'},
-      body: Buffer.from('页面错误\n', 'utf8'),
-    };
+    if(error instanceof BodyTooLargeError){
+      // 413：请求体太大。回一句话再断开（客户端还在上传，不能复用这条连接）。
+      response = {
+        status: 413,
+        headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', connection: 'close', 'x-nanocamp-source': 'error'},
+        body: Buffer.from('请求体过大\n', 'utf8'),
+      };
+      closeAfter = true;
+    }
+    else{
+      // 渲染函数报错时返回可读的 500，而不是把连接悬在那里；堆栈进 stderr，由 journald 或重定向的文件收着。
+      fail(`${req.method} ${req.url} 渲染失败：`, error);
+      response = {
+        status: 500,
+        headers: {'content-type': 'text/plain; charset=utf-8', 'x-nanocamp-source': 'error'},
+        body: Buffer.from('页面错误\n', 'utf8'),
+      };
+    }
   }
   res.writeHead(response.status, response.headers);
-  res.end(req.method === 'HEAD' ? undefined : response.body);
+  res.end(req.method === 'HEAD'? undefined: response.body);
+  if(closeAfter)
+    req.destroy();
 });
 
 // 反向代理 / systemd 停止服务时先停止接收新连接，再把在途请求处理完。

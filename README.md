@@ -33,7 +33,9 @@ npm run dev
 
 ## 部署
 
-站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有 npm 依赖、没有构建步骤**，`git clone` 完就能跑。
+站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有构建步骤**。唯一的运行时依赖是 `mysql2`（纯 JS，不需要编译），只用来连数据库：不启用账号功能时即使不装它，公开页面也照常服务。
+
+> 后端自身的结构、请求流程、每个 API 的入参与错误码、数据表与设计取舍，都在 **[`backend/README.md`](backend/README.md)**。
 
 本地试跑：
 
@@ -57,8 +59,102 @@ npm start
 | `port` | `8080` | 监听端口 |
 | `name` | `Nanocamp` | 日志前缀。每行日志会写成 `[name] …`，同一台机器上跑多个实例时用来区分输出 |
 | `url` | 无 | **可选**：覆盖站点正式域名（即 `content/site.mjs` 的 `site.url`）。canonical、Open Graph、sitemap 与 robots 会整体跟着变。只接受 http / https，非法值忽略并打一行日志。结尾斜杠会自动补上。 |
+| `db` | 无 | MySQL 连接，**启用账号功能时必填**：缺 `database` 时 `/api/*` 一律 503，公开页面不受影响。**库名与实例 `name` 保持一致**（生产 `Nanocamp`、测试 `Nanocamp-test`），生产与测试各用各的库、各用各的账号，隔离靠授权。参数只读一次，改完要重启。 |
+| `mail` | `console` | **可选**：发信配置。`provider` 为 `console`（只打日志，不发信）或 `resend`；`resend` 需要 `apiKey` 与已认证域下的 `from`。 |
+| `auth` | 无 | **可选**：`secret`（会话与验证码 HMAC 的密钥，**必须自己生成**）、`trustProxy`（走 nginx 反代时设 `true`，否则来源限流失效）。 |
 
 文件不存在、只写一个字段、或某个字段类型写错，都用默认值兜住，服务照常启动。没有别的启动参数 —— 不读环境变量，也没有示例文件，直接改这一个 JSON 即可。两个实例（不同端口）就放两份 clone，各自写自己的 `data/config.json`。
+
+配置**在进程内只读一次**（首次用到时读盘，之后走缓存），所以改完要重启服务才生效 —— 和改 `host` / `port` 一样。
+
+#### 账号与邮件
+
+需要**数据库 + `auth.secret`**：缺任何一个，`/api/auth/*` 都会返回 503（页面照常，登录按钮禁用）。
+
+| 接口 | 作用 |
+|---|---|
+| `POST /api/auth/email-captcha` | 发 6 位邮箱验证码（挑战落库，10 分钟有效、一次性） |
+| `POST /api/auth/verify` | 验证码登录；邮箱首次通过验证时自动建号 |
+| `POST /api/auth/login` | 邮箱 + 密码登录 |
+| `POST /api/auth/logout` | 撤销会话 |
+| `GET /api/session` | `{user, csrf, disabled, canSendCode}` |
+
+`disabled`（登录是否可用）和 `canSendCode`（发码是否可用）是两个独立信号 —— 前端据此只锁一半按钮。
+
+**必填资料**：验证码登录会建出没有密码、没有昵称的账号，所以登录成功后如果还缺必填项（密码、昵称），
+服务端会把人送到 `/profile/force/`，填完再回到原目标 —— 这就是「不填完不能继续」。
+必填项定义在 `backend/auth.mjs` 的 `PROFILE_FIELDS`，加一项只改这个数组；「一句话介绍」是可选字段，不在此列。
+
+**查看资料**：`/profile/` 显示邮箱、昵称与一句话介绍。它按会话渲染，
+所以**不进页面缓存**（`Cache-Control: no-store`，无 ETag）。未登录时 **303 跳 `/login/?next=/profile/`**
+（不先给一张 401 页面），登录后自动回到这里；缺必填项则 303 去 `/profile/force/`。
+
+```sh
+# 1) 装依赖（mysql2 是唯一的运行时依赖）
+npm install --omit=dev
+
+# 2) 生成密钥填进 data/config.json 的 auth.secret
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+
+# 3) 建表（幂等，可反复执行）
+npm run db:migrate
+#    应用账号没有 DDL 权限（设计如此），报权限错误时改用：
+#    node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'
+
+# 4) 验证发信（会真发一封，收到即说明域名与密钥都通了）
+npm run mail:test -- 你的邮箱
+```
+
+表只有四张：`users` / `sessions` / `login_email_captcha` / `rate_events`，都建在 `db.database` 指定的库里。
+
+`data/config.json` 里相关的段大概长这样：
+
+```json
+{
+  "mail": {
+    "provider": "resend",
+    "apiKey": "re_…",
+    "streams": { "auth": { "from": "NanoCamp <donotreply@mail.nanocamp.club>" } }
+  },
+  "auth": { "secret": "…", "trustProxy": true }
+}
+```
+
+`auth.secret` 是一把 HMAC 密钥，只做两件事：验证码存库前与限流计数用的邮箱/IP 化名。**它与会话无关**（会话是随机 token + 纯 sha256），所以轮换它只会让未使用的验证码失效、限流计数重算，不会把已登录用户踢下线。缺失或为空时认证整体不可用（fail closed），不会临时随机生成一把。
+
+⚠️ 发件人的 `@` 前面可任意取（只要域已验证），但 **`from` 的域必须是 Resend 里认证过的那个**；别用主域直接发信，主域一旦进垃圾箱会连累官网邮件。DMARC 记录（`_dmarc.<主域>`）需要自己加，Resend 只负责 SPF/DKIM。
+
+#### 多个发件人与多把 Key
+
+**发件人地址与 API Key 是两个独立维度。** 一个已验证域下，`@` 前面可以随便取（`captcha@`、`notice@`、`event@`…），一把 Key 就能发这些地址，**不需要为每个发件人建一把 Key**。
+
+只有下面三种情况才值得开第二把 Key：
+
+1. **轮换隔离**：两部分的 Key 分开，一把泄露只换一把；
+2. **跨域**：某类邮件要用另一个已验证域（比如以后加 `news.nanocamp.club` 发批量通知）；
+3. **审计或限权**：需要按功能看 Resend 的发送日志，或某把 Key 只给只发信权限。
+
+配置用 `streams` 表达，**没写的字段从顶层继承**（典型情况：共用一把 Key，只换发件人）：
+
+```json
+"mail": {
+  "provider": "resend",
+  "apiKey": "re_shared",
+  "replyTo": "hello@nanocamp.club",
+  "defaultStream": "auth",
+  "streams": {
+    "auth":   { "from": "NanoCamp <captcha@mail.nanocamp.club>" },
+    "notice": { "from": "NanoCamp <notice@mail.nanocamp.club>" },
+    "event":  { "from": "minicamp <event@mail.nanocamp.club>", "apiKey": "re_event" }
+  }
+}
+```
+
+- 登录验证码固定走 `auth` 这条 stream；以后加通知、活动提醒，业务侧调 `sendMail({stream: 'notice', …})` 即可，不用改发信代码。
+- `apiKey` 可以简写成 `key`（两者等价；同时写且值不同时以 `apiKey` 为准）。写错其它字段名会在启动/发信时打一行 `[mail] …不是有效字段` 到 stderr，不会静默忽略。
+- 单独验证某一条：`npm run mail:test -- 你的邮箱 notice`
+- 完全没写 `streams` 时行为与之前一致（顶层那套就是唯一配置），老配置文件不用改。
+- ⚠️ 同一个子域下的所有发件人**共享域名信誉**。事务邮件与批量群发建议早点分域：`mail.` 只发事务类（验证码、通知），另开一个子域做批量投递，别让一封群发把验证码带进垃圾箱。
 
 `url` 存在的理由是**域名属于部署属性，而不是内容属性**：版本库里的 `site.url` 写的是生产域名，但每台机器可能跑在不同的地址上。启动日志会明确打印当前生效的域名及来源：
 
@@ -73,7 +169,7 @@ npm start
 `data/` 不进版本库，所以 `git clone` 之后**必须手动建配置文件**，否则会用默认的 `0.0.0.0:8080` 且实例名为 `nanocamp`。
 
 ```sh
-# 1) 确认 Node 版本（不需要 npm install）
+# 1) 确认 Node 版本
 node -v                                   # 需要 >= 20
 which node                                # 记下路径，下一步 ExecStart 要用
 
@@ -135,13 +231,17 @@ curl -sS -o/dev/null -w '%{http_code}\n' http://127.0.0.1:38083/about/   # 期�
 cd /srv/NanoCamp-test && sudo git pull && sudo systemctl restart nanocamp@Nanocamp-test
 ```
 
-没有 `npm install`、没有构建产物要同步。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
+没有构建产物要同步；启用账号功能时需要 `npm install --omit=dev` 装 `mysql2`。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
 
 用 pm2 守护也可以，两条命令即可：
 
 ```sh
 cd /srv/NanoCamp-test
 pm2 start backend/main.mjs --name NanoCamp-test --interpreter node   # .mjs 要显式指定解释器
+
+# 暂停发信：不重启，多 worker 同时生效（详见 backend/README.md）
+npm run mail:pause
+npm run mail:resume
 # 或者借 package.json 的 start 脚本（更稳，不受 pm2 对扩展名判断的影响）
 pm2 start npm --name NanoCamp-test -- start
 pm2 save && pm2 startup        # 否则机器重启后不会自动拉起

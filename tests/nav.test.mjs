@@ -108,8 +108,8 @@ test('桌面导航：首页在最左侧，合作与搜索直接可达', () => {
     '/', '/minicamp/', '/activities/', '/projects/', '/community/', '/partners/', '/search/'
   ]);
   assert.equal(findFirst(document.body, '.nav-more'), null);
-  assert.equal(links[0].text, '首页');
-  assert.equal(links[5].text, '合作');
+  assert.equal(links[0].querySelector('.nav-item-label').text, '首页');
+  assert.equal(links[5].querySelector('.nav-item-label').text, '合作');
   assert.equal(links[3].getAttribute('aria-current'), 'page');
   assert.equal(links[0].getAttribute('aria-current'), null);
 });

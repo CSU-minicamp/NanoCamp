@@ -3,13 +3,17 @@
 // 视图层不动：src/ 里的页面函数本来就返回完整 HTML 字符串，这里每次请求调用一次。
 // 所以本文件只做三件事：解析地址、挑选渲染函数、组装响应。
 //
+// 路由分三类：dynamicRoutes（按路由缓存）、sessionRoutes（每人一份，不缓存）、textRoutes（现场派生的文件）。
 // 本文件不读配置、不碰端口，也没有任何模块级副作用：监听地址与端口在 backend/main.mjs里读 data/config.json。
 // 因此这里导出的 handleRequest 可以直接被单测调用。
 
 import {createHash} from 'node:crypto';
 
 import {types, readAsset, escapeHtml} from './base.mjs';
-import {routePaths, renderPage, renderNotFound} from '../src/pages.mjs';
+import {handleApi, parseCookies, safeNext} from './api.mjs';
+import {readSession, missingFields} from './auth.mjs';
+import {renderProfile, renderProfileForce} from '../src/profile.mjs';
+import {routePaths, indexablePaths, renderPage, renderNotFound, renderUnauthorized} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
 import {canonicalUrl} from '../src/metadata.mjs';
 import {guides} from '../content/guides.mjs';
@@ -33,6 +37,17 @@ const dynamicRoutes = new Map([
   ...routePaths.map(route => [route, () => renderPage(route)]),
 ]);
 
+/**
+ * 需要读会话的页面：**不能进渲染缓存** —— 同一个 URL 对不同人返回不同内容，缓存下来的第一份会被发给下一个人。
+ *
+ * 值是「收到请求上下文 → 直接返回响应」的函数，而不是页面字符串：
+ * 这类页面要自己读 cookie、自己决定 200 / 303 / 401，返回 HTML 字符串那套抽象不够用。
+ */
+const sessionRoutes = new Map([
+  ['/profile/', {render: renderProfilePage}],
+  ['/profile/force/', {render: renderProfileForcePage}]
+]);
+
 // ======================= HTTP 细节 =======================
 
 /**
@@ -43,7 +58,7 @@ const dynamicRoutes = new Map([
 const textRoutes = new Map([
   ['/sitemap.xml', {
     type: types['.xml'],
-    render: () => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${routePaths.filter(route => route !== '/search/').map(route => `  <url><loc>${escapeHtml(canonicalUrl(route))}</loc></url>`).join('\n')}\n</urlset>\n`,
+    render: () => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexablePaths.map(route => `  <url><loc>${escapeHtml(canonicalUrl(route))}</loc></url>`).join('\n')}\n</urlset>\n`,
   }],
   ['/robots.txt', {
     type: types['.txt'],
@@ -53,6 +68,11 @@ const textRoutes = new Map([
   ['/404.html', {
     type: types['.html'],
     render: () => renderNotFound(),
+  }],
+  // 401 页同样落一份文件版（nginx 可以直接 `error_page 401 /401.html`）。
+  ['/401.html', {
+    type: types['.html'],
+    render: () => renderUnauthorized(),
   }],
   // 指南的空白模板下载：正文本来就存在 content/guides.mjs 的 template 字段里，由请求期现场生成，不落磁盘。
   ...guides.map(guide => [`/downloads/${guide.slug}-template.txt`, {
@@ -112,6 +132,94 @@ function send(body, {type, status = 200, source = 'dynamic'}, requestHeaders = {
 }
 
 /**
+ * 私人页面/401 的响应：**no-store**，不带 ETag。
+ * @param {string|Buffer} body 正文。
+ * @param {number} status 状态码。
+ * @param {string} [type] Content-Type。
+ * @returns {{status: number, headers: object, body: Buffer}} 响应描述。
+ */
+function sendPrivate(body, status, type = types['.html']){
+  const buffer = Buffer.isBuffer(body)? body: Buffer.from(body, 'utf8');
+  return {
+    status,
+    headers: {
+      'content-type': type,
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      'x-nanocamp-source': 'dynamic',
+      'content-length': String(buffer.byteLength)
+    },
+    body: buffer
+  };
+}
+
+/** 303：把 POST/GET 都引导到新地址，且不改变请求方法语义（补全资料后回跳用它）。 */
+function redirectSeeOther(location){
+  return {
+    status: 303,
+    headers: {location, 'content-type': types['.txt'], 'cache-control': 'no-store', 'x-nanocamp-source': 'redirect'},
+    body: Buffer.from('See Other\n', 'utf8'),
+  };
+}
+
+/**
+ * /profile/：读出会话 → 决定是「去登录」「去补全」还是「渲染资料」。
+ *
+ * 每次请求现算（不进缓存），响应明确 no-store。
+ * @param {object} context 请求上下文。
+ * @param {object} context.headers 请求头（用它取会话 cookie）。
+ * @returns {Promise<object>} 响应描述。
+ */
+async function renderProfilePage({headers}){
+  let session = null;
+  try{
+    session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
+  }
+  catch(error){
+    console.error('[profile] 读取会话失败：', error.message);
+    return sendPrivate('账号系统暂时不可用，请稍后再试。\n', 503, types['.txt']);
+  }
+  // 没登录直接去登录页，并带上回来要去的地址。
+  if(!session)
+    return redirectSeeOther(`/login/?next=${encodeURIComponent('/profile/')}`);
+  // 资料没补全则先去补，补完回这里。
+  if(missingFields(session.user).length)
+    return redirectSeeOther(`/profile/force/?next=${encodeURIComponent('/profile/')}`);
+  return sendPrivate(renderProfile(session.user), 200);
+}
+
+/**
+ * /profile/force/：补全必填项。
+ *
+ * 服务端就要把三种情况分开，而不是先给一张表单再让 JS 去跳：
+ *   没登录        → 303 去登录页（带回跳地址）
+ *   已经不缺字段  → 303 回 next 或 /profile/（别让人填一个已经填过的东西）
+ *   缺一部分      → 200，只把 missing 里那几项标成必填
+ *
+ * @param {object} context 请求上下文。
+ * @param {object} context.headers 请求头。
+ * @returns {Promise<object>} 响应描述。
+ */
+async function renderProfileForcePage({headers, url = '/'}){
+  let session = null;
+  try{
+    session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
+  }
+  catch(error){
+    console.error('[profile] 读取会话失败：', error.message);
+    return sendPrivate('账号系统暂时不可用，请稍后再试。\n', 503, types['.txt']);
+  }
+  // 把「补完要去哪」一路带着：登录 → 补全 → 原目标，中间任何一步都不丢。
+  const target = safeNext(new URL(url, 'http://localhost').searchParams.get('next')) || '/profile/';
+  if(!session)
+    return redirectSeeOther(`/login/?next=${encodeURIComponent(`/profile/force/?next=${encodeURIComponent(target)}`)}`);
+  const missing = missingFields(session.user);
+  if(!missing.length)
+    return redirectSeeOther(target);
+  return sendPrivate(renderProfileForce(missing, session.user), 200);
+}
+
+/**
  * 生成 301 跳转响应，用于给目录式地址补上结尾斜杠。
  * @param {string} location 目标地址，例如 '/about/'。
  * @returns {{status: number, headers: object, body: Buffer}} 响应描述。
@@ -130,20 +238,14 @@ function redirect(location){
  * 依次尝试：站点级派生文件 → 页面 → 目录补斜杠 → public/ 静态资源 → 404。所有页面都在请求期渲染，404 就是地址确实不存在。
  *
  * @param {object} [request] 请求对象。可以是 http.IncomingMessage，也可以是任意具备 method / url / headers 的对象，便于单测直接构造。
- * @param {string} [request.method='GET'] HTTP 方法，只支持 GET 与 HEAD。
+ * @param {string} [request.method='GET'] HTTP 方法。页面只接受 GET / HEAD；/api/* 另收 POST。
  * @param {string} [request.url='/'] 请求地址，可含查询串（会被忽略）。
  * @param {object} [request.headers={}] 请求头。
+ * @param {string|Buffer|null} [request.body=null] 原始请求体，仅 /api/* 的 POST 需要。
+ * @param {string} [request.ip=''] 来源地址，由传输层给出（不读请求头，避免被自有头绕过限流）。
  * @returns {Promise<{status: number, headers: object, body: Buffer}>} 响应描述。405 方法不允许、400 地址无法解码、301 补斜杠、200 命中内容、404 兜底。
  */
-export async function handleRequest({method = 'GET', url = '/', headers = {}} = {}){
-  // 筛选有效请求
-  if(method !== 'GET' && method !== 'HEAD'){
-    return {
-      status: 405,
-      headers: {'content-type': types['.txt'], allow: 'GET, HEAD', 'x-nanocamp-source': 'dynamic'},
-      body: Buffer.from('Method Not Allowed\n', 'utf8'),
-    };
-  }
+export async function handleRequest({method = 'GET', url = '/', headers = {}, body = null, ip = ''} = {}){
   // 解析地址
   let pathname;
   try{
@@ -155,6 +257,17 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
   catch{
     // 非法的百分号编码
     return send('请求地址无法解析。\n', {type: types['.txt'], status: 400}, headers);
+  }
+  // 认证接口先分流：它要收 POST，而且响应与具体浏览器有关
+  if(pathname.startsWith('/api/'))
+    return handleApi({method, pathname, headers, body, ip});
+  // 其他页面一律只读
+  if(method !== 'GET' && method !== 'HEAD'){
+    return {
+      status: 405,
+      headers: {'content-type': types['.txt'], allow: 'GET, HEAD', 'x-nanocamp-source': 'dynamic'},
+      body: Buffer.from('Method Not Allowed\n', 'utf8'),
+    };
   }
   /** 验证route安全性 */
   function safeRoute(route){
@@ -172,6 +285,10 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
     return send('请求地址非法。\n', { type: types['.txt'], status: 400 }, headers);
   const route = pathname.endsWith('/index.html')? pathname.slice(0, -'index.html'.length): pathname;
 
+  // 会话相关页面：自己读 cookie、自己决定状态码，所以既不走缓存也不进 dynamicRoutes。
+  const sessionRoute = sessionRoutes.get(route);
+  if(sessionRoute)
+    return sessionRoute.render({method, url, headers, ip});
   // 站点级派生文件（sitemap / robots / 404）
   const text = textRoutes.get(route);
   if(text)
@@ -181,7 +298,7 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}} = 
   if(page)
     return send(renderOnce(route, page), {type: types['.html'], status: 200, source: 'dynamic'}, headers);
   // 目录式地址补斜杠301跳转（/about → /about/）
-  if(route !== '/' && !route.endsWith('/') && dynamicRoutes.has(route + '/'))
+  if(!route.endsWith('/') && (dynamicRoutes.has(route + '/') || sessionRoutes.has(route + '/')))
     return redirect(route + '/');
   // public/ 下的静态资源
   const asset = await readAsset(route);
