@@ -303,8 +303,11 @@ DB='Nanocamp-test'; USER='nanocamp-test'
 PASS=$(node -e "console.log('test-' + require('crypto').randomBytes(12).toString('base64url'))")
 
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS \`$DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+# 两个 host 都建：config 里 host 写 127.0.0.1 时，MySQL 未必把连接解析成 localhost
 sudo mysql -e "CREATE USER IF NOT EXISTS '$USER'@'localhost' IDENTIFIED BY '$PASS';"
+sudo mysql -e "CREATE USER IF NOT EXISTS '$USER'@'127.0.0.1' IDENTIFIED BY '$PASS';"
 sudo mysql -e "GRANT SELECT, INSERT, UPDATE, DELETE ON \`$DB\`.* TO '$USER'@'localhost';"
+sudo mysql -e "GRANT SELECT, INSERT, UPDATE, DELETE ON \`$DB\`.* TO '$USER'@'127.0.0.1';"
 
 # 3) 把 host / port / user / password / database 写进 data/config.json 的 db 段
 

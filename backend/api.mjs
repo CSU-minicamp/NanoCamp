@@ -13,7 +13,7 @@ import {
   missingFields, updateProfile
 } from './auth.mjs';
 import {isUnavailable, dbHealthy} from './db.mjs';
-import {mailPaused} from './config.mjs';
+import {mailPaused, dbConfig, authConfig} from './config.mjs';
 import {site} from '../content/site.mjs';
 
 const SESSION_COOKIE = 'nc_sid';
@@ -166,6 +166,9 @@ function responseJson(status, payload, headers = {}){
 }
 
 /** 错误码 → HTTP 状态码。 */
+/** 认证不可用只提示一次，避免每个请求刷一行日志。 */
+let warnedUnavailable = false;
+
 const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
 
 /**
@@ -186,8 +189,18 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
   if(pathname === '/api/session'){
     if(method !== 'GET')
       return responseJson(405, {error: 'method_not_allowed'}, {allow: 'GET'});
-    if(!available)
+    if(!available){
+      // 只说一次：缺哪一项写清楚，别让人对着一句「系统未开放」猜。
+      if(!warnedUnavailable){
+        warnedUnavailable = true;
+        const missing = [
+          dbConfig().database? '': 'db.database',
+          authConfig().secret? '': 'auth.secret'
+        ].filter(Boolean);
+        console.error(`[api] 认证不可用：data/config.json 缺 ${missing.join(' 和 ')}，登录/资料接口都会返回 503。`);
+      }
       return responseJson(200, {user: null, disabled: true, canSendCode: false});
+    }
     // 配了库不等于库活着：这里再问一次（60 秒缓存），库挂了就明确告诉前端「暂时不可用」，而不是让人以为「功能没开放」。
     if(!await dbHealthy())
       return responseJson(503, {error: 'unavailable'});
