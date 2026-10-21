@@ -17,7 +17,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const dist = path.join(root, 'dist');
+// 探针页写进 public/ —— 动态服务直接提供这个目录，所以只要 npm start 开着就能访问到。
+// 以前写进 dist/（静态构建时代的产物，已删除）。
+const probeRoot = path.join(root, 'public');
 const outDir = path.join(root, 'verify');
 const port = Number(process.env.PORT || 4187);
 const route = process.argv[2] || '/';
@@ -113,7 +115,7 @@ f.addEventListener('load', () => setTimeout(() => {
 </script></body></html>`;
 
 mkdirSync(outDir, { recursive: true });
-const probePath = path.join(dist, probeName);
+const probePath = path.join(probeRoot, probeName);
 writeFileSync(probePath, probe, 'utf8');
 
 try {

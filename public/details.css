@@ -161,8 +161,6 @@ dialog[open]::backdrop { animation: backdrop-arrive .25s ease both; }
 .lightbox-dialog { border: 1px solid #ffffff25; background: #183142; box-shadow: 0 28px 100px #00112870; }
 .lightbox-dialog > img { border-radius: 5px; }
 
-.reveal-pending { opacity: 0; transform: translateY(18px); transition: opacity .75s var(--detail-ease), transform .75s var(--detail-ease); transition-delay: var(--reveal-delay,0ms); }
-.reveal-pending.is-visible, .reveal-pending:focus-within { opacity: 1; transform: none; }
 @keyframes tap-wave { from { transform: scale(.05); opacity: .2; } to { transform: scale(1); opacity: 0; } }
 @keyframes menu-unfold { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: none; } }
 @keyframes dialog-arrive { from { opacity: 0; transform: translateY(10px) scale(.975); } to { opacity: 1; transform: none; } }
@@ -197,12 +195,10 @@ dialog[open]::backdrop { animation: backdrop-arrive .25s ease both; }
 /* Pausing is shared across pages and includes the existing hero. */
 .motion-stopped *, .motion-stopped *::before, .motion-stopped *::after { animation: none !important; transition: none !important; }
 html:has(.motion-stopped) { scroll-behavior: auto; }
-.motion-stopped .reveal-pending { opacity: 1; transform: none; }
 .motion-stopped .tap-wave { display: none; }
 .motion-stopped :is(.project-card,.button):is(:hover,:focus-within,:active), .motion-stopped .media-open:hover img { transform: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .reveal-pending { opacity: 1; transform: none; }
   .tap-wave { display: none; }
   .project-card:hover, .button:is(:hover,:active), .media-open:hover img { transform: none; }
 }

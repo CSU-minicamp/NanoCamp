@@ -51,6 +51,28 @@
     });
     fallback.querySelector('button').addEventListener('click',()=>{fallback.hidden=true;(shareTrigger?.isConnected ? shareTrigger : buttons.find(button=>!button.hidden))?.focus();status.textContent='';});
   }
+  document.querySelectorAll('.nav-search[data-search-shortcut]').forEach(link=>{
+    const form = document.createElement('form');
+    form.className = 'nav-search-form';
+    form.action = '/search/';
+    form.method = 'get';
+    form.setAttribute('role','search');
+    form.setAttribute('aria-label','站内搜索');
+    const icon = link.querySelector('svg');
+    if (icon) form.append(icon);
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.name = 'q';
+    input.maxLength = 120;
+    input.setAttribute('aria-label','搜索关键词，按回车搜索');
+    input.autocomplete = 'off';
+    input.setAttribute('data-search-shortcut','');
+    form.append(input);
+    form.addEventListener('submit',event=>{
+      if (!input.value.trim()) { event.preventDefault(); input.focus(); }
+    });
+    link.replaceWith(form);
+  });
   document.querySelectorAll('[data-search-shortcut]').forEach(link=>{
     link.title = '站内搜索 · Ctrl / ⌘ K';
     link.setAttribute('aria-keyshortcuts','Control+k Meta+k');
@@ -59,7 +81,7 @@
     if(event.key.toLowerCase()!=='k' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.repeat || event.isComposing || document.querySelector('dialog[open]')) return;
     if(event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')) return;
     event.preventDefault();
-    const input=document.querySelector('[data-search-ui]:not([hidden]) #site-query');
-    if(input) input.focus(); else location.assign('/search/#site-query');
+    const input=[...document.querySelectorAll('.nav-search-form input')].find(node=>node.getClientRects().length) || document.querySelector('[data-search-ui]:not([hidden]) #site-query');
+    if(input) input.focus();
   });
 })();
