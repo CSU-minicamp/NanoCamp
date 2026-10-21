@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="460" viewBox="0 0 360 460" fill="none">
+  <!-- Original NanoCamp workbench line art. -->
+  <g stroke="#77878c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M68 115V45q0-7 7-7h165q7 0 7 7v115H68Z" fill="#faf9f6"/>
+    <rect x="78" y="48" width="158" height="102" rx="5" fill="#e9eee9"/>
+    <path d="M88 131h138M91 61h130v58H91Z"/>
+    <path d="m104 80-7 8 7 8m27-16 7 8-7 8m-12-20-7 26" stroke="#9eb3b5" stroke-width="2.5"/>
+    <path d="M156 72h46m-46 10h58m-58 10h37m-37 10h50" stroke="#b2c6b9" stroke-width="4"/>
+    <path d="M132 160v17h48v-17M117 177h78l15 10H102Z" fill="#dce4dd"/>
+    <path d="M53 191h206v9H53Zm8 9v76m189-76v160M65 213h177"/>
+    <path d="M83 235h138l17 31H68Z" fill="#202930"/>
+    <path d="m87 244 130 0m-135 8h141m-137-14-6 19m20-19-4 19m18-19-2 19m16-19v19m14-19 2 19m12-19 4 19m10-19 6 19m8-19 8 19" stroke="#516069"/>
+    <path d="M257 67c45 10 26 100 37 137s35 35 34 77-20 36-20 68m-47-278c33 17 18 100 28 137s34 36 34 72-20 36-20 69"/>
+    <rect x="272" y="349" width="62" height="84" rx="7" fill="#182127"/>
+    <rect x="280" y="359" width="46" height="35" rx="3"/>
+    <path d="M291 407v14m-7-7h14"/><circle cx="315" cy="409" r="3"/><circle cx="321" cy="417" r="3"/>
+    <path d="M27 184h27l-4-40H31Z" fill="#e9eee9"/><path d="M40 143v-35m1 16c-18 2-26-7-24-20 18 0 25 8 24 20m0-10c15 1 23-8 20-19-13 0-21 8-20 19" fill="#bdcfc1"/>
+    <path d="M151 37c-8-12-5-28 7-32 8-3 16 0 20 6 5-7 14-6 18-2 9 8 4 19-2 28" fill="#faf9f6"/>
+    <path d="M163 35c4 2 12 2 16-2"/><circle cx="160" cy="22" r="1.5" fill="#77878c"/><circle cx="180" cy="22" r="1.5" fill="#77878c"/>
+    <path d="M11 297h115l16 22-16 22H11Z" fill="#1c252b"/><text x="21" y="324" font-family="monospace" font-size="13" letter-spacing="1" fill="#77878c" stroke="none">NANOCAMP</text>
+    <circle cx="127" cy="319" r="3"/>
+    <path d="M137 321c29 0 23 36 43 36s26-31 52-31"/>
+    <path d="m280 31 3 9 9 3-9 3-3 9-3-9-9-3 9-3ZM27 58l2 6 6 2-6 2-2 6-2-6-6-2 6-2Z" stroke="#b1c3bb"/>
+  </g>
+</svg>

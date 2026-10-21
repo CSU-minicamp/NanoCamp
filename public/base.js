@@ -50,21 +50,16 @@
     return doc.createElementNS(SVG_NS, name);
   }
 
-  function svgPath(node, d) {
-    const path = svgEl('path');
-    path.setAttribute('d', d);
-    node.append(path);
+  function interfaceIcon(kind, classes) {
+    const node = svg(svgEl('svg'), '0 0 32 32', { class: 'ui-icon ' + classes, focusable: 'false' });
+    const use = svgEl('use');
+    use.setAttribute('href', '/images/interface-icons.svg#icon-' + kind);
+    node.append(use);
     return node;
   }
 
   function searchIcon() {
-    const node = svg(svgEl('svg'), '0 0 24 24', { class: 'nav-search-icon' });
-    const circle = svgEl('circle');
-    circle.setAttribute('cx', '10.5');
-    circle.setAttribute('cy', '10.5');
-    circle.setAttribute('r', '6.5');
-    node.append(circle);
-    return svgPath(node, 'm16 16 5 5');
+    return interfaceIcon('search', 'nav-search-icon');
   }
 
   function linkNode(link, active, label = link.label) {
@@ -83,7 +78,12 @@
       node.append(text);
       return node;
     }
-    node.textContent = label;
+    node.setAttribute('class', 'nav-destination');
+    node.append(interfaceIcon(link.key, 'nav-symbol'));
+    const text = doc.createElement('span');
+    text.setAttribute('class', 'nav-item-label');
+    text.textContent = label;
+    node.append(text);
     return node;
   }
 

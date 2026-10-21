@@ -1,29 +1,19 @@
-import { site, event, projects, featuredProjects, moments } from '../content/site.mjs';
+import { site, event, projects, featuredProjects } from '../content/site.mjs';
 import { esc, safeUrl, documentPage, eyebrow, joinButton, pageLink, media, logoMark } from './components.mjs';
-import { heroEmbed, homeJoinSection } from './hero.mjs';
-import { ecosystem, activitiesPage, communityPage, faqPage } from './community.mjs';
+import { activitiesPage, communityPage, faqPage } from './community.mjs';
 import { guides } from '../content/guides.mjs';
 import { resourcesPage, guidePage, guidePath } from './learning.mjs';
 import { partnersPage } from './partners.mjs';
 import { createSearchIndex, searchPage, notFoundPage } from './search.mjs';
 import { recapNavigation } from './recap.mjs';
 import { readyProjects, projectGrid, projectsPage, projectDetailPage, projectPath } from './projects.mjs';
-import { homeShowcase } from './home-showcase.mjs';
+import { playgroundHome } from './home-playground.mjs';
 import { loginPage } from './auth.mjs';
 import { unauthorizedPage } from './errors.mjs';
 
 const gridProjects = (items = projects, classes = '') => projectGrid(items).replace('class="projects-grid"', `class="projects-grid ${classes}"`);
-const readyMoments = () => moments.filter(item => item.src);
-const photoNotice = '<div class="archive-empty archive-empty-mint"><div><h3>现场相册，待补充。</h3><p>相册更新后，在这里回看一起动手的瞬间。</p></div><a class="text-link" href="/community/">认识 NanoCamp 社区</a></div>';
 
-function home() {
- return `${heroEmbed()}
- <section class="section container home-camp" aria-labelledby="event-heading"><div class="section-top"><h2 id="event-heading">一年一次，<br>把想法做出来。</h2></div><div class="event-panel"><div class="event-visual">${event.cover?media({src:event.cover,alt:event.coverAlt || 'minicamp 活动现场',fullSrc:event.coverFull}):'<div class="camp-print" aria-hidden="true"><span>mini<br>camp.</span><small>MEET. BUILD. MAKE SOMETHING TOGETHER.</small></div>'}</div><div class="event-copy"><span class="event-badge">${esc(event.edition)} 届 · ${esc(event.status)}</span><h3>一次相遇，<br>也是新的开始。</h3><p>${esc(event.intro)}</p><div class="event-facts"><span>每年一届</span><span>学生黑客松</span></div>${pageLink('/minicamp/','打开 2026 届活动回顾')}</div></div></section>
- ${ecosystem()}
- <section id="community" class="container community-intro-strip"><div class="intro-lead"><span class="intro-kicker">WHO WE ARE</span><h2>一个属于学生创造者的社区。</h2><ul class="intro-tags" aria-label="参与门槛"><li>不限专业</li><li>无需经验</li><li>感兴趣就来</li></ul></div><div class="intro-body"><p>代码、设计、产品、艺术，各种不同的兴趣都欢迎。<br>带着一个还不完整的想法来，也可以。</p><a class="text-link" href="/community/">看看怎么参与</a></div></section>
- <section class="section container home-archive" aria-labelledby="projects-heading"><div class="section-top"><h2 id="projects-heading">做出来的东西，<br>都放在这里。</h2></div>${homeShowcase() || '<div class="archive-links"><a href="/projects/"><span>作品档案</span><h3>每个想法，都值得被看见。</h3><p>作品介绍与 Demo 链接待补充。</p><b>进入作品空间</b></a><a href="/minicamp/#recap"><span>活动回顾</span><h3>记住一起动手的时刻。</h3><p>'+ (readyMoments().length ? '一起回看 2026 届 minicamp 的现场瞬间。' : '2026 届活动照片待补充。') +'</p><b>阅读活动回顾</b></a></div>'}</section>
- ${homeJoinSection()}`;
-}
+function home() { return playgroundHome(); }
 
 function minicamp() {
   const officialUrl = safeUrl(event.officialUrl);

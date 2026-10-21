@@ -1,5 +1,5 @@
-/* NanoCamp base.css — 站点框架（header 导航、页脚、回到顶部浮窗）的共用样式。
-   与 public/base.js 成对：base.js 负责这些区域的渲染，base.css 负责它们的版式。
+/* NanoCamp base.css — 站点框架（header 导航、加入区、页脚、回到顶部浮窗）的共用样式。
+   导航与页脚交互配合 public/base.js；加入区结构由 src/components.mjs 提供。
    只放全站共用的骨架规则；页面级外观仍由 collage.css / community.css / recap.css 等覆盖，
    base.css 在它们之前加载，所以后续文件里的覆盖依然生效。 */
 
@@ -63,66 +63,39 @@
 /* 署名块已整块移除，这里只剩一个空容器（base.js 的挂载点契约）。 */
 .footer-bottom{display:block}
 
-/* --- 收尾区：加入区 + 页脚 -------------------------------------------------
-   全站一套。首页与其余 33 个页面共用同一份规则：同一片薄荷底、同一层斜纹、
-   同一个右下角 KEEP BUILDING，并且这片薄荷一路铺进页脚，两块连成一个收尾。
-   加入区有两版结构（首页是 .join-section，其余页面是 .join-section.join-shared），
-   这里一律按 .join-section 选中，两版因此长得一模一样，文案仍各页各写。
-   选择器统一带 body 前缀：collage.css / details.css / styles.css 里各有一套更早的
-   加入区写法（蓝底、圆点柔光、📌 别针、缓慢搏动），它们先加载，特异性只有 (0,1,0)
-   或 (0,2,0)，这里从 (0,1,1) 起步逐条压过，那三个共享文件一个字都不用动。 */
-
-body .join-section{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(180deg,#e9f7f000 0,#dcefe4d9 26%,#cfe9dd 100%);color:#204f48}
-/* 斜纹层：原先只在首页铺开，现在全站同款。两处不能省——
-   display:block，collage.css 有一条同特异性的 display:none，靠"先加载"本会把这层整条藏掉；
-   width/height:auto，collage.css 的 400×400 会压过 inset:0（四个方向都定位时宽高优先），
-   不写这一句斜纹就只铺在左上角一小块里。
-   opacity:1 同理，details.css 给这两层留了 .45。 */
-body .join-section::before{content:"";display:block;position:absolute;inset:0;width:auto;height:auto;z-index:-1;opacity:1;background:linear-gradient(90deg,transparent 0 18%,#ffffff75 18% 18.2%,transparent 18.2% 100%),linear-gradient(28deg,transparent 0 52%,#ffffff72 52% 52.3%,transparent 52.3% 100%),repeating-linear-gradient(90deg,transparent 0 92px,#5da1a933 92px 93px);transform:skewX(-12deg) scale(1.2);animation:nc-join-lines 12s linear infinite}
-body .join-section::after{content:"KEEP BUILDING";display:block;position:absolute;right:7%;bottom:16px;width:auto;height:auto;background:none;color:#27655a;font:700 11px/1 var(--mono);letter-spacing:.18em;opacity:.68}
-@keyframes nc-join-lines{from{transform:skewX(-12deg) translateX(-4%)}to{transform:skewX(-12deg) translateX(4%)}}
-
-/* 版式：左文案、右纸卡。字号与两列比例全站一致。 */
-body .join-inner{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);align-items:center;gap:64px;padding-block:76px;position:relative;z-index:1}
-body .join-section h2{font-size:clamp(38px,4vw,58px);line-height:1.22;letter-spacing:-.02em;color:#204f48}
-body .join-section p{max-width:430px;margin-top:18px;font-size:18px;line-height:1.8;color:#2d6558}
-/* 文案块上方补一枚英文小签，与首页 WHO WE ARE 那枚同一套语言：22px 短线 + mono 字母。
-   纯 CSS 生成，两版结构一行都不用改；短线用背景渐变画，省下一个伪元素。 */
-body .join-copy::before{content:"JOIN US";display:inline-block;margin-bottom:16px;padding-left:33px;background:linear-gradient(#5da98a,#5da98a) 0 50%/22px 2px no-repeat;font:600 11px/1.6 var(--mono);letter-spacing:.16em;color:#2f7d5d}
-
-/* 黄纸卡片：全站同一张纸——满栏宽、方角、硬阴影，左上角一枚 mono 编号。
-   animation:none 关掉 collage.css 的 paper-pulse（它让纸卡常年 ±2° 摇摆）。 */
-body .join-section .join-paper{position:relative;justify-self:end;width:100%;max-width:none;min-height:245px;display:flex;flex-direction:column;justify-content:space-between;padding:34px;transform:none;border:1px solid #b2913f;background:#ffdc82;color:#302c35;box-shadow:12px 12px 0 #b7d8c4;animation:none;transition:transform .45s var(--ease),box-shadow .45s var(--ease)}
-/* transition:none 不能省：collage.css 给这个伪元素留了 transition:all .4s，它会把
-   "📌 别针"那套绝对定位 + rotate(25deg) 的旧值一直挂在元素上（位置改过来了，旋转没有），
-   编号因此斜在卡片外。关掉过渡，静止态才真的是静止态。 */
-body .join-section .join-paper::before{content:"NANOCAMP / 01";display:block;position:static;top:auto;right:auto;transform:none;transition:none;opacity:1;font:700 11px/1 var(--mono);letter-spacing:.12em;color:#6f5a24}
-body .join-section .join-paper:hover::before{transform:none}
-/* 标题字号跟着视口走：定点 46px 在 900~1000px 这个区间会把 "at NanoCamp." 挤成第三行，
-   卡片跟着长高一截。clamp 到 1440px 仍是 46px，窄一点就自己收，行数始终是两行。 */
-body .join-section .join-paper>strong{display:block;margin-block:20px auto;font-weight:700;font-family:var(--latin);line-height:1.05;letter-spacing:-.025em;font-size:clamp(32px,3.3vw,46px)}
-body .join-section .join-paper>span{margin-top:16px;font-size:14px;line-height:1.7;color:#5c5227}
-body .join-section .join-paper .button{align-self:flex-start;margin-top:22px;background:transparent;border:1px solid #544d39;color:#302c35;font-size:14px}
-body .join-section .join-paper .button-plus{display:none}
-/* 纸卡上的描边按钮：悬停填充那一步必须写在这里——上面的静止态 (0,3,1) 已经压过
-   collage.css 的 .join-paper .button:hover (0,3,0)，不补一条就永远不变色。 */
+/* --- 加入区：全站共用紫色收尾区域 ---------------------------------------
+   与导航、页脚一样由 base.css 统一维护。body[data-page] 使共享规则优先于旧页面皮肤。 */
+body[data-page] .join-section{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 75% 100%,#8464cb,transparent 65%),#514698;color:#fff}
+body[data-page] .join-section::before{content:"";display:block;position:absolute;inset:25px 5%;width:auto;height:auto;z-index:-1;opacity:1;border:1px solid #dfd0ff1f;border-radius:50%;background:none;transform:rotate(-7deg);pointer-events:none;animation:none}
+body[data-page] .join-section::after{display:none}
+body[data-page] .join-section .join-inner{width:86%;max-width:1160px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;padding-block:85px 110px;gap:70px;position:relative;z-index:1}
+body[data-page] .join-section .join-copy::before{content:"THERE'S ROOM FOR YOU HERE.";display:inline-block;margin-bottom:16px;padding:0;background:none;font:600 10px/1.6 var(--mono);letter-spacing:.15em;color:#d4cdf5}
+body[data-page] .join-section .join-copy h2{color:#fff;font:750 38px/1.22 var(--display);letter-spacing:-.02em}
+body[data-page] .join-section p{max-width:430px;margin-top:18px;color:#e3ddfa;font-size:14px;line-height:1.8}
+body[data-page] .join-section .join-paper{position:relative;justify-self:end;width:100%;max-width:420px;min-height:0;display:flex;flex-direction:column;justify-content:space-between;padding:26px 32px;transform:rotate(2deg);border:1px solid #fff9;border-radius:22px;background:#ece5ff;color:#585574;box-shadow:10px 14px 0 #24134818,0 24px 50px #2511492c;animation:none;transition:transform .45s var(--ease),box-shadow .45s var(--ease)}
+body[data-page] .join-section .join-paper::before,body[data-page] .join-section .join-paper::after{display:none}
+body[data-page] .join-section .join-paper>strong{display:block;font:700 30px/1.05 var(--latin);letter-spacing:-.025em;margin:0;color:#656084}
+body[data-page] .join-section .join-paper>span{display:block;color:#827a93;font-size:12px;line-height:1.7;margin-top:12px}
+body[data-page] .join-section .join-paper .button{align-self:flex-start;margin-top:17px;padding:9px 16px;min-height:38px;border:0;border-radius:30px;background:#5342ad;color:#fff;font:600 12px/1.5 var(--font);box-shadow:0 3px 0 #c5b9e9;overflow:hidden;transition:transform .22s,box-shadow .22s,background .22s}
+body[data-page] .join-section .join-paper .button::before,body[data-page] .join-section .join-paper .button::after,body[data-page] .join-section .button-plus{display:none}
+body[data-page] .join-section .join-fallback{display:none}
+.no-js body[data-page] .join-section .join-fallback{display:inline-flex}
 @media(hover:hover) and (pointer:fine){
-  body .join-section .join-paper:hover{transform:rotate(-1.2deg) translateY(-5px);box-shadow:16px 16px 0 #a9cdb9}
-  body .join-section .join-paper .button:hover{background:#544d39;color:#ffdc78;transform:translateY(-3px)}
+  body[data-page] .join-section .join-paper:hover{transform:rotate(0deg) translateY(-4px);box-shadow:5px 18px 0 #24134818,0 30px 50px #25114935}
+  body[data-page] .join-section .join-paper .button:hover{background:#40318f;color:#fff;transform:translateY(-3px);box-shadow:0 6px 0 #c5b9e9,0 10px 22px #3c296129}
 }
-body .join-section .join-paper .button:focus-visible{background:#544d39;color:#ffdc78}
-/* 上面那条悬停是靠 body 前缀升到 (0,4,1) 才压过 collage.css 的；但 interactions.css 里
-   「圆角按钮」那套（斜扫高光 ::after + 悬停的柔光蓝环）也是 (0,4,1)，同特异性下后加载的
-   它还是赢，于是这枚方角黄纸按钮悬停时会顶着一圈蓝光、并被扫光糊过一遍边缘。
-   interactions.css 整套都只在首页生效（body[data-page="home"]），所以这里多带一个同名属性，
-   特异性升到 (0,5,1)/(0,4,2)，稳稳压住它——继续靠特异性取胜，不去动加载顺序。
-   两条伪元素都关掉：黄纸上这枚是硬边描边按钮，斜扫和内描边都是圆角按钮的路数。 */
-body[data-page="home"] .join-section .join-paper .button::before,
-body[data-page="home"] .join-section .join-paper .button::after{display:none}
-body[data-page="home"] .join-section .join-paper .button:is(:hover,:focus-visible){box-shadow:none;transform:translateY(-3px)}
-
-/* 页脚：与加入区同一片薄荷，两块连成一条收尾带。原来是"首页透明、其余页面纸白"，
-   同一个页脚两种底色；这里统一。白色 border-top 会在这条色带中间画出一道亮缝，去掉。 */
+body[data-page] .join-section .join-paper .button:focus-visible{outline:3px solid #6452ca;outline-offset:4px;background:#40318f;color:#fff}
+body[data-page] .join-section .join-paper .button:active{transform:translateY(2px);translate:0;box-shadow:none}
+@media(max-width:860px){body[data-page] .join-section .join-inner{gap:35px}body[data-page] .join-section .join-copy h2{font-size:31px}}
+@media(max-width:640px){
+  body[data-page] .join-section .join-inner{width:88%;grid-template-columns:minmax(0,1fr);padding:65px 0 110px;gap:30px}
+  body[data-page] .join-section .join-paper{width:92%;justify-self:start;padding:25px;max-width:none}
+  body[data-page] .join-section .join-paper>strong{font-size:28px}
+}
+@media(prefers-reduced-motion:reduce){
+  body[data-page] .join-section .join-paper,body[data-page] .join-section .join-paper .button{transition:none}
+  body[data-page] .join-section .join-paper:hover,body[data-page] .join-section .join-paper .button:is(:hover,:active){transform:none}
+}
 body .site-footer{background:#cfe9dd;border-top:0}
 @media(min-width:861px) and (max-width:1100px){
   .site-header .desktop-nav{gap:16px}
@@ -132,23 +105,9 @@ body .site-footer{background:#cfe9dd;border-top:0}
 @media(max-width:900px){
   .footer-top{grid-template-columns:minmax(0,1fr);gap:44px}
 }
-@media(max-width:860px){
-  body .join-inner{gap:35px}
-}
-@media(max-width:640px){
-  body .join-inner{grid-template-columns:minmax(0,1fr);padding-block:56px;gap:32px}
-  body .join-section h2{font-size:34px}
-  body .join-section p{font-size:16px}
-  /* 纸卡的硬阴影在窄屏收小一点：12px 的偏移配 26px 内边距会把纸卡顶出容器右缘 */
-  body .join-section .join-paper{min-height:215px;padding:26px;box-shadow:7px 7px 0 #b7d8c4}
-  body .join-section .join-paper>strong{font-size:37px}
-  /* 右下角那行小签在窄屏上往角里再收一点，免得压到纸卡的硬阴影 */
-  body .join-section::after{right:5%;bottom:12px}
-}
-@media(prefers-reduced-motion:reduce){
-  body .join-section::before{animation:none}
-  body .join-section .join-paper:is(:hover,:focus-visible){transform:none}
-}
+
+
+
 @media(max-width:600px){
   .footer-top nav{gap:12px}
   .footer-top nav a{font-size:14px;padding-block:12px}
@@ -269,3 +228,139 @@ body .site-footer{background:#cfe9dd;border-top:0}
   .header-actions .button-plus{display:none}
   .wordmark{font-size:23px}
 }
+
+
+/* Shared dark-grid footer, promoted from the approved homepage design.
+   Keep these rules scoped to footer-shared so page-specific skins cannot recolor it. */
+
+body[data-page] .site-footer.footer-shared{position:relative;background-color:#141a20;background-image:linear-gradient(#ffffff04 1px,transparent 1px),linear-gradient(90deg,#ffffff04 1px,transparent 1px);background-size:36px 36px;color:#dde3e8;padding:76px 0 40px;overflow:visible;border:0}
+body[data-page] .site-footer.footer-shared::before{content:"";position:absolute;right:1.5%;top:-91px;width:310px;height:400px;background:url('/images/home-workbench.svg') center top/contain no-repeat;pointer-events:none}
+body[data-page] .site-footer.footer-shared>.container{position:relative;padding-right:150px}
+body[data-page] .site-footer.footer-shared .footer-top{grid-template-columns:1fr 1.45fr;gap:55px;padding:0 0 80px;min-height:285px}
+body[data-page] .site-footer.footer-shared .footer-brand{padding-top:66px}
+body[data-page] .site-footer.footer-shared .footer-slogan{font:14px/1.8 var(--font);letter-spacing:0;max-width:220px}
+body[data-page] .site-footer.footer-shared .footer-slogan .brand-blue{color:#e1e6eb}
+body[data-page] .site-footer.footer-shared .footer-slogan .brand-mint{color:#86999d;font-size:12px}
+body[data-page] .site-footer.footer-shared .footer-wordmark{position:absolute;top:0;left:0;width:175px;height:auto;margin:0;display:block;filter:grayscale(1) invert(1) brightness(2);mix-blend-mode:screen;opacity:.94}
+body[data-page] .site-footer.footer-shared .footer-wordmark img{width:100%;height:auto;display:block}
+body[data-page] .site-footer.footer-shared .footer-top nav{gap:28px;padding:0}
+body[data-page] .site-footer.footer-shared .footer-top nav h2{color:#eef0f2;font:600 12px/1.6 var(--font);margin:0 0 18px}
+body[data-page] .site-footer.footer-shared .footer-top nav a{font-size:11px;color:#8f9ca9;padding:7px 0;min-height:34px;line-height:1.6}
+body[data-page] .site-footer.footer-shared .footer-top nav a:hover{color:#9bd8bb}
+body[data-page] .site-footer.footer-shared>.container::after{content:"NanoCamp  ·  Meet. Build. Make something together.";display:block;font:10px/1.7 var(--font);color:#6f7d89;border-top:1px solid #ffffff0d;padding-top:22px;margin-right:-150px}
+@media(max-width:1150px){body[data-page] .site-footer.footer-shared::before{width:230px;top:-65px}}
+@media(max-width:900px){body[data-page] .site-footer.footer-shared>.container{padding-right:80px}body[data-page] .site-footer.footer-shared .footer-top{gap:30px;grid-template-columns:.9fr 1.5fr}body[data-page] .site-footer.footer-shared>.container::after{margin-right:-80px}}
+@media(max-width:640px){body[data-page] .site-footer.footer-shared{padding:60px 0 30px}body[data-page] .site-footer.footer-shared::before{right:1%;top:-80px;width:180px;height:230px}body[data-page] .site-footer.footer-shared>.container{padding:0}body[data-page] .site-footer.footer-shared .footer-top{grid-template-columns:1fr;gap:40px;padding-bottom:40px}body[data-page] .site-footer.footer-shared .footer-brand{padding-top:58px}body[data-page] .site-footer.footer-shared .footer-slogan{font-size:13px}body[data-page] .site-footer.footer-shared .footer-slogan .brand-mint{font-size:11px}body[data-page] .site-footer.footer-shared .footer-wordmark{width:145px}body[data-page] .site-footer.footer-shared .footer-top nav{gap:16px}body[data-page] .site-footer.footer-shared .footer-top nav h2{font-size:12px;margin-bottom:13px}body[data-page] .site-footer.footer-shared .footer-top nav a{font-size:11px;min-height:38px}body[data-page] .site-footer.footer-shared>.container::after{margin:0;font-size:8px}}
+body[data-page] .site-footer.footer-shared{min-height:0;margin-top:0;isolation:isolate}
+body[data-page] .site-footer.footer-shared>.container{display:block;width:86%;max-width:1160px;gap:0}
+body[data-page] .site-footer.footer-shared nav a{transition:color .2s,translate .2s}
+body[data-page] .site-footer.footer-shared nav a:hover{translate:3px 0}
+body[data-page] .site-footer.footer-shared nav a:focus-visible{outline:2px solid #9bd8bb;outline-offset:4px;border-radius:2px}
+body[data-page="search"] .site-footer.footer-shared::before{top:0}
+@media(max-width:640px){body[data-page] .site-footer.footer-shared>.container{width:88%}}
+@media(prefers-reduced-motion:reduce){body[data-page] .site-footer.footer-shared nav a{transition:none}}
+
+
+/* Shared floating navigation: identical across all content pages.
+   Header scope keeps page-specific palette and container rules out of the chrome. */
+
+body[data-page] .site-header,body[data-page] .site-header.is-scrolled{height:76px;background:#f8f7fdf5;border-bottom:1px solid #e9e6f1;backdrop-filter:blur(16px);box-shadow:none}
+body[data-page] .site-header .header-inner{max-width:1320px;width:92%;gap:30px}
+body[data-page] .site-header .brand-asset{width:157px;animation:none}
+body[data-page] .site-header .desktop-nav{flex:0 1 auto;margin-left:auto;gap:25px}
+body[data-page] .site-header .desktop-nav a{font-size:13px;font-weight:550;color:#44485d}
+body[data-page] .site-header .desktop-nav a[aria-current]{font-weight:750;color:#537dc4}
+body[data-page] .site-header .header-actions{gap:8px}
+body[data-page] .site-header .header-actions .button{border-radius:30px;background:#292e45;color:#fff;box-shadow:none;border:0;padding:11px 18px;min-height:40px;font-size:12px}
+body[data-page] .site-header .header-actions .button-plus{display:none}
+body[data-page] .site-header .desktop-nav .nav-search-form{flex:0 1 220px;min-width:160px;max-width:220px;min-height:34px;background:#fff9;box-shadow:none;border-color:#dfdeeb}
+body[data-page] .site-header .nav-search-form input{font-size:12px}@media(max-width:1150px){
+body[data-page] .site-header .desktop-nav{gap:16px}
+body[data-page] .site-header .header-inner{gap:20px}}@media(max-width:860px){
+body[data-page] .site-header{height:68px}
+body[data-page] .site-header .header-inner{gap:16px;width:90%}
+body[data-page] .site-header .brand-asset{width:145px}
+body[data-page] .site-header .header-actions .button{padding:9px 14px;font-size:11px;min-height:36px}
+body[data-page] .site-header .mobile-nav{top:60px;background:#fcfbff;border:1px solid #dedee9;box-shadow:0 15px 30px #30274512;border-radius:16px}
+body[data-page] .site-header .mobile-nav a{font-size:14px}
+body[data-page] .site-header .mobile-nav .nav-search-form{max-width:none}
+.no-js body[data-page] .site-header{height:auto}
+.no-js body[data-page] .site-header .desktop-nav{margin:0;flex-wrap:wrap;gap:8px 18px}}@media(max-width:640px){
+body[data-page] .site-header .brand-asset{width:135px}}
+body[data-page] .site-header{height:92px;padding:12px 0;background:#e9e3ff;border:0;backdrop-filter:none;transition:background .25s}
+body[data-page] .site-header.is-scrolled{height:92px;background:#e9e3ff00;border:0;backdrop-filter:none}
+body[data-page] .site-header .header-inner{width:calc(100% - 56px);max-width:1260px;height:66px;padding:0 22px;border:1px solid #ffffffc9;border-radius:22px;background:#fcfbffdb;backdrop-filter:blur(22px) saturate(1.3);box-shadow:0 8px 28px #3f3c7010,inset 0 1px 0 #fff;gap:20px;transition:box-shadow .25s,border-color .25s}
+body[data-page] .site-header.is-scrolled .header-inner{box-shadow:0 12px 35px #24233f20;border-color:#dcd8ed}
+body[data-page] .site-header .desktop-nav{gap:5px;align-items:center}
+body[data-page] .site-header .desktop-nav>a{padding:9px 12px;border-radius:11px;transition:color .2s,background .2s,box-shadow .2s;font-size:13px}
+body[data-page] .site-header .desktop-nav>a::after{display:none}
+body[data-page] .site-header .desktop-nav>a:hover{background:#e9e5fb;color:#5143aa}
+body[data-page] .site-header .desktop-nav>a[aria-current]{background:#e3ddfa;color:#5143aa;box-shadow:inset 0 1px 0 #fff8}
+body[data-page] .site-header .desktop-nav .nav-search-form{margin-left:8px;background:#efedf6;width:220px;max-width:220px;min-width:160px;border-color:#e1ddec}
+body[data-page] .site-header .header-actions{gap:12px}
+body[data-page] .site-header .header-actions .button{background:linear-gradient(145deg,#665bcb,#3e3c84);border:1px solid #5b52a7;box-shadow:inset 0 1px 0 #ffffff3d,0 3px 7px #42347d20;transition:translate .2s,box-shadow .2s;white-space:nowrap}
+body[data-page] .site-header .header-actions .button:hover{translate:0 -2px;box-shadow:inset 0 1px 0 #ffffff3d,0 6px 16px #42347d35}
+body[data-page] .site-header .header-actions .button:active{transform:translateY(2px);translate:0;box-shadow:none}@media(max-width:1100px){
+body[data-page] .site-header .desktop-nav>a{padding-inline:9px}
+body[data-page] .site-header .header-inner{gap:12px;padding-inline:18px}
+body[data-page] .site-header .brand-asset{width:145px}
+body[data-page] .site-header .desktop-nav .nav-search-form{max-width:95px;min-width:80px}
+body[data-page] .site-header .header-actions{gap:7px}}@media(max-width:950px) and (min-width:861px){
+body[data-page] .site-header .desktop-nav>a{padding-inline:7px;font-size:12px}
+body[data-page] .site-header .brand-asset{width:130px}
+body[data-page] .site-header .desktop-nav .nav-search-form{max-width:85px;min-width:70px}
+body[data-page] .site-header .header-actions .button{padding-inline:11px}}@media(max-width:860px){
+body[data-page] .site-header,body[data-page] .site-header.is-scrolled{height:84px;padding:10px 0}
+body[data-page] .site-header .header-inner{width:92%;height:62px;padding:0 15px;border-radius:18px}
+body[data-page] .site-header .mobile-nav{top:70px;left:0;right:0;padding:12px;border-color:#e5def6;border-radius:18px;background:#faf7fff5;backdrop-filter:blur(20px)}
+body[data-page] .site-header .menu-toggle{width:34px;padding:6px}
+body[data-page] .site-header .mobile-nav a[aria-current]{background:#e5ddfb;color:#5143aa}
+body[data-page] .site-header .header-actions{gap:7px}}@media(max-width:380px){
+body[data-page] .site-header .brand-asset{width:110px}
+body[data-page] .site-header .header-inner{padding-inline:10px;gap:5px}
+body[data-page] .site-header .header-actions{gap:4px}
+body[data-page] .site-header .header-actions .button{font-size:10px;padding-inline:10px}}
+.no-js body[data-page] .site-header{height:auto;min-height:84px}
+.no-js body[data-page] .site-header .header-inner{height:auto;min-height:62px}
+body[data-page] .site-header{--ink:#282e46;--blue:#5164d7;--paper:#faf7ff;color:#44485d}
+body[data-page] .site-header .header-actions .button{font-family:var(--font);font-weight:600;letter-spacing:normal}
+body[data-page] .site-header .header-actions .button::before,body[data-page] .site-header .header-actions .button::after{display:none}
+body[data-page] .site-header :is(a,button,input):focus-visible{outline:3px solid #6452ca;outline-offset:4px}
+@media(prefers-reduced-motion:reduce){body[data-page] .site-header,body[data-page] .site-header :is(.header-inner,.desktop-nav>a,.button){animation:none!important;transition:none!important}}
+
+/* Brand proposal: compact icon-and-label navigation, shared across every page. */
+.ui-icon{display:inline-block;width:24px;height:24px;vertical-align:middle;flex-shrink:0;fill:none;stroke:none}
+body[data-page] .button .button-community-icon{width:20px;height:20px;color:inherit;stroke:none}
+body[data-page] .site-header .desktop-nav{gap:4px}
+body[data-page] .site-header .desktop-nav>a.nav-destination{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:52px;min-height:54px;padding:5px 10px;border-radius:14px;font-size:11px;line-height:1.2;text-align:center;color:#7c8198}
+body[data-page] .site-header .nav-symbol{width:23px;height:23px;opacity:.9;filter:saturate(.25);transition:filter .25s,opacity .25s,transform .25s}
+body[data-page] .site-header .nav-item-label{font-size:11px;font-weight:600;line-height:1.3;white-space:nowrap;letter-spacing:.01em}
+body[data-page] .site-header .desktop-nav>a.nav-destination:hover{background:#f0ecfb;color:#56668c}
+body[data-page] .site-header .desktop-nav>a.nav-destination[aria-current]{background:linear-gradient(145deg,#e9edff,#f0ebff);color:#5978bf;box-shadow:inset 0 1px 0 #fff,0 2px 6px #6a6ca80a}
+body[data-page] .site-header .nav-destination:is(:hover,:focus-visible,[aria-current]) .nav-symbol{opacity:1;filter:none;transform:translateY(-1px)}
+body[data-page] .site-header .nav-search-icon{width:19px;height:19px;fill:none;stroke:none;opacity:.8}
+body[data-page] .site-header .desktop-nav .nav-search-form{margin-left:10px}
+body[data-page="search"] .site-header .nav-search-form{background:#e8edff;border-color:#c7d5f2}
+body[data-page] .site-header .nav-search-form{border-radius:999px}
+body[data-page] .site-header .nav-search-form:focus-within{border-color:#a49bd2;box-shadow:0 0 0 3px #a998e733}
+body[data-page] .site-header .nav-search-form input:focus-visible{outline:none}
+body[data-page] .site-header .header-actions .button{gap:7px;align-items:center}
+.no-js body[data-page] .site-header .header-actions .join-fallback{display:inline-flex}
+.no-js body[data-page] .site-header .header-actions [data-join],.no-js body[data-page] .site-header .menu-toggle{display:none}
+body[data-page] .site-header .mobile-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:12px}
+body[data-page] .site-header .mobile-nav[hidden]{display:none}
+body[data-page] .site-header .mobile-nav>a.nav-destination{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:76px;padding:10px 5px;border:1px solid transparent;border-radius:13px;font-size:12px;color:#7c8198}
+body[data-page] .site-header .mobile-nav>a.nav-destination::after{display:none}
+body[data-page] .site-header .mobile-nav>a.nav-destination[aria-current]{background:linear-gradient(145deg,#e9edff,#f0ebff);color:#5978bf;border-color:#e8e1f8}
+body[data-page] .site-header .mobile-nav .nav-symbol{width:26px;height:26px}
+body[data-page] .site-header .mobile-nav :is(.nav-search-form,.nav-search){grid-column:1/-1;margin-top:5px;width:100%;max-width:none}
+@media(max-width:1100px){
+body[data-page] .site-header .desktop-nav>a.nav-destination{min-width:43px;padding-inline:7px}
+body[data-page] .site-header .desktop-nav .nav-search-form{width:160px;max-width:160px;min-width:120px}
+}
+@media(min-width:861px) and (max-width:950px){
+body[data-page] .site-header .desktop-nav>a.nav-destination{min-width:39px;padding-inline:6px}
+body[data-page] .site-header .desktop-nav .nav-search-form{width:120px;max-width:120px;min-width:100px;margin-left:6px}
+}
+@media(min-width:641px) and (max-width:860px){body[data-page] .site-header .mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){body[data-page] .site-header .nav-symbol{transition:none;transform:none!important}}
