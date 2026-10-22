@@ -115,6 +115,9 @@
 .member-facts dd{margin:0;font-size:14px;font-weight:650;color:#3a4565}
 .member-edit{margin-top:28px;gap:18px}
 .member-guest-note{margin:26px 0 0;font-size:12px;line-height:1.9;color:#8a8fa6}
+/* 真实头像以后直接放进这个圆：图片绝对铺满、盖住人像，版式不变（与导航圆同一套处理）。 */
+.member-avatar{position:relative}
+.member-avatar>img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}
 
 @media(max-width:560px){
   .auth-page{padding-block:34px 60px}

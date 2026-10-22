@@ -39,40 +39,44 @@ test('准备：已迁移的路由都能渲染出导航', () => {
   for (const route of routeList) assert.match(html(route), /site-header/, route + ' 应当有站点页头');
 });
 
-// 把渲染结果的 <header> 放进最小 DOM，再执行 base.js，
-// 验证「替换」在原节点上原地发生，且替换前后结构完全一致（不会造成视觉跳动）。
-function hydrateHeader(source, slotNames) {
+// 把渲染结果的 <header> 与 <footer> 放进最小 DOM，再执行 base.js。
+// 判据是「HTML 里就位、跑完 base.js 之后一个字节都没变」——
+// 导航只剩服务端这一次渲染，客户端任何改动都算回退。
+function hydrate(source) {
   const headerHTML = /<a class="skip-link"[\s\S]*?<\/header>/.exec(source)?.[0];
   assert.ok(headerHTML, '渲染结果里应该有 site-header');
+  const footerHTML = /<footer[\s\S]*?<\/footer>/.exec(source)?.[0];
+  assert.ok(footerHTML, '渲染结果里应该有 footer');
   const page = /<body[^>]*\sdata-page="([^"]*)"/.exec(source)?.[1] || '';
   const document = createDocument();
   document.body.setAttribute('data-page', page);
-  document.body.append(toFakeNodes(parse(headerHTML), document));
-
-  const before = slotNames.map(name => {
-    const slot = findFirst(document.body, `[data-nav="${name}"]`);
-    assert.ok(slot, `渲染结果里应该有 data-nav="${name}" 槽位`);
-    return { slot, html: canonical(parse(slot.serialize()).children[0]) };
-  });
-  assert.ok(before.every(item => item.slot.children.length > 0), '渲染出的 nav 应该是完整的，而不是空槽位');
-
-  const api = runBase(baseSource, document);
-  return { before, api, document, page };
+  document.body.append(toFakeNodes(parse(headerHTML + footerHTML), document));
+  return { document, page };
 }
 
-test('用渲染结果替换导航：结构不变，且不产生重复节点', () => {
+test('导航在 HTML 里就位，base.js 跑起来后不再重建它', () => {
   for (const route of ['/', '/minicamp/', '/community/', '/resources/', '/about/']) {
-    const { before, document } = hydrateHeader(html(route), ['desktop', 'mobile']);
-    for (const { slot, html: expected } of before) {
+    const { document } = hydrate(html(route));
+    const slots = ['desktop', 'mobile'].map(name => {
+      const slot = findFirst(document.body, `[data-nav="${name}"]`);
+      assert.ok(slot, `${route} 应该有 data-nav="${name}" 槽位`);
+      assert.ok(slot.children.length > 0, `${route} 的 ${name} 导航应该是渲染好的，而不是空槽位`);
+      return { name, slot, html: canonical(parse(slot.serialize()).children[0]) };
+    });
+
+    runBase(baseSource, document);
+
+    for (const { name, slot, html: expected } of slots) {
       assert.equal(
         canonical(parse(slot.serialize()).children[0]),
         expected,
-        `${route} 的 ${slot.getAttribute('data-nav')} 导航在 base.js 接管后应与渲染期一致`
+        `${route} 的 ${name} 导航在 base.js 跑完后被改动了`
       );
     }
-    const navs = document.body.querySelectorAll('nav');
-    assert.equal(navs.length, 2, `${route} 应该只有桌面与手机两个 nav`);
-    assert.equal(document.body.querySelectorAll('[data-nav="desktop"]').length, 1, `${route} 不应重复渲染桌面导航`);
+    // 页脚里还有一个 nav（页脚导航），所以只数 <header> 里的。
+    const siteHeader = findFirst(document.body, '.site-header');
+    assert.equal(siteHeader.querySelectorAll('nav').length, 2, `${route} 应该只有桌面与手机两个 nav`);
+    assert.equal(document.body.querySelectorAll('[data-nav="desktop"]').length, 1, `${route} 不应出现第二份桌面导航`);
   }
 });
 
@@ -119,22 +123,17 @@ test('页脚与浮窗：HTML 无按钮残留，浮窗由 base.js 生成', () => 
   }
 });
 
-test('base.js 接管页脚底部：HTML 与客户端渲染一致，并补上浮窗', () => {
+test('页脚底部在 HTML 里就是空的，base.js 只补浮窗、不往里放东西', () => {
   for (const route of ['/minicamp/', '/about/']) {
-    const source = html(route);
-    const page = /<body[^>]*\sdata-page="([^"]*)"/.exec(source)?.[1] || '';
-    const footerHTML = /<footer[\s\S]*?<\/footer>/.exec(source)?.[0];
-    assert.ok(footerHTML, `${route} 渲染结果里应该有 footer`);
-
-    const document = createDocument();
-    document.body.setAttribute('data-page', page);
-    document.body.append(toFakeNodes(parse(footerHTML), document));
+    const { document } = hydrate(html(route));
     const slot = findFirst(document.body, '[data-nav="footer-bottom"]');
+    assert.ok(slot, `${route} 应该有页脚底部槽位`);
     const before = canonical(parse(slot.outerHTML).children[0]);
-    assert.ok(slot.children.length > 0, `${route} 的页脚底部应该是渲染好的，而不是空槽位`);
+    assert.ok(slot.children.length > 0, `${route} 的页脚底部应该是渲染好的空容器，而不是空槽位`);
+    assert.equal(slot.children[0].children.length, 0, `${route} 的页脚底部应留空`);
 
     runBase(baseSource, document);
-    assert.equal(canonical(parse(slot.outerHTML).children[0]), before, `${route} 页脚底部替换后结构应完全一致`);
+    assert.equal(canonical(parse(slot.outerHTML).children[0]), before, `${route} 页脚底部不该被客户端改动`);
 
     const fab = findFirst(document.body, '[data-back-to-top]');
     if (route === '/minicamp/') assert.equal(fab, null, 'minicamp 页不应生成浮窗');

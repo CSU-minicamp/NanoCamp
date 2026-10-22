@@ -19,6 +19,15 @@ import {site} from '../content/site.mjs';
 const SESSION_COOKIE = 'nc_sid';
 const CHALLENGE_COOKIE = 'nc_chal';
 const CSRF_COOKIE = 'nc_csrf';
+/**
+ * 「已登录」的前端标记：值是用户编号，**不是凭证**。
+ *
+ * 唯一用途是让导航栏那个圆在第一帧就知道该画「登录」还是头像 ——
+ * 页面是按路由共享缓存的，服务端渲染不出登录态，而等 /api/session 回来再画会闪一下。
+ * 所以它故意是可读 cookie（凭证仍然只在 HttpOnly 的 nc_sid 里）。
+ * ⚠️ 它只影响「画什么」，权限判定一律走服务端会话：伪造它最多只能骗自己看到一个人像。
+ */
+const UI_COOKIE = 'nc_ui';
 
 /** 请求体上限：登录只需要一两个字段，超过 16 KB 一律拒绝。 */
 const MAX_BODY_BYTES = 16 * 1024;
@@ -61,6 +70,15 @@ function setCookie(name, value, {maxAge = 0, httpOnly = true, host = ''}){
     parts.push('Secure');
   return parts.join('; ');
 }
+
+/**
+ * 下发 / 清除「已登录」的前端标记（见 UI_COOKIE）。
+ * @param {string|number} value 用户编号；空串表示清除。
+ * @param {string} host 请求 Host（决定要不要带 Secure）。
+ * @param {number} maxAge 存活秒数，0 表示立即过期。
+ * @returns {string} Set-Cookie 值。
+ */
+const uiCookie = (value, host, maxAge) => setCookie(UI_COOKIE, String(value ?? ''), {httpOnly: false, maxAge, host});
 
 /**
  * 校验回跳目标：本函数只接受站内路径。
@@ -219,8 +237,18 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     // mailPaused：运维把发信暂停了（data/PAUSE_MAIL 存在）。前端据此只锁「发码」，登录照常用。
     const paused = mailPaused();
     const response = responseJson(200, {user: session?.user ?? null, csrf, disabled: false, canSendCode: !paused, mailPaused: paused, missing: session? missingFields(session.user): []});
+    const setCookies = [];
     if(!cookies[CSRF_COOKIE])
-      response.headers['set-cookie'] = [setCookie(CSRF_COOKIE, csrf, {httpOnly: false, maxAge: sessionCookieMaxAge(), host})];
+      setCookies.push(setCookie(CSRF_COOKIE, csrf, {httpOnly: false, maxAge: sessionCookieMaxAge(), host}));
+    // 标记和真实会话对不上（在别处退出、会话空闲超时）：顺手清掉，下一页立刻回到「登录」形态。
+    if(!session?.user && cookies[UI_COOKIE])
+      setCookies.push(uiCookie('', host, 0));
+    // 反过来：会话有效但标记缺失或不是当前用户（上线前就存在的会话、换了账号）——按当前会话补一份，
+    // 这样这些人的下一页起也是首帧正确，不需要重新登录。
+    if(session?.user && cookies[UI_COOKIE] !== String(session.user.id))
+      setCookies.push(uiCookie(session.user.id, host, sessionCookieMaxAge()));
+    if(setCookies.length)
+      response.headers['set-cookie'] = setCookies;
     return response;
   }
   // 其余带cookie请求
@@ -249,7 +277,8 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     return responseJson(200, {ok: true}, {
       'set-cookie': [
         setCookie(SESSION_COOKIE, '', {maxAge: 0, host}),
-        setCookie(CSRF_COOKIE, '', {maxAge: 0, httpOnly: false, host})
+        setCookie(CSRF_COOKIE, '', {maxAge: 0, httpOnly: false, host}),
+        uiCookie('', host, 0)
       ]
     });
   }
@@ -267,7 +296,10 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     if(pathname === '/api/auth/login'){
       const result = await loginWithPassword({email: payload.email, password: payload.password, userAgent: headers['user-agent'] || ''});
       return responseJson(200, {ok: true, user: result.user, missing: missingFields(result.user), redirect: landing(result.user, payload.next)}, {
-        'set-cookie': [setCookie(SESSION_COOKIE, result.token, {maxAge: sessionCookieMaxAge(), host})]
+        'set-cookie': [
+          setCookie(SESSION_COOKIE, result.token, {maxAge: sessionCookieMaxAge(), host}),
+          uiCookie(result.user.id, host, sessionCookieMaxAge())
+        ]
       });
     }
     // 个人资料：目前只用来补密码，以后加必填字段也是走这里。
@@ -297,7 +329,8 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
         'set-cookie': [
           setCookie(SESSION_COOKIE, result.token, {maxAge: sessionCookieMaxAge(), host}),
           // 码已消费，挑战 cookie 立刻失效，免得同一枚码在另一个标签页里再被尝试。
-          setCookie(CHALLENGE_COOKIE, '', {maxAge: 0, host})
+          setCookie(CHALLENGE_COOKIE, '', {maxAge: 0, host}),
+          uiCookie(result.user.id, host, sessionCookieMaxAge())
         ]
       });
     }

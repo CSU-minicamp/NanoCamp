@@ -52,11 +52,12 @@ export const avatarGlyph = () => '<svg class="avatar-glyph" viewBox="0 0 24 24" 
 //   未登录 —— 主题色实心圆，里面两个白字「登录」；
 //   已登录 —— 默认头像（那个人像），以后有图片就换成图片。
 //
-// 服务端只能输出「未登录」形态：页面是按路由共享缓存的，同一份 HTML 会发给所有人。
-// 登录后的形态由 public/account.js 补上（换头像、指向 /user/<uid>/）。
-// 关闭 JS 时点进去会先到 /login/，已登录的人会被服务端 303 送到 /profile/ —— 两个方向都不会走丢。
+// 两种形态**都写在这份 HTML 里**，画哪一个由 <html data-account> 决定（见 accountBoot）：
+// 服务端渲染不出登录态（页面按路由共享缓存），但可以靠可读的 nc_ui 标记在首帧前定下来。
+// href 仍是 /login/：登录后由 public/account.js 改成 /user/<uid>/，点得快也只是先到登录页、
+// 再被服务端 303 送到 /profile/ —— 不会走丢。
 export function accountEntry() {
-  return `<a class="header-account" href="/login/" data-account-entry data-state="guest" aria-label="登录 NanoCamp"><span class="account-avatar"><span class="account-label" aria-hidden="true">登录</span>${avatarGlyph()}</span></a>`;
+  return `<a class="header-account" href="/login/" data-account-entry aria-label="登录 NanoCamp"><span class="account-avatar"><span class="account-label" aria-hidden="true">登录</span>${avatarGlyph()}</span></a>`;
 }
 
 export function header(active) {
@@ -68,9 +69,8 @@ export function header(active) {
   </div></header>`;
 }
 
-// 站内导航的数据源是 public/base.js：客户端由它统一渲染，
-// 这里按同一份定义做一份构建期输出，作为首屏内容与无 JS 兜底。
-// 两边由 tests/nav.test.mjs 比对，改动时请同时更新 public/base.js。
+// 站内导航的**唯一数据源**。改导航只改这里：整页在请求期一次渲染，nav 就是其中一个片段，
+// 客户端不再重画一遍（base.js 只绑菜单开合与回到顶部）。加一项就会同时出现在桌面与手机两个 nav 里。
 const navLinks = [
   { key: 'home', href: '/', label: '首页' },
   { key: 'minicamp', href: '/minicamp/', label: 'minicamp' },
@@ -81,7 +81,7 @@ const navLinks = [
   { key: 'search', href: '/search/', label: '站内搜索', search: true }
 ];
 
-// 属性顺序与 public/base.js 的 DOM 输出保持一致，替换时不会产生无谓的结构差异。
+// 当前页高亮由服务端给 aria-current —— 客户端不需要再算一遍。
 function navLink(link, active, label = link.label) {
   const current = (active || 'home') === link.key ? ' aria-current="page"' : '';
   if (link.search) {
@@ -125,8 +125,8 @@ export function shareButton(label = '复制页面链接') {
 
 // 页脚全站统一：口号（双色两行）+ 三栏导航 + 通栏字标，与站内搜索页同款结构。
 // 原来的署名块（图形标志 + WHO WE BUILD WITH）已整块移除，页脚底部留空。
-// [data-nav="footer-bottom"] 槽位保留为空容器：它仍是 base.js 的挂载点契约，
-// 静态 HTML 与客户端渲染的空结构由 tests/nav-build.test.mjs 逐节点比对。
+// [data-nav="footer-bottom"] 是历史遗留的空槽位（以前 base.js 会往里渲染、现在不碰了），
+// 保留它是因为 nav-build 测试按它确认「页脚底部仍然是空的」，也方便以后有需要时挂东西。
 // 回到顶部浮窗完全由 base.js 在客户端生成，静态 HTML 里没有它的标记。
 export function footer() {
   const nav = '<nav aria-label="页脚导航">'
@@ -152,6 +152,14 @@ export function dialogs() {
     ${galleryDialog()}`;
 }
 
+// 首帧的那一行脚本：只要读到 nc_ui 标记，就把 <html data-account="member"> 定下来。
+//
+// 为什么必须内联、还必须在 <head> 里：页面是按路由共享缓存的，服务端渲染不出登录态；
+// 而等 /api/session 回来再画，圆会先显示「登录」再跳成头像（闪一下）。
+// 这段跑在 body 解析之前，所以**第一帧就是对的**。读不到标记（无 JS、未登录）就是普通登录入口。
+// 它只决定「画什么」，不携带任何凭证，也不参与任何权限判断。
+const accountBoot = '<script>document.documentElement.setAttribute("data-account",/(?:^|;\\s*)nc_ui=\\d{1,18}/.test(document.cookie)?"member":"guest")</script>';
+
 export function documentPage({ title, description, active, body, route, noindex = false }) {
   // 首页在内容中放置共享加入区；其余内容页和错误页在这里追加一次。
   if (active && active !== 'search') body += joinSection();
@@ -161,5 +169,5 @@ export function documentPage({ title, description, active, body, route, noindex 
   const favicon = safeUrl(site.symbol === '/images/nanocamp-symbol.png' ? '/images/nanocamp-favicon.png' : site.symbol, true);
   const workshop = ['resources', 'partners'].includes(active);
   const album = !active || ['minicamp','projects'].includes(active);
-  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${['login', 'profile', 'user'].includes(active) ? '<link rel="stylesheet" href="/auth.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}<link rel="stylesheet" href="/interactions.css">${homeAssets}<script defer src="/base.js"></script><script defer src="/account.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${active === 'login' ? '<script defer src="/auth.js"></script>' : ''}${active === 'profile' ? '<script defer src="/profile.js"></script>' : ''}${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-playground.js"></script><script defer src="/home-experiment.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
+  return `<!doctype html><html lang="zh-CN" class="no-js"><head>${accountBoot}<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${['login', 'profile', 'user'].includes(active) ? '<link rel="stylesheet" href="/auth.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}<link rel="stylesheet" href="/interactions.css">${homeAssets}<script defer src="/base.js"></script><script defer src="/account.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${active === 'login' ? '<script defer src="/auth.js"></script>' : ''}${active === 'profile' ? '<script defer src="/profile.js"></script>' : ''}${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-playground.js"></script><script defer src="/home-experiment.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
 }

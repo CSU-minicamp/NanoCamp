@@ -1,11 +1,15 @@
 // NanoCamp base.js
-// 站点框架（导航、页脚底部与回到顶部）的统一数据源与渲染入口。
+// 站点框架的**交互**层：手机导航的开合、回到顶部浮窗。
 //
-// 工作方式：HTML 里保留构建期渲染好的 nav 作为首屏内容与无 JS 兜底；
-// base.js 用同一份配置在客户端重新渲染并替换掉原节点，保证 nav 结构
-// 与当前页面状态始终来自同一处。
+// 导航本身不再由这里渲染。整页在请求期一次渲染（`src/components.mjs` 的 `header()` 把 nav 拼进
+// 同一根字符串），HTML 里就是成品 —— 无 JS 也有完整导航，首帧也不会「晚一拍出现」。
 //
-// 约定：HTML 里的 nav 槽位用 data-nav 标记。
+// 这里以前还有一份 `NAV_LINKS`，把 desktop / mobile 两个槽位重画一遍，理由是「结构始终来自同一份定义」。
+// 但那份数据和 `src/components.mjs` 的 `navLinks` 是两处各写一遍的，产出又逐字节相同
+// （曾经靠 tests/nav-build.test.mjs 比对兜着），所以它只是重复渲染 + 重复维护。已整段删除。
+// **改导航请只改 src/components.mjs 一处。**
+//
+// 约定：HTML 里的槽位仍用 data-nav 标记，本文件**只读不写**：
 //   <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">
 //   <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>
 (() => {
@@ -14,21 +18,6 @@
   if (typeof window === 'undefined' || !window.document) return;
   const doc = window.document;
 
-  const NAV_LINKS = Object.freeze([
-    Object.freeze({ key: 'home', href: '/', label: '首页', compact: true, footer: false }),
-    Object.freeze({ key: 'minicamp', href: '/minicamp/', label: 'minicamp', compact: true, footer: true, footerLabel: '年度 minicamp' }),
-    Object.freeze({ key: 'activities', href: '/activities/', label: '活动', compact: true, footer: true, footerLabel: '活动总览' }),
-    Object.freeze({ key: 'projects', href: '/projects/', label: '作品', compact: true, footer: true, footerLabel: '社区作品' }),
-    Object.freeze({ key: 'resources', href: '/resources/', label: '资源', compact: false, footer: true, footerLabel: '共创资源', footerOnly: true }),
-    Object.freeze({ key: 'community', href: '/community/', label: '社区', compact: true, footer: true, footerLabel: '参与指南' }),
-    Object.freeze({ key: 'partners', href: '/partners/', label: '合作', compact: true, footer: true, footerLabel: '交流合作' }),
-    Object.freeze({ key: 'about', href: '/about/', label: '关于', compact: false, footer: true, footerLabel: '关于我们', footerOnly: true }),
-    Object.freeze({ key: 'search', href: '/search/', label: '站内搜索', compact: true, footer: true, footerLabel: '站内搜索', search: true }),
-    // 页脚专有项：主导航里没有，页脚渲染器接管时使用。
-    Object.freeze({ key: 'faq', href: '/faq/', label: '常见问题', compact: false, footer: true, footerLabel: '常见问题', footerOnly: true })
-  ]);
-
-  const SVG_NS = 'http://www.w3.org/2000/svg';
   let warned = false;
   let unbindMenu = () => {};
   const backToTopBindings = new WeakSet();
@@ -39,91 +28,10 @@
     console.warn('[NanoCamp base.js] ' + message);
   }
 
-  function svg(node, viewBox, attrs) {
-    node.setAttribute('viewBox', viewBox);
-    node.setAttribute('aria-hidden', 'true');
-    Object.keys(attrs || {}).forEach(name => node.setAttribute(name, attrs[name]));
-    return node;
-  }
-
-  function svgEl(name) {
-    return doc.createElementNS(SVG_NS, name);
-  }
-
-  function interfaceIcon(kind, classes) {
-    const node = svg(svgEl('svg'), '0 0 32 32', { class: 'ui-icon ' + classes, focusable: 'false' });
-    const use = svgEl('use');
-    use.setAttribute('href', '/images/interface-icons.svg#icon-' + kind);
-    node.append(use);
-    return node;
-  }
-
-  function searchIcon() {
-    return interfaceIcon('search', 'nav-search-icon');
-  }
-
-  function linkNode(link, active, label = link.label) {
-    const node = doc.createElement('a');
-    node.setAttribute('href', link.href);
-    if (active === link.key) node.setAttribute('aria-current', 'page');
-    if (link.search) {
-      node.setAttribute('class', 'nav-search');
-      node.setAttribute('aria-label', '站内搜索');
-      // discovery.js 依赖这个钩子补 title、aria-keyshortcuts 与 Ctrl/⌘ + K。
-      node.setAttribute('data-search-shortcut', '');
-      node.append(searchIcon());
-      const text = doc.createElement('span');
-      text.setAttribute('class', 'nav-search-label');
-      text.textContent = label;
-      node.append(text);
-      return node;
-    }
-    node.setAttribute('class', 'nav-destination');
-    node.append(interfaceIcon(link.key, 'nav-symbol'));
-    const text = doc.createElement('span');
-    text.setAttribute('class', 'nav-item-label');
-    text.textContent = label;
-    node.append(text);
-    return node;
-  }
-
-  function navLinks(active) {
-    return NAV_LINKS.filter(link => !link.footerOnly).map(link => linkNode(link, active));
-  }
-
-  function desktopNav(active = navActive()) {
-    const fragment = doc.createDocumentFragment();
-    navLinks(active).forEach(node => fragment.append(node));
-    return fragment;
-  }
-
-  function mobileNav(active = navActive()) {
-    const fragment = doc.createDocumentFragment();
-    navLinks(active).forEach(node => fragment.append(node));
-    return fragment;
-  }
-
-  function footerNav(active = navActive()) {
-    const fragment = doc.createDocumentFragment();
-    NAV_LINKS.filter(link => link.footer).forEach(link => {
-      const node = doc.createElement('a');
-      node.setAttribute('href', link.href);
-      if (active === link.key) node.setAttribute('aria-current', 'page');
-      node.textContent = link.footerLabel || link.label;
-      fragment.append(node);
-    });
-    return fragment;
-  }
-
-  // --- 页脚底部（数据源在这里，构建期会按同一份定义输出一份静态 HTML）---
-
-  // 署名块已整块移除，页脚底部留空。这里仍返回那个空容器：
-  // [data-nav="footer-bottom"] 是挂载点契约，静态 HTML 里也保留同样的空结构，
-  // 由 tests/nav-build.test.mjs 逐节点比对两边是否一致。
-  function footerBottom() {
-    const bottom = doc.createElement('div');
-    bottom.setAttribute('class', 'footer-bottom');
-    return bottom;
+  // 当前页以 <body data-page="..."> 为准；首页缺省为 home，404 不高亮。
+  // 高亮本身由服务端渲染的 aria-current 决定，这里只用于判断要不要挂「回到顶部」。
+  function navActive() {
+    return doc.body ? doc.body.getAttribute('data-page') || 'home' : 'home';
   }
 
   // 回到顶部浮窗：常驻右下角，下滑一段距离后由 mountBackToTop 显示。
@@ -146,7 +54,7 @@
 
   function mountBackToTop() {
     const active = navActive();
-    // 已有的浮窗先清空属性再复用节点：navMount 可能被再次调用，重复插入会在页脚
+    // 已有的浮窗先清空属性再复用节点：mount 可能被再次调用，重复插入会在页脚
     // 留下第二个按钮。这里不用 node.remove()，保持与测试用的精简 DOM 兼容。
     const existing = doc.querySelectorAll('[data-back-to-top]');
     Array.prototype.forEach.call(existing, (node, index) => {
@@ -167,7 +75,7 @@
     if (backToTopBindings.has(button)) return button;
     backToTopBindings.add(button);
 
-    // 点击行为归 base.js 所有：details.js 不再插手这个元素，避免两处竞态。
+    // 点击行为归 base.js 所有：details.js 不插手这个元素，避免两处竞态。
     button.addEventListener('click', () => {
       const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
@@ -197,35 +105,7 @@
     return button;
   }
 
-  const NAV_RENDERERS = Object.freeze({
-    desktop: desktopNav,
-    mobile: mobileNav,
-    footer: footerNav,
-    'footer-bottom': footerBottom
-  });
-
-  // 当前页以 <body data-page="..."> 为准；首页缺省为 home，404 不高亮。
-  function navActive() {
-    return doc.body ? doc.body.getAttribute('data-page') || 'home' : 'home';
-  }
-
-  function navSlots() {
-    return Array.prototype.slice.call(doc.querySelectorAll('[data-nav]'));
-  }
-
-  function navMount() {
-    const active = navActive();
-    navSlots().forEach(slot => {
-      const name = slot.getAttribute('data-nav');
-      const render = NAV_RENDERERS[name];
-      if (!render) { warn('未知的 data-nav 槽位："' + name + '"，已跳过。'); return; }
-      slot.replaceChildren(render(active));
-    });
-    bindMenu();
-    mountBackToTop();
-  }
-
-  // 手机导航面板的开合（槽位与按钮都由本文件之外的模板提供，找不到就跳过）。
+  // 手机导航面板的开合（槽位与按钮都由服务端模板提供，找不到就跳过）。
   function bindMenu() {
     unbindMenu();
     const button = doc.querySelector('[data-menu-toggle]');
@@ -273,15 +153,18 @@
     };
   }
 
+  // 唯一入口：挂上所有交互。可重复调用（先解绑再绑，不会叠加监听）。
+  function mount() {
+    bindMenu();
+    mountBackToTop();
+  }
+
   const api = Object.freeze({
-    links: NAV_LINKS,
     active: navActive,
-    slots: navSlots,
-    mount: navMount,
-    nav: NAV_RENDERERS,
+    mount,
     backToTop: mountBackToTop
   });
 
   window.NanoCampBase = api;
-  navMount();
+  mount();
 })();

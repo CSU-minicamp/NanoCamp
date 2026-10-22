@@ -48,14 +48,14 @@ after(async () => {
 
 const get = async (url, headers = {}) => handleRequest({method: 'GET', url, headers});
 
-test('右上角账号入口：全站一个圆，未登录是主题色底 + 白字「登录」', async () => {
+test('右上角账号入口：全站一个圆，两种形态都写在 HTML 里，由 <html data-account> 选', async () => {
   for (const route of routePaths) {
     const html = (await get(route)).body.toString('utf8');
     assert.equal((html.match(/data-account-entry/g) || []).length, 1, route + ' 应该有且只有一个账号入口');
     assert.match(
       html,
-      /<a class="header-account" href="\/login\/" data-account-entry data-state="guest" aria-label="登录 NanoCamp">/,
-      route + ' 的账号入口应是未登录形态'
+      /<a class="header-account" href="\/login\/" data-account-entry aria-label="登录 NanoCamp">/,
+      route + ' 的账号入口默认指向登录页'
     );
     assert.match(html, /<span class="account-label" aria-hidden="true">登录<\/span>/, route + ' 的圆里应写着「登录」');
     // 头像（人像）也在同一个圆里，只是未登录时由 CSS 藏起来 —— 登录后直接换过来，不用重新渲染。
@@ -63,11 +63,19 @@ test('右上角账号入口：全站一个圆，未登录是主题色底 + 白�
   }
 });
 
-test('登录态由 account.js 在客户端补上，服务端永远输出未登录形态', async () => {
+test('首帧就定好登录态：<head> 里的内联脚本按 nc_ui 标记设 data-account', async () => {
+  const html = (await get('/about/')).body.toString('utf8');
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.match(head, /<script>document\.documentElement\.setAttribute\("data-account",\/\(\?:\^\|;\\s\*\)nc_ui=\\d\{1,18\}\/\.test\(document\.cookie\)\?"member":"guest"\)<\/script>/,
+    '这段必须内联在 <head> 里，否则会先画「登录」再跳成头像');
+  // 页面本身仍然不含任何会话数据：同一份 HTML 发给所有人，会员态只在运行时由 cookie 决定。
+  assert.equal(/data-account="member"/.test(html), false, '不能把会员态写进共享缓存的那份 HTML');
+});
+
+test('登录态由 account.js 补 href / 对账，服务端始终输出同一份 HTML', async () => {
   const html = (await get('/about/')).body.toString('utf8');
   assert.match(html, /<script defer src="\/account\.js"><\/script>/);
   assert.ok(html.indexOf('/base.js') < html.indexOf('/account.js'), 'account.js 应在 base.js 之后加载');
-  assert.equal(/data-state="member"/.test(html), false, '页面是共享缓存的，不能把会员态写进 HTML');
 });
 
 test('/user/<uid>/：编号非法或人不存在都是 404', async () => {
@@ -113,4 +121,36 @@ test('已登录访问 /login/ 直接去 /profile/；未登录仍看到登录表�
   const guest = await get('/login/');
   assert.equal(guest.status, 200);
   assert.match(guest.body.toString('utf8'), /data-auth-form/);
+});
+
+// nc_ui 只是首帧用的 UI 标记：它会过期（在别处退出、空闲超时），所以 /api/session 负责对账。
+const setCookiesOf = response => [response.headers['set-cookie'] || []].flat().join('\n');
+
+test('标记过期（有 nc_ui、没会话）：/api/session 顺手把它清掉', {skip}, async () => {
+  const response = await handleRequest({
+    method: 'GET', url: '/api/session', headers: {host: 'localhost:8099', cookie: 'nc_ui=195'}
+  });
+  assert.equal(response.status, 200);
+  assert.equal(JSON.parse(response.body.toString('utf8')).user, null);
+  assert.match(setCookiesOf(response), /nc_ui=;[^\n]*Max-Age=0/, '过期的标记要清，否则下一帧还画着头像');
+});
+
+test('会话有效时不会清掉标记', {skip}, async () => {
+  const {cookie, id} = await memberFixture();
+  const response = await handleRequest({
+    method: 'GET', url: '/api/session', headers: {host: 'localhost:8099', cookie: `${cookie}; nc_ui=${id}`}
+  });
+  assert.equal(response.status, 200);
+  assert.equal(JSON.parse(response.body.toString('utf8')).user.id, id);
+  assert.equal(/nc_ui=;/.test(setCookiesOf(response)), false, '登录态正常时不该清掉这个标记');
+  assert.equal(/nc_ui=\d/.test(setCookiesOf(response)), false, '标记已经对了，不必重复下发');
+});
+
+test('老会话缺标记时由 /api/session 补发，不必重新登录', {skip}, async () => {
+  const {cookie, id} = await memberFixture();
+  const response = await handleRequest({
+    method: 'GET', url: '/api/session', headers: {host: 'localhost:8099', cookie}
+  });
+  assert.equal(JSON.parse(response.body.toString('utf8')).user.id, id);
+  assert.match(setCookiesOf(response), new RegExp(`nc_ui=${id};`), '下一页起首帧就该是头像');
 });

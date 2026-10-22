@@ -40,21 +40,29 @@
 
 /* --- 右上角账号入口（圆） -----------------------------------------------------
    未登录：主题色实心圆 + 两个白字「登录」，是全站唯一的登录入口；
-   已登录：圆里换成默认头像（人像），account.js 把 data-state 换成 member 并指向 /user/<uid>/。
-   两种形态共用同一个圆，切换时不会跳动。 */
+   已登录：圆里换成默认头像（人像）。
+   ⚠️ 开关挂在 <html data-account> 上，不是挂在这个 <a> 上 —— 因为状态是在 <head> 里
+   由内联脚本（见 src/components.mjs 的 accountBoot）读 cookie 后写到根元素的，
+   那时 <a> 还没被解析出来。这样第一帧就是对的，不会先画「登录」再跳成头像。
+   没有该属性（无 JS、没有标记）时按未登录处理，所以 :not([data-account="member"]) 兜住默认。 */
 .header-account{display:inline-flex;flex-shrink:0;width:42px;height:42px;border-radius:50%;transition:transform .2s}
 .header-account:hover{transform:translateY(-2px)}
 .header-account .account-avatar{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;transition:background .2s,border-color .2s,box-shadow .2s}
 /* 未登录：实心主题色圆，白字「登录」。 */
-.header-account[data-state="guest"] .account-avatar{border:1px solid #1d4eb8;background:var(--blue);color:#fff;box-shadow:0 5px 12px #245fd62e}
-.header-account[data-state="guest"]:hover .account-avatar{background:#194eb9;box-shadow:0 8px 18px #245fd63d}
+html:not([data-account="member"]) .header-account .account-avatar{border:1px solid #1d4eb8;background:var(--blue);color:#fff;box-shadow:0 5px 12px #245fd62e}
+html:not([data-account="member"]) .header-account:hover .account-avatar{background:#194eb9;box-shadow:0 8px 18px #245fd63d}
 .header-account .account-label{font-size:12px;font-weight:600;line-height:1;letter-spacing:.02em}
-.header-account[data-state="guest"] .avatar-glyph{display:none}
+html:not([data-account="member"]) .header-account .avatar-glyph{display:none}
 /* 已登录：默认头像就是这个空心人像（有图片以后再换成图片）。 */
-.header-account[data-state="member"] .account-avatar{border:1px solid #c9d2e4;background:#fff;color:#4b5875}
-.header-account[data-state="member"]:hover .account-avatar{border-color:#8fa4c8;box-shadow:0 7px 16px #2c3a5a1f}
-.header-account[data-state="member"] .account-label{display:none}
+html[data-account="member"] .header-account .account-avatar{border:1px solid #c9d2e4;background:#fff;color:#4b5875}
+html[data-account="member"] .header-account:hover .account-avatar{border-color:#8fa4c8;box-shadow:0 7px 16px #2c3a5a1f}
+html[data-account="member"] .header-account .account-label{display:none}
 .header-account .avatar-glyph{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* 以后接真实头像：<img> 绝对铺满这个圆、盖住人像占位 —— 图片没来 / 加载失败时人像还在，
+   所以「换真实头像」只需要在 public/account.js 里补一句 setAttribute('src', …)，版式不用动。
+   用 position:absolute 而不是 height:100%：后者在 grid 的自动行里算不出高度（会被压成图片固有高度）。 */
+.header-account .account-avatar{position:relative}
+.header-account .account-avatar>img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}
 
 .menu-toggle{display:none;border:0;background:none;padding:10px;width:44px;height:44px;position:relative}
 .menu-toggle span{display:block;height:2px;width:22px;background:var(--ink);margin:5px 0;transition:transform .2s}
