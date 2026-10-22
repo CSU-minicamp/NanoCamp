@@ -37,6 +37,25 @@
 .site-header .desktop-nav{gap:clamp(16px,2vw,30px);white-space:nowrap}
 .site-header .desktop-nav .nav-search-label{display:inline;font-size:14px}
 .header-actions{display:flex;align-items:center;gap:20px}
+
+/* --- 右上角账号入口（圆） -----------------------------------------------------
+   未登录：主题色实心圆 + 两个白字「登录」，是全站唯一的登录入口；
+   已登录：圆里换成默认头像（人像），account.js 把 data-state 换成 member 并指向 /user/<uid>/。
+   两种形态共用同一个圆，切换时不会跳动。 */
+.header-account{display:inline-flex;flex-shrink:0;width:42px;height:42px;border-radius:50%;transition:transform .2s}
+.header-account:hover{transform:translateY(-2px)}
+.header-account .account-avatar{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;transition:background .2s,border-color .2s,box-shadow .2s}
+/* 未登录：实心主题色圆，白字「登录」。 */
+.header-account[data-state="guest"] .account-avatar{border:1px solid #1d4eb8;background:var(--blue);color:#fff;box-shadow:0 5px 12px #245fd62e}
+.header-account[data-state="guest"]:hover .account-avatar{background:#194eb9;box-shadow:0 8px 18px #245fd63d}
+.header-account .account-label{font-size:12px;font-weight:600;line-height:1;letter-spacing:.02em}
+.header-account[data-state="guest"] .avatar-glyph{display:none}
+/* 已登录：默认头像就是这个空心人像（有图片以后再换成图片）。 */
+.header-account[data-state="member"] .account-avatar{border:1px solid #c9d2e4;background:#fff;color:#4b5875}
+.header-account[data-state="member"]:hover .account-avatar{border-color:#8fa4c8;box-shadow:0 7px 16px #2c3a5a1f}
+.header-account[data-state="member"] .account-label{display:none}
+.header-account .avatar-glyph{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
 .menu-toggle{display:none;border:0;background:none;padding:10px;width:44px;height:44px;position:relative}
 .menu-toggle span{display:block;height:2px;width:22px;background:var(--ink);margin:5px 0;transition:transform .2s}
 .menu-toggle[aria-expanded="true"] span:first-child{transform:translateY(3.5px) rotate(45deg)}
@@ -364,3 +383,6 @@ body[data-page] .site-header .desktop-nav .nav-search-form{width:120px;max-width
 }
 @media(min-width:641px) and (max-width:860px){body[data-page] .site-header .mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){body[data-page] .site-header .nav-symbol{transition:none;transform:none!important}}
+/* 账号入口：窄屏跟其它头部控件一起收小，但仍是同一个圆。 */
+@media(max-width:860px){.header-account{width:38px;height:38px}.header-account .avatar-glyph{width:18px;height:18px}.header-account .account-label{font-size:11px}}
+@media(max-width:360px){.header-account{width:34px;height:34px}.header-account .account-label{font-size:10px}}

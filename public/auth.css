@@ -1,6 +1,6 @@
-/* NanoCamp auth.css — 登录页版式（注册已并入登录，只有这一页）。
+/* NanoCamp auth.css — 账号相关的三张脸：登录页、个人资料页、成员公开主页。
    顶栏导航、页脚与加入弹窗的样式仍由 base.css / collage.css 负责，这里只写中间那张卡片。
-   本文件只在 data-page="login" 时加载（见 src/components.mjs），
+   本文件只在 data-page="login" / "profile" / "user" 时加载（见 src/components.mjs），
    所以 .form-field 这类通用类名不会影响 workshop.css 里的交流草稿表单。 */
 
 .auth-page{display:grid;place-items:center;padding-block:56px 84px}
@@ -13,6 +13,16 @@
 .auth-card-mark{font-size:10px;letter-spacing:.1em;color:#7d8fa0}
 .auth-card-title{font-size:clamp(24px,3vw,29px);font-weight:750;letter-spacing:-.02em}
 .auth-card-note{margin-top:9px;font-size:13px;line-height:1.8;color:#5d7284}
+
+/* --- 「第一次邮箱登录，就是注册」 ---------------------------------------------
+   位置在「改用邮箱验证码登录」下面（密码面板里），是这一页唯一一句讲注册的话 ——
+   上面那句 auth-card-note 只说怎么登，不再重复「会自动创建账号」。
+   版式借首页首屏的艺术字：display 字面 + 蓝字 + 手绘感的绿色下划线；
+   **字号必须明显小于 h1**，它是一句附注，不该跟标题抢位置。 */
+.auth-claim{display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:0 4px;margin:16px 0 0;font-family:var(--display);font-weight:800;font-size:clamp(16px,1.9vw,18px);line-height:1.75;letter-spacing:-.03em;color:#252b47;text-align:center}
+.auth-claim-art{position:relative;display:inline-block;color:#5354ce}
+/* viewBox 是 360×20，缩到这个字号后线会变细，所以 stroke-width 给大一些补偿。 */
+.auth-claim-art svg{position:absolute;left:0;bottom:-4px;width:100%;height:8px;fill:none;stroke:#3ab78d;stroke-width:7;stroke-linecap:round}
 
 
 .auth-card .form-field{margin-top:20px;min-width:0}
@@ -85,8 +95,38 @@
 .profile-row dd{margin:0;font-size:14px;line-height:1.7;color:#2b404e;overflow-wrap:anywhere}
 .profile-empty{color:#8b9aa6}
 
+/* --- 成员公开主页（/user/<uid>/）--------------------------------------------
+   一张纸卡：顶部一条渐变窄带（首页首屏那三个颜色），左边头像，右边名字与介绍。
+   头像现在是**默认人像**（和导航圆同一个形状），以后有真实头像就换成 <img>。 */
+.member-page{padding-block:48px 78px}
+.member-sheet{position:relative;max-width:880px;margin:0 auto;border:1px solid #d9dcea;border-radius:24px;background:#fff;box-shadow:0 26px 52px -34px #2b2f4a33;overflow:hidden}
+.member-strip{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 30px;border-bottom:1px solid #e9ecf6;background:linear-gradient(115deg,#e7e1ff,#e3edff 52%,#d8efe5);font-size:10px;letter-spacing:.16em;color:#5b5f7d}
+.member-main{display:grid;grid-template-columns:124px minmax(0,1fr);gap:32px;padding:34px 30px 36px;align-items:start}
+.member-portrait{display:grid;gap:10px;justify-items:center}
+.member-avatar{display:grid;place-items:center;width:104px;height:104px;border:1px solid #c9d2e4;border-radius:50%;background:radial-gradient(circle at 34% 28%,#fff,#eef2fa);color:#8fa4c8}
+.member-avatar .avatar-glyph{width:46px;height:46px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.member-portrait-note{font-size:8px;letter-spacing:.1em;color:#9aa2b6;white-space:nowrap}
+.member-kicker{display:block;font:600 10px/1.6 var(--mono);letter-spacing:.16em;color:#8a8fa6}
+.member-name{margin:8px 0 12px;font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,40px);line-height:1.28;letter-spacing:-.045em;color:#252b47;overflow-wrap:anywhere}
+.member-bio{margin:0;max-width:48ch;font-size:15px;line-height:1.9;color:#54556f;overflow-wrap:anywhere}
+.member-empty{color:#8b9aa6}
+.member-facts{display:flex;flex-wrap:wrap;gap:14px 40px;margin:24px 0 0;padding-top:20px;border-top:1px dashed #dfe3ee}
+.member-facts dt{margin:0 0 3px;font:10px/1.6 var(--mono);letter-spacing:.1em;color:#8a8fa6}
+.member-facts dd{margin:0;font-size:14px;font-weight:650;color:#3a4565}
+.member-edit{margin-top:28px;gap:18px}
+.member-guest-note{margin:26px 0 0;font-size:12px;line-height:1.9;color:#8a8fa6}
+
 @media(max-width:560px){
   .auth-page{padding-block:34px 60px}
   .auth-card{padding:24px 20px 22px;box-shadow:7px 7px 0 -1px #fff,7px 7px 0 0 #cfdbe4}
   .auth-code{font-size:20px;letter-spacing:.26em;text-indent:.26em}
+  /* 窄屏：头像移到名字上面，一列排下来。 */
+  .member-page{padding-block:30px 62px}
+  .member-strip{padding:12px 20px;font-size:9px;letter-spacing:.12em}
+  .member-main{grid-template-columns:1fr;gap:22px;padding:26px 20px 28px}
+  .member-portrait{grid-auto-flow:column;justify-items:start;align-items:center;gap:12px}
+  /* 窄屏没有横向空间放那行小字，头像自己就够了。 */
+  .member-portrait-note{display:none}
+  .member-avatar{width:74px;height:74px}
+  .member-edit{margin-top:24px}
 }

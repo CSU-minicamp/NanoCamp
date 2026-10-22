@@ -3,7 +3,8 @@
 // 视图层不动：src/ 里的页面函数本来就返回完整 HTML 字符串，这里每次请求调用一次。
 // 所以本文件只做三件事：解析地址、挑选渲染函数、组装响应。
 //
-// 路由分三类：dynamicRoutes（按路由缓存）、sessionRoutes（每人一份，不缓存）、textRoutes（现场派生的文件）。
+// 路由分四类：dynamicRoutes（按路由缓存）、sessionRoutes（每人一份，不缓存）、textRoutes（现场派生的文件），
+// 以及 /user/<uid>/ 这类带编号的成员主页（不缓存，见 memberRoute）。
 // 本文件不读配置、不碰端口，也没有任何模块级副作用：监听地址与端口在 backend/main.mjs里读 data/config.json。
 // 因此这里导出的 handleRequest 可以直接被单测调用。
 
@@ -11,8 +12,9 @@ import {createHash} from 'node:crypto';
 
 import {types, readAsset, escapeHtml} from './base.mjs';
 import {handleApi, parseCookies, safeNext} from './api.mjs';
-import {readSession, missingFields} from './auth.mjs';
+import {readSession, missingFields, findPublicUser} from './auth.mjs';
 import {renderProfile, renderProfileForce} from '../src/profile.mjs';
+import {renderMember} from '../src/member.mjs';
 import {routePaths, indexablePaths, renderPage, renderNotFound, renderUnauthorized} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
 import {canonicalUrl} from '../src/metadata.mjs';
@@ -27,25 +29,30 @@ const cacheControl = 'no-cache';
 // ======================= 路由表 =======================
 
 /**
- * 请求期渲染的路由表：键是路由路径，值是「无参返回完整 HTML 字符串」的函数。
- *
- * 全部站点页面都由 src/pages.mjs 的 renderPage 渲染，所以这里直接按路由表展开，不重复列一遍路由，新增页面只要写进 src/pages.mjs 就自动生效。
- * 渲染方式与普通页面不同的（如 /intro/，它是首页 iframe 嵌入的海报）单独列在前面。
- */
-const dynamicRoutes = new Map([
-  ['/intro/', renderIntroPage],
-  ...routePaths.map(route => [route, () => renderPage(route)]),
-]);
-
-/**
  * 需要读会话的页面：**不能进渲染缓存** —— 同一个 URL 对不同人返回不同内容，缓存下来的第一份会被发给下一个人。
  *
  * 值是「收到请求上下文 → 直接返回响应」的函数，而不是页面字符串：
  * 这类页面要自己读 cookie、自己决定 200 / 303 / 401，返回 HTML 字符串那套抽象不够用。
+ *
+ * /login/ 也在这里：已登录的人不该再看登录表单（303 去 /profile/）。
+ * 它的正文对未登录的人完全相同，所以仍然复用 renderOnce 的缓存，只是响应头是 no-store。
  */
 const sessionRoutes = new Map([
+  ['/login/', {render: renderLoginPage}],
   ['/profile/', {render: renderProfilePage}],
   ['/profile/force/', {render: renderProfileForcePage}]
+]);
+
+/**
+ * 请求期渲染的路由表：键是路由路径，值是「无参返回完整 HTML 字符串」的函数。
+ *
+ * 全部站点页面都由 src/pages.mjs 的 renderPage 渲染，所以这里直接按路由表展开，不重复列一遍路由，新增页面只要写进 src/pages.mjs 就自动生效。
+ * 渲染方式与普通页面不同的（如 /intro/，它是首页 iframe 嵌入的海报）单独列在前面；
+ * 交给 sessionRoutes 接手的路由在这里跳过，免得同一张表里登记两遍。
+ */
+const dynamicRoutes = new Map([
+  ['/intro/', renderIntroPage],
+  ...routePaths.filter(route => !sessionRoutes.has(route)).map(route => [route, () => renderPage(route)]),
 ]);
 
 // ======================= HTTP 细节 =======================
@@ -220,6 +227,68 @@ async function renderProfileForcePage({headers, url = '/'}){
 }
 
 /**
+ * /login/：已经登录的人不该再看登录表单。
+ *
+ * 未登录 → 200 渲染登录页（正文复用缓存，只有响应头随会话变）；
+ * 已登录 → 303 到 /profile/。
+ * 读会话失败时按未登录处理：登录页自己就该能打开，别让一次查询失败把整页变成 503。
+ * @param {object} context 请求上下文。
+ * @param {object} context.headers 请求头。
+ * @returns {Promise<object>} 响应描述。
+ */
+async function renderLoginPage({headers}){
+  try{
+    const session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
+    if(session)
+      return redirectSeeOther('/profile/');
+  }
+  catch(error){
+    console.error('[login] 读取会话失败：', error.message);
+  }
+  return sendPrivate(renderOnce('/login/', () => renderPage('/login/')), 200);
+}
+
+/**
+ * 成员公开主页的地址：`/user/<uid>/`，uid 只能是数字。
+ * 非数字的地址进不到这个正则，会照常落到 404 —— 不需要额外判断。
+ */
+const memberRoute = /^\/user\/(\d{1,18})\/?$/;
+
+/**
+ * /user/<uid>/：任何人都能看的成员主页。
+ *
+ * **不缓存**：除了公开资料，页面里还有一个「编辑资料」入口，只给本人看。
+ * 缓存下来的那一份可能正好是本人渲染的，会把按钮发给下一个访客。
+ * 找不到这个人（包括库没配）就按 404 处理，而不是 500。
+ * @param {number|string} uid 用户编号。
+ * @param {object} context 请求上下文。
+ * @param {object} context.headers 请求头（用来判断访客是不是本人）。
+ * @returns {Promise<object>} 响应描述。
+ */
+async function renderMemberPage(uid, {headers}){
+  let profile;
+  try{
+    profile = await findPublicUser(uid);
+  }
+  catch(error){
+    console.error('[member] 读取用户失败：', error.message);
+    return sendPrivate('账号系统暂时不可用，请稍后再试。\n', 503, types['.txt']);
+  }
+  if(!profile)
+    return send(renderOnce('/404.html', renderNotFound), {type: types['.html'], status: 404, source: 'notfound'}, headers);
+  let owner = false;
+  try{
+    const session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
+    owner = Boolean(session) && session.user.id === profile.id;
+  }
+  catch(error){
+    // 公开页不该因为会话查询失败而打不开：当访客渲染，只是看不到编辑入口。
+    console.error('[member] 读取会话失败：', error.message);
+  }
+  return sendPrivate(renderMember(profile, {owner}), 200);
+}
+
+/**
  * 生成 301 跳转响应，用于给目录式地址补上结尾斜杠。
  * @param {string} location 目标地址，例如 '/about/'。
  * @returns {{status: number, headers: object, body: Buffer}} 响应描述。
@@ -289,6 +358,14 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}, bo
   const sessionRoute = sessionRoutes.get(route);
   if(sessionRoute)
     return sessionRoute.render({method, url, headers, ip});
+  // 成员公开主页：/user/<uid>/（uid 必须是数字，其余形态交给下面的 404）
+  const member = memberRoute.exec(route);
+  if(member){
+    // 少一个斜杠时先补上，和 /about → /about/ 的处理保持一致。
+    if(!route.endsWith('/'))
+      return redirect(route + '/');
+    return renderMemberPage(member[1], {headers});
+  }
   // 站点级派生文件（sitemap / robots / 404）
   const text = textRoutes.get(route);
   if(text)

@@ -501,6 +501,28 @@ export async function updateProfile({userId, password, nickname, bio, current = 
   return {...current, id: userId, ...changed};
 }
 
+// ---------------- 公开主页 ----------------
+
+/**
+ * 公开主页要用的用户资料：**只取能公开的列**。
+ *
+ * 邮箱、密码哈希、验证时间一概不碰 —— 那个页面只接收这一个返回值，
+ * 所以「模板里不小心写出邮箱」这类事故在数据层面就不可能发生。
+ * 要看自己的完整资料（含邮箱）请走 /profile/，那里才用 toUser()。
+ * @param {number|string} id 用户编号（URL 里的 uid）。
+ * @returns {Promise<{id: number, nickname: string, bio: string, joinedAt: Date} | null>} 没这个人或是非法编号时返回 null。
+ */
+export async function findPublicUser(id){
+  const uid = Number(id);
+  if(!dbReady() || !Number.isSafeInteger(uid) || uid <= 0)
+    return null;
+  const rows = await select('SELECT id, nickname, bio, created_at FROM users WHERE id = ?', [uid]);
+  const row = rows[0];
+  if(!row)
+    return null;
+  return {id: Number(row.id), nickname: row.nickname || '', bio: row.bio || '', joinedAt: row.created_at};
+}
+
 // ---------------- 会话 ----------------
 
 /**
