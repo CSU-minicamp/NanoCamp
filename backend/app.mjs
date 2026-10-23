@@ -13,7 +13,7 @@ import {createHash} from 'node:crypto';
 import {types, readAsset, escapeHtml} from './base.mjs';
 import {handleApi, parseCookies, safeNext} from './api.mjs';
 import {readSession, missingFields, findPublicUser} from './auth.mjs';
-import {renderProfile, renderProfileForce} from '../src/profile.mjs';
+import {renderProfile, renderProfileForce, renderPassword} from '../src/profile.mjs';
 import {renderMember} from '../src/member.mjs';
 import {routePaths, indexablePaths, renderPage, renderNotFound, renderUnauthorized} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
@@ -40,7 +40,8 @@ const cacheControl = 'no-cache';
 const sessionRoutes = new Map([
   ['/login/', {render: renderLoginPage}],
   ['/profile/', {render: renderProfilePage}],
-  ['/profile/force/', {render: renderProfileForcePage}]
+  ['/profile/force/', {render: renderProfileForcePage}],
+  ['/profile/password/', {render: renderProfilePasswordPage}]
 ]);
 
 /**
@@ -224,6 +225,33 @@ async function renderProfileForcePage({headers, url = '/'}){
   if(!missing.length)
     return redirectSeeOther(target);
   return sendPrivate(renderProfileForce(missing, session.user), 200);
+}
+
+/**
+ * /profile/password/：改密码页。
+ *
+ * 两种情况先在服务端分流，而不是渲染一张用不了的表单：
+ *   没登录              → 303 去登录页（带回跳）
+ *   还没设置过密码      → 303 去补全页（「改密码」得先有一个密码可改）
+ *
+ * @param {object} context 请求上下文。
+ * @param {object} context.headers 请求头。
+ * @returns {Promise<object>} 响应描述。
+ */
+async function renderProfilePasswordPage({headers}){
+  let session = null;
+  try{
+    session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
+  }
+  catch(error){
+    console.error('[profile] 读取会话失败：', error.message);
+    return sendPrivate('账号系统暂时不可用，请稍后再试。\n', 503, types['.txt']);
+  }
+  if(!session)
+    return redirectSeeOther(`/login/?next=${encodeURIComponent('/profile/password/')}`);
+  if(missingFields(session.user).includes('password'))
+    return redirectSeeOther(`/profile/force/?next=${encodeURIComponent('/profile/password/')}`);
+  return sendPrivate(renderPassword(session.user), 200);
 }
 
 /**

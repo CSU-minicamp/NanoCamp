@@ -376,7 +376,7 @@ test('/profile 会补斜杠跳到 /profile/', async () => {
   assert.equal(response.headers.location, '/profile/');
 });
 
-test('/profile/ 登录后显示自己的资料', {skip}, async () => {
+test('/profile/ 登录后是「常规资料」表单：邮箱只读、不含密码字段', {skip}, async () => {
   const email = newEmail();
   const {jar, csrf, code} = await requestEmailCaptcha(email);
   const verified = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
@@ -387,16 +387,95 @@ test('/profile/ 登录后显示自己的资料', {skip}, async () => {
   assert.equal(before.status, 303);
   assert.equal(before.headers.location, '/profile/force/?next=%2Fprofile%2F');
 
-  // 补完再看：只有邮箱
   assert.equal((await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚', bio: '在做一个小工具'}, jar, csrf})).status, 200);
   const after = await call('/profile/', {method: 'GET', jar});
   assert.equal(after.status, 200);
   const html = after.text;
+
+  // 邮箱：只显示，不能改 —— 没有 name 的只读段落，不是 input。
+  assert.match(html, /<p class="auth-readonly" id="profile-email" data-profile-email>/);
   assert.match(html, new RegExp(email.replace('.', '\\.')));
-  assert.match(html, /<dt>邮箱<\/dt>/);
-  assert.match(html, /<dt>昵称<\/dt>/);
-  assert.match(html, /阿岚/);
-  assert.match(html, /在做一个小工具/);
+  assert.equal(/<input[^>]*name="email"/.test(html), false, '邮箱不能是可编辑字段');
+
+  // 可改的两项：值由服务端直接渲染进 value
+  assert.match(html, /id="profile-nickname"[^>]*value="阿岚"/);
+  assert.match(html, /id="profile-bio"[^>]*value="在做一个小工具"/);
+
+  // 这一页不碰密码：没有密码输入框，改密码在 /profile/password/
+  assert.equal(/type="password"/.test(html), false, '常规资料页不该出现密码框');
+  assert.match(html, /href="\/profile\/password\/"/);
+  assert.match(html, /data-profile-mode="edit"/);
+});
+
+test('/profile/password/ 未登录跳登录页，登录后是改密码表单', {skip}, async () => {
+  const anonymous = await call('/profile/password/', {method: 'GET'});
+  assert.equal(anonymous.status, 303);
+  assert.equal(anonymous.headers.location, '/login/?next=%2Fprofile%2Fpassword%2F');
+  assert.equal(anonymous.headers['cache-control'], 'no-store');
+
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  absorb(jar, verified.setCookies);
+
+  // 还没有密码的人来这里没意义：先去补全页设一个
+  const incomplete = await call('/profile/password/', {method: 'GET', jar});
+  assert.equal(incomplete.status, 303);
+  assert.equal(incomplete.headers.location, '/profile/force/?next=%2Fprofile%2Fpassword%2F');
+
+  assert.equal((await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚'}, jar, csrf})).status, 200);
+  const page = await call('/profile/password/', {method: 'GET', jar});
+  assert.equal(page.status, 200);
+  assert.match(page.text, /id="password-current"[^>]*autocomplete="current-password"/);
+  assert.match(page.text, /id="password-new"[^>]*autocomplete="new-password"/);
+  assert.match(page.text, /id="password-confirm"/);
+  assert.equal((page.text.match(/type="password"/g) || []).length, 3, '旧密码 + 两遍新密码');
+  // 左栏两项都在，当前项是「密码」
+  assert.match(page.text, /class="profile-tab" href="\/profile\/"/);
+  assert.match(page.text, /class="profile-tab" href="\/profile\/password\/" aria-current="page"/);
+});
+
+test('改密码：验旧密码、校验长度，成功后所有会话被撤销', {skip}, async () => {
+  const email = newEmail();
+  const {jar, csrf, code} = await requestEmailCaptcha(email);
+  const verified = await call('/api/auth/verify', {body: {emailCaptcha: code}, jar, csrf});
+  absorb(jar, verified.setCookies);
+  assert.equal((await call('/api/profile', {body: {password: 'good-password-2026', nickname: '阿岚'}, jar, csrf})).status, 200);
+
+  // 未登录：先过认证闸门
+  const anon = await boot();
+  const unauth = await call('/api/profile/password', {body: {currentPassword: 'x', password: 'another-password-2026'}, jar: anon.jar, csrf: anon.csrf});
+  assert.equal(unauth.status, 401);
+  assert.equal(unauth.json.error, 'unauthenticated');
+
+  const wrong = await call('/api/profile/password', {body: {currentPassword: 'not-my-password', password: 'another-password-2026'}, jar, csrf});
+  assert.equal(wrong.status, 400);
+  assert.equal(wrong.json.error, 'current_password_invalid');
+
+  const short = await call('/api/profile/password', {body: {currentPassword: 'good-password-2026', password: 'short'}, jar, csrf});
+  assert.equal(short.status, 400);
+  assert.equal(short.json.error, 'invalid_password');
+
+  // 成功：换新密码 + 撤会话 + 清 cookie
+  const changed = await call('/api/profile/password', {body: {currentPassword: 'good-password-2026', password: 'another-password-2026'}, jar, csrf});
+  assert.equal(changed.status, 200);
+  assert.equal(changed.json.redirect, '/login/');
+  assert.ok(changed.json.revoked >= 1, '当前这个会话也必须被撤掉');
+  const cleared = changed.setCookies.join('\n');
+  assert.match(cleared, /nc_sid=;[^\n]*Max-Age=0/);
+  assert.match(cleared, /nc_ui=;[^\n]*Max-Age=0/);
+
+  // 旧 cookie 立刻失效：再访问私人页会被送回登录页
+  const afterChange = await call('/profile/', {method: 'GET', jar});
+  assert.equal(afterChange.status, 303);
+  assert.match(afterChange.headers.location, /^\/login\//);
+
+  // 旧密码登不进来，新密码可以
+  const oldLogin = await boot();
+  assert.equal((await call('/api/auth/login', {body: {email, password: 'good-password-2026'}, jar: oldLogin.jar, csrf: oldLogin.csrf})).status, 401);
+  const newLogin = await boot();
+  const ok = await call('/api/auth/login', {body: {email, password: 'another-password-2026'}, jar: newLogin.jar, csrf: newLogin.csrf});
+  assert.equal(ok.status, 200);
 });
 
 test('补全页：缺字段时 200 并标出必填，补完再访问就 303 放行', {skip}, async () => {

@@ -76,8 +76,8 @@ test('/profile/force/ 未登录时直接跳登录页', async () => {
   assert.match(decodeURIComponent(location), /^\/login\/\?next=\/profile\/force\/\?next=/);
 });
 
-test('/profile/force/ 与 /profile/ 都不在静态路由表里（它们按会话渲染）', async () => {
+test('/profile/force/ 与 /profile/、/profile/password/ 都不在静态路由表里（它们按会话渲染）', async () => {
   const {routePaths} = await import('../src/pages.mjs');
-  assert.equal(routePaths.includes('/profile/force/'), false);
-  assert.equal(routePaths.includes('/profile/'), false);
+  for (const route of ['/profile/force/', '/profile/', '/profile/password/'])
+    assert.equal(routePaths.includes(route), false, route + ' 不该出现在静态路由表里');
 });

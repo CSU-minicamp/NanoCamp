@@ -501,8 +501,54 @@ export async function updateProfile({userId, password, nickname, bio, current = 
   return {...current, id: userId, ...changed};
 }
 
-// ---------------- 公开主页 ----------------
+/**
+ * 改密码：先验旧密码，再写新哈希，最后**撤掉这个账号的所有会话**。
+ *
+ * 为什么连其它设备一起撤：密码通常是在别处泄露时才去改，只踢掉当前这个会话，
+ * 等于把别人的登录留着 —— 用户以为「我改过了」，其实并没有摆脱对方。
+ * 所以调用方（接口层）在成功后要连同当前会话的 cookie 一起清掉，把人送回登录页。
+ *
+ * 旧密码猜错也记限流事件（kind = 'change_fail'）：拿到会话的人不能无限次试旧密码。
+ * @param {object} options 参数。
+ * @param {number} options.userId 用户编号（来自会话）。
+ * @param {string} options.currentPassword 当前密码。
+ * @param {string} options.password 新密码。
+ * @returns {Promise<{revoked: number}>} 被撤掉的会话数。
+ */
+export async function changePassword({userId, currentPassword, password}){
+  assertAvailable();
+  if(!userId)
+    throw new AuthError('unauthenticated', '未登录');
+  const input = String(password ?? '');
+  if(input.length < PASSWORD_MIN || input.length > PASSWORD_MAX)
+    throw new AuthError('invalid_password', `新密码需 ${PASSWORD_MIN}–${PASSWORD_MAX} 个字符`);
+  const rows = await select('SELECT password_hash FROM users WHERE id = ?', [userId]);
+  const row = rows[0];
+  if(!row)
+    throw new AuthError('unauthenticated', '用户不存在');
+  if(!row.password_hash){
+    // 只用验证码登录过的账号没有密码可验：去补全页设一个，而不是在这里「改」。
+    await burnPasswordTime(String(currentPassword ?? ''));
+    throw new AuthError('password_not_set', '这个账号还没有设置过密码');
+  }
+  const now = new Date();
+  const subject = hmac(String(userId));
+  const failures = await countEvents('change_fail', subject, FAIL_WINDOW_MINUTES * 60 * 1000, now);
+  if(failures.count >= FAIL_LIMIT)
+    throw new AuthError('rate_limited', '旧密码错误次数过多', {retryAfter: failures.retryAfter});
+  if(!await verifyPassword(String(currentPassword ?? ''), row.password_hash)){
+    await recordEvent('change_fail', subject, now);
+    throw new AuthError('current_password_invalid', '当前密码不正确');
+  }
+  await execute('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [await hashPassword(input), now, userId]);
+  const revoked = await execute('DELETE FROM sessions WHERE user_id = ?', [userId]);
+  // 这次改密之后不该还背着之前那几次猜错的账。
+  await execute("DELETE FROM rate_events WHERE kind = 'change_fail' AND subject = ?", [subject])
+    .catch(error => console.error('[auth] 清空改密限流计数失败：', error.message));
+  return {revoked: revoked.affectedRows || 0};
+}
 
+// ---------------- 公开主页 ----------------
 /**
  * 公开主页要用的用户资料：**只取能公开的列**。
  *

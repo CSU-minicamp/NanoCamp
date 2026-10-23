@@ -10,7 +10,7 @@ import {randomBytes} from 'node:crypto';
 import {
   AuthError, authAvailable, requestEmailCaptcha, verifyEmailCaptcha, loginWithPassword,
   readSession, revokeSession, challengeCookieMaxAge, sessionCookieMaxAge,
-  missingFields, updateProfile
+  missingFields, updateProfile, changePassword
 } from './auth.mjs';
 import {isUnavailable, dbHealthy} from './db.mjs';
 import {mailPaused, dbConfig, authConfig} from './config.mjs';
@@ -187,7 +187,7 @@ function responseJson(status, payload, headers = {}){
 /** 认证不可用只提示一次，避免每个请求刷一行日志。 */
 let warnedUnavailable = false;
 
-const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
+const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, current_password_invalid: 400, password_not_set: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
 
 /**
  * 处理 /api/* 请求。
@@ -203,6 +203,21 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
   const cookies = parseCookies(headers.cookie);
   const host = headers.host || '';
   const available = authAvailable();
+
+  /**
+   * 读当前会话，供「必须登录」的写接口复用。
+   * 读库失败不能伪装成未登录（前端要能把「掉登录」和「服务挂了」区分开），所以返回 failure 让调用方直接发出去。
+   * @returns {Promise<{session?: object|null, failure?: object}>} 二选一。
+   */
+  async function currentSession(){
+    try{
+      return {session: await readSession(cookies[SESSION_COOKIE])};
+    }
+    catch(error){
+      console.error('[api] 读取会话失败：', error.message);
+      return {failure: responseJson(503, {error: 'unavailable'})};
+    }
+  }
   // 会话状态查询 + CSRF 令牌发放
   if(pathname === '/api/session'){
     if(method !== 'GET')
@@ -252,7 +267,7 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     return response;
   }
   // 其余带cookie请求
-  if(!['/api/auth/email-captcha', '/api/auth/verify', '/api/auth/login', '/api/auth/logout', '/api/profile'].includes(pathname))
+  if(!['/api/auth/email-captcha', '/api/auth/verify', '/api/auth/login', '/api/auth/logout', '/api/profile', '/api/profile/password'].includes(pathname))
     return responseJson(404, {error: 'not_found'});
   if(method !== 'POST')
     return responseJson(405, {error: 'method_not_allowed'}, {allow: 'POST'});
@@ -302,16 +317,11 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
         ]
       });
     }
-    // 个人资料：目前只用来补密码，以后加必填字段也是走这里。
+    // 个人资料：常规资料（昵称 / 介绍）走这里。
     if(pathname === '/api/profile'){
-      let session = null;
-      try{
-        session = await readSession(cookies[SESSION_COOKIE]);
-      }
-      catch(error){
-        console.error('[api] 读取会话失败：', error.message);
-        return responseJson(503, {error: 'unavailable'});
-      }
+      const {session, failure} = await currentSession();
+      if(failure)
+        return failure;
       if(!session)
         return responseJson(401, {error: 'unauthenticated'});
       const user = await updateProfile({
@@ -322,6 +332,26 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
         bio: payload.bio
       });
       return responseJson(200, {ok: true, user, missing: missingFields(user)});
+    }
+    // 改密码：验旧密码 → 换哈希 → 撤掉这个账号的全部会话 → 连 cookie 一起清，客户端回登录页。
+    if(pathname === '/api/profile/password'){
+      const {session, failure} = await currentSession();
+      if(failure)
+        return failure;
+      if(!session)
+        return responseJson(401, {error: 'unauthenticated'});
+      const result = await changePassword({
+        userId: session.user.id,
+        currentPassword: payload.currentPassword,
+        password: payload.password
+      });
+      return responseJson(200, {ok: true, revoked: result.revoked, redirect: '/login/'}, {
+        'set-cookie': [
+          setCookie(SESSION_COOKIE, '', {maxAge: 0, host}),
+          setCookie(CSRF_COOKIE, '', {maxAge: 0, httpOnly: false, host}),
+          uiCookie('', host, 0)
+        ]
+      });
     }
     if(pathname === '/api/auth/verify'){
       const result = await verifyEmailCaptcha({challenge: cookies[CHALLENGE_COOKIE] || '', emailCaptcha: payload.emailCaptcha, userAgent: headers['user-agent'] || ''});
