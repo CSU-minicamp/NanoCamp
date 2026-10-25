@@ -22,7 +22,7 @@ export function loginPage() {
     <form class="auth-card" action="/login/" method="post" data-auth-form novalidate>
       <div class="auth-card-head"><span class="mono">MEMBER LOGIN</span><span class="auth-card-mark" aria-hidden="true">NC / 01</span></div>
       <h1 class="auth-card-title" id="login-title">登录 NanoCamp</h1>
-      <p class="auth-card-note">用邮箱和密码登录。第一次来可以先用验证码验证一次，会自动创建账号。</p>
+      <p class="auth-card-note">用邮箱和密码登录，忘记密码可以改用验证码。</p>
 
       <div class="form-field">
         <label for="login-email">邮箱</label>
@@ -40,10 +40,11 @@ export function loginPage() {
         </div>
         <button class="button button-primary auth-submit" type="submit"><span class="button-label">登录</span><span class="button-plus" aria-hidden="true">+</span></button>
         <p class="auth-alt"><button type="button" class="auth-link" data-auth-to="request">改用邮箱验证码登录</button></p>
+        <p class="auth-claim" data-login-claim><span>第一次邮箱登录，</span><strong class="auth-claim-art">就是注册<svg viewBox="0 0 360 20" preserveAspectRatio="none" aria-hidden="true"><path d="M6 13Q160-2 352 10M27 18Q170 7 330 17"/></svg></strong></p>
       </div>
 
       <div data-auth-step="request" hidden>
-        <p class="auth-note">我们会把 6 位验证码发到上面的邮箱。登录功能开放后，验证通过即可进入账号。</p>
+        <p class="auth-note">我们会把 6 位验证码发到上面的邮箱，10 分钟内有效。</p>
         <button class="button button-primary auth-submit" type="submit"><span class="button-label">获取验证码</span><span class="button-plus" aria-hidden="true">+</span></button>
         <p class="auth-alt"><button type="button" class="auth-link" data-auth-to="password">改用密码登录</button></p>
       </div>

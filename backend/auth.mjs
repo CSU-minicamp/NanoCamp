@@ -539,6 +539,18 @@ export async function changePassword({userId,token,currentPassword,newPassword,c
   return result;
 }
 
+export async function findPublicUser(id){
+  const uid = Number(id);
+  if(!dbReady() || !Number.isSafeInteger(uid) || uid <= 0)
+    return null;
+  const rows = await select('SELECT id, nickname, bio, created_at FROM users WHERE id = ?', [uid]);
+  const row = rows[0];
+  if(!row)
+    return null;
+  return {id: Number(row.id), nickname: row.nickname || '', bio: row.bio || '', joinedAt: row.created_at};
+}
+
+
 // ---------------- 会话 ----------------
 
 /**

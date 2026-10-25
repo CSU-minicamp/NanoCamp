@@ -45,7 +45,7 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       const messages=await call(a,'/forum/messages/?tab=activity');
       assert.equal(messages.status,200);
       assert.ok(messages.text.includes('aria-label="论坛导航"'));
-      assert.ok(messages.text.includes('href="/forum/messages/"')); 
+      assert.ok(messages.text.includes('href="/forum/messages/"'));
       assert.ok(!center.text.includes('class="auth-panel"'));
       assert.equal((await call(a,'/forum/me/?tab=topics')).headers.location,'/forum/?view=topics');
       const feed=(await call(a,'/forum/')).text;
