@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { handleRequest, routeInfo } from '../backend/app.mjs';
+import './forum-check.mjs';
 import { routePaths, indexablePaths, noindexPaths, renderPage } from '../src/pages.mjs';
 import { renderIntroPage } from '../src/intro.mjs';
 import { site } from '../content/site.mjs';
@@ -27,7 +28,7 @@ const decode = value => value.replace(/&(?:amp|lt|gt|quot|#39|apos);/g, entity =
 const derived = new Set(routeInfo.derived);
 // /intro/ 是首页 iframe 嵌入的海报页：自带 noindex、没有加入区，也不在 routePaths 里，
 // 所以不参与下面的内容校验；但它必须被承认为合法的链接目标。
-const specialRoutes = new Set(['/intro/']);
+const specialRoutes = new Set(['/intro/','/forum/','/forum/me/','/forum/notifications/']);
 
 /** 取某个路由最终呈现给用户的 HTML。 */
 async function pageHtml(route) {

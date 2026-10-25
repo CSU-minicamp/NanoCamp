@@ -90,7 +90,8 @@ test('remounted navigation keeps cooperation and search available without a More
   api.mount();
   const links = document.querySelector('[data-nav="desktop"]').children;
   assert.equal(document.querySelector('.nav-more'), null);
-  assert.equal(links[5].getAttribute('href'), '/partners/');
-  assert.equal(links[6].getAttribute('href'), '/search/');
-  assert.equal(links[6].getAttribute('data-search-shortcut'), '');
+  assert.equal(links[5].getAttribute('href'), '/forum/');
+  assert.equal(links[6].getAttribute('href'), '/partners/');
+  assert.equal(links[7].getAttribute('href'), '/search/');
+  assert.equal(links[7].getAttribute('data-search-shortcut'), '');
 });

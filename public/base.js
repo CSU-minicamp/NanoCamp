@@ -21,6 +21,7 @@
     Object.freeze({ key: 'projects', href: '/projects/', label: '作品', compact: true, footer: true, footerLabel: '社区作品' }),
     Object.freeze({ key: 'resources', href: '/resources/', label: '资源', compact: false, footer: true, footerLabel: '共创资源', footerOnly: true }),
     Object.freeze({ key: 'community', href: '/community/', label: '社区', compact: true, footer: true, footerLabel: '参与指南' }),
+    Object.freeze({ key: 'forum', href: '/forum/', label: '论坛', compact: true, footer: false }),
     Object.freeze({ key: 'partners', href: '/partners/', label: '合作', compact: true, footer: true, footerLabel: '交流合作' }),
     Object.freeze({ key: 'about', href: '/about/', label: '关于', compact: false, footer: true, footerLabel: '关于我们', footerOnly: true }),
     Object.freeze({ key: 'search', href: '/search/', label: '站内搜索', compact: true, footer: true, footerLabel: '站内搜索', search: true }),
@@ -284,4 +285,35 @@
 
   window.NanoCampBase = api;
   navMount();
+  const account = doc.querySelector('[data-header-account]');
+  if (account) {
+    let refreshing = false;
+    const refreshAccount = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const response = await fetch('/api/session', {credentials: 'same-origin', cache: 'no-store'});
+        if (!response.ok) throw new Error(`Session request failed: ${response.status}`);
+        const session = await response.json();
+        const name = session.user?.nickname?.trim() || '个人中心';
+        const avatarImage=account.querySelector('.account-avatar-image');
+        const avatarSource=session.user?.avatarUrl||'/images/default-account-avatar.png';
+        if(avatarImage&&avatarImage.getAttribute('src')!==avatarSource)avatarImage.src=avatarSource;
+        account.href = session.user ? '/forum/me/?tab=profile' : '/login/?next=%2Fforum%2Fme%2F%3Ftab%3Dprofile';
+        account.querySelector('[data-account-label]').textContent = session.user ? name : '登录';
+        account.setAttribute('aria-label', session.user ? `已登录：${name}，进入个人中心` : '登录');
+        account.title = session.user ? `已登录：${name} · 个人中心` : '登录';
+        account.classList.toggle('is-signed-in', Boolean(session.user));
+        window.dispatchEvent(new CustomEvent('nanocamp-session', {detail: {signedIn: Boolean(session.user)}}));
+      } catch (error) {
+        console.warn('[header-account] 无法更新登录状态：', error.message);
+        account.href = '/forum/me/?tab=profile';
+        account.querySelector('[data-account-label]').textContent = '个人中心';
+        account.setAttribute('aria-label', '进入个人中心');
+      } finally { refreshing = false; }
+    };
+    refreshAccount();
+    window.addEventListener('pageshow', refreshAccount);
+    doc.addEventListener('visibilitychange', () => { if (!doc.hidden) refreshAccount(); });
+  }
 })();

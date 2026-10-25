@@ -3,6 +3,8 @@ import { metadata } from './metadata.mjs';
 import { galleryDialog } from './recap.mjs';
 
 export const esc = (value = '') => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+export const defaultAccountAvatar = () => '<img class="account-avatar-image" src="/images/default-account-avatar.png" alt="" width="256" height="256" decoding="async">';
+export const accountAvatar = id => Number.isSafeInteger(Number(id))&&Number(id)>0?`<img class="account-avatar-image" src="/api/users/${Number(id)}/avatar" alt="" width="256" height="256" decoding="async">`:defaultAccountAvatar();
 export function safeUrl(value, local = false) {
   if (typeof value !== 'string' || !value.trim()) return null;
   if (local && /^\/(?!\/)/.test(value) && !/[\\\r\n]/.test(value)) return value;
@@ -36,7 +38,7 @@ export function logoMark(kind = 'wordmark', classes = '', lazy = false) {
 export const arrowIcon = (external = false) => `<svg class="link-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="${external ? 'M5 15 15 5M5 5h10v10' : 'M3 10h13m-5-5 5 5-5 5'}"/></svg>`;
 // The external SVG sprite is shared with base.js; no duplicated icon drawings.
 export function uiIcon(kind, classes = '') {
-  const name = ['home','minicamp','activities','projects','community','partners','search','join','chat','calendar'].includes(kind) ? kind : 'home';
+  const name = ['home','minicamp','activities','projects','community','forum','partners','search','join','chat','calendar'].includes(kind) ? kind : 'home';
   return `<svg class="ui-icon ${classes}" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="/images/interface-icons.svg#icon-${name}"></use></svg>`;
 }
 export const joinButton = (label = '加入社区', classes = '') => `<button type="button" class="button button-primary ${classes}" data-join>${uiIcon('join', 'button-community-icon')}<span class="button-label">${label}</span><span class="button-plus" aria-hidden="true">+</span></button><a class="button button-primary join-fallback ${classes}" href="/faq/#join-channel">${uiIcon('join', 'button-community-icon')}${label}<span aria-hidden="true">↗</span></a>`;
@@ -50,7 +52,7 @@ export function header(active) {
     <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">${desktopNavigation(active)}</nav>
     <div class="header-actions">${active === 'community' ? `<a class="button button-primary button-small" href="#contact">${uiIcon('chat', 'button-community-icon')}联系我们</a>` : joinButton(site.join.qrCode || site.join.contact ? '加入社区' : '加入方式', 'button-small')}<button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="打开导航菜单"><span></span><span></span></button></div>
     <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>${mobileNavigation(active)}</nav>
-  </div></header>`;
+  </div><a class="header-account" href="/login/?next=%2Fforum%2Fme%2F%3Ftab%3Dprofile" data-header-account aria-label="登录"><span class="header-account-avatar" aria-hidden="true">${defaultAccountAvatar()}<span data-unread-count hidden></span></span><span data-account-label>登录</span></a><script defer src="/forum-nav.js"></script></header>`;
 }
 
 // 站内导航的数据源是 public/base.js：客户端由它统一渲染，
@@ -62,6 +64,7 @@ const navLinks = [
   { key: 'activities', href: '/activities/', label: '活动' },
   { key: 'projects', href: '/projects/', label: '作品' },
   { key: 'community', href: '/community/', label: '社区' },
+  { key: 'forum', href: '/forum/', label: '论坛' },
   { key: 'partners', href: '/partners/', label: '合作' },
   { key: 'search', href: '/search/', label: '站内搜索', search: true }
 ];

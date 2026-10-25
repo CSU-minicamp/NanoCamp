@@ -59,6 +59,23 @@ function getPool(){
   return pool;
 }
 
+/** All operations inside the callback share one connection and one transaction. */
+export async function transaction(work){
+  for(let attempt=0; ;attempt++){
+    const connection = await getPool().getConnection();
+    try {
+      await connection.beginTransaction();
+      const result = await work(connection);
+      await connection.commit();
+      return result;
+    } catch(error) {
+      await connection.rollback();
+      if(attempt>=2||!['ER_LOCK_DEADLOCK','ER_LOCK_WAIT_TIMEOUT'].includes(error.code))throw error;
+      console.warn('[db:transaction] retry',error.code,'attempt',attempt+1);
+    } finally { connection.release(); }
+  }
+}
+
 /**
  * 探活：连一次库执行 SELECT 1，并带回版本与耗时。
  *

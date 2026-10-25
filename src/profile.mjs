@@ -1,7 +1,7 @@
 // 个人资料：**一个模板 + 一个页面壳**。
 //
-// 为什么不拆成「注册补全页」「资料编辑页」「设置页」三套：它们要填的是同一批字段、
-// 共用一个接口（POST /api/profile）、共用一套校验。拆开只会让字段表变成三份、改一个就要改三处。
+// 本模块保留首次注册补全；日常公开资料与账号安全由 account.mjs 分别呈现。
+// POST /api/profile 只允许首次设置密码，已有密码必须走独立验证接口。
 //
 // 所以：
 //   profileCard({missing}) —— 模板，只管渲染表单；**哪些字段必填由 missing 决定**（服务端算好传进来）。
@@ -23,17 +23,17 @@ import {eyeButton} from './auth.mjs';
  * @param {string[]} [options.missing] 还缺哪些必填项（'password' 等）。
  * @returns {string} 表单 HTML。
  */
-export function profileCard({missing = [], user = {}} = {}){
+export function profileCard({missing = [], user = {}, inline = false} = {}){
   const needPassword = missing.includes('password');
   const needNickname = missing.includes('nickname');
-  return `<form class="auth-card" action="/profile/force/" method="post" data-profile-form novalidate>
-      <div class="auth-card-head"><span class="mono">MEMBER PROFILE</span><span class="auth-card-mark" aria-hidden="true">NC / 02</span></div>
-      <h1 class="auth-card-title" id="profile-title">${needPassword || needNickname? '完善你的资料': '个人资料'}</h1>
+  return `<form class="${inline?'f-account-form':'auth-card'}" action="${inline?'/forum/me/?tab=profile':'/profile/force/'}" method="post" data-profile-form ${inline?'data-profile-inline':''} novalidate>
+      ${inline?'':'<div class="auth-card-head"><span class="mono">MEMBER PROFILE</span><span class="auth-card-mark" aria-hidden="true">NC / 02</span></div>'}
+      <h1 class="auth-card-title" id="profile-title">${inline?'我的资料':needPassword || needNickname? '完善你的资料': '个人资料'}</h1>
       <p class="auth-card-note" data-profile-note>${needPassword || needNickname? '第一次登录要把必填项填完，之后可以随时回来修改。': '改完保存即可，密码留空表示不改。'}</p>
 
       <div class="form-field">
         <label for="profile-email">邮箱</label>
-        <p class="auth-readonly" id="profile-email" data-profile-email>—</p>
+        <p class="auth-readonly" id="profile-email" data-profile-email>${esc(user.email||'—')}</p>
       </div>
 
       <div class="form-field" data-profile-nickname>
@@ -45,7 +45,7 @@ export function profileCard({missing = [], user = {}} = {}){
         <input id="profile-nickname" maxlength="24" placeholder="怎么称呼你" autocomplete="nickname" value="${esc(user.nickname || '新伙伴')}">
       </div>
 
-      <div class="form-field" data-profile-password>
+      ${needPassword?`<div class="form-field" data-profile-password>
         <div class="auth-label-row">
           <label for="profile-password" data-profile-password-label>${needPassword? '设置密码': '修改密码'}</label>
           <span class="auth-required" data-profile-password-required${needPassword? '': ' hidden'}>必填</span>
@@ -56,17 +56,17 @@ export function profileCard({missing = [], user = {}} = {}){
           ${eyeButton('profile-password')}
         </div>
         <span class="field-note" id="profile-password-hint">至少 8 位。设置后邮箱 + 密码、邮箱验证码两种方式都能登录。</span>
-      </div>
+      </div>`:''}
 
       <div class="form-field" data-profile-bio>
         <div class="auth-label-row">
           <label for="profile-bio">一句话介绍</label>
           <span class="auth-optional">可选</span>
         </div>
-        <input id="profile-bio" maxlength="160" placeholder="你在做什么" autocomplete="off">
+        <input id="profile-bio" maxlength="160" placeholder="你在做什么" autocomplete="off" value="${esc(user.bio||'')}">
       </div>
 
-      <button class="button button-primary auth-submit" type="submit"><span class="button-label">保存并继续</span><span class="button-plus" aria-hidden="true">+</span></button>
+      <button class="${inline?'f-primary':'button button-primary'} auth-submit" type="submit"><span class="button-label">${inline?'保存资料':'保存并继续'}</span>${inline?'':'<span class="button-plus" aria-hidden="true">+</span>'}</button>
       <p class="auth-status" role="status" aria-live="polite" data-auth-status></p>
       <noscript><p class="auth-status" data-tone="error">保存资料需要浏览器启用 JavaScript。</p></noscript>
       <p class="auth-alt"><button type="button" class="auth-link" data-profile-logout>退出登录</button></p>
@@ -109,6 +109,7 @@ export function profileView(user){
       <div class="auth-card-head"><span class="mono">MEMBER PROFILE</span><span class="auth-card-mark" aria-hidden="true">NC / 03</span></div>
       <h1 class="auth-card-title" id="profile-title">我的资料</h1>
       <p class="auth-card-note">这一页只显示你自己的信息，别人看不到。</p>
+      <p><a class="text-link" href="/forum/me/">我的论坛参与 →</a></p>
       <dl class="profile-list">
         <div class="profile-row"><dt>邮箱</dt><dd>${esc(user.email)}</dd></div>
         <div class="profile-row"><dt>昵称</dt><dd>${user.nickname? esc(user.nickname): '<span class="profile-empty">未填写</span>'}</dd></div>

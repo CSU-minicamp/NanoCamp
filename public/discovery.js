@@ -73,6 +73,96 @@
     });
     link.replaceWith(form);
   });
+  document.querySelectorAll('.f-feed-search').forEach(form=>{
+    const input = form.querySelector('input[name="q"]');
+    input.autocomplete = 'off';
+    input.placeholder = '论坛内搜索';
+    input.maxLength = 100;
+    input.setAttribute('aria-label','论坛内搜索');
+    input.value = new URLSearchParams(location.search).get('q') || '';
+    input.setAttribute('role','combobox');
+    input.setAttribute('aria-autocomplete','list');
+    input.setAttribute('aria-expanded','false');
+    const results = document.createElement('div');
+    results.className = 'f-search-suggestions';
+    results.id = 'forum-search-suggestions';
+    results.setAttribute('role','listbox');
+    results.setAttribute('aria-label','匹配的帖子');
+    results.hidden = true;
+    input.setAttribute('aria-controls',results.id);
+    const status = document.createElement('span');
+    status.className = 'sr-only';
+    status.setAttribute('role','status');
+    form.append(results,status);
+    let timer, controller, revision = 0, selected = -1, composing = false;
+    function close() {
+      revision++; clearTimeout(timer); controller?.abort();
+      results.hidden = true; selected = -1;
+      input.setAttribute('aria-expanded','false'); input.removeAttribute('aria-activedescendant');
+    }
+    function schedule() {
+      close();
+      if (composing || !input.value.trim()) return;
+      const current = revision, query = input.value.trim();
+      timer = setTimeout(async()=>{
+        controller = new AbortController();
+        try {
+          const response = await fetch('/api/forum/topics?q=' + encodeURIComponent(query), {signal:controller.signal,cache:'no-store'});
+          if (!response.ok) throw Error('搜索暂不可用');
+          const data = await response.json();
+          if (current !== revision || document.activeElement !== input) return;
+          results.replaceChildren(); selected = -1;
+          const items = data.items.slice(0,10);
+          items.forEach((topic,index)=>{
+            const option = document.createElement('a');
+            option.href = '/forum/topics/' + topic.id + '/';
+            option.id = results.id + '-' + index;
+            option.setAttribute('role','option'); option.setAttribute('aria-selected','false');
+            const title = document.createElement('span');
+            const text = String(topic.title), lower = text.toLocaleLowerCase(), needle = query.toLocaleLowerCase();
+            let start = 0, at;
+            while ((at = lower.indexOf(needle,start)) !== -1) {
+              title.append(document.createTextNode(text.slice(start,at)));
+              const match = document.createElement('mark'); match.textContent = text.slice(at,at+query.length); title.append(match);
+              start = at + query.length;
+            }
+            title.append(document.createTextNode(text.slice(start)));
+            option.append(title); option.title = text; results.append(option);
+          });
+          if (!items.length) {
+            const empty = document.createElement('p'); empty.textContent = '没有匹配的帖子'; results.append(empty);
+          }
+          status.textContent = items.length ? items.length + ' 条匹配的帖子' : '没有匹配的帖子';
+          results.hidden = false; input.setAttribute('aria-expanded','true');
+        } catch (error) {
+          if (error.name === 'AbortError' || current !== revision) return;
+          console.warn('[forum:search]',error.message);
+          status.textContent = '搜索暂不可用，请按回车重试';
+        }
+      },200);
+    }
+    input.addEventListener('input',schedule);
+    input.addEventListener('compositionstart',()=>{composing=true;close();});
+    input.addEventListener('compositionend',()=>{composing=false;schedule();});
+    input.addEventListener('focus',schedule);
+    input.addEventListener('keydown',event=>{
+      if (event.isComposing || composing) return;
+      if (event.key === 'Escape') { event.preventDefault(); close(); return; }
+      const options = [...results.querySelectorAll('[role="option"]')];
+      if (results.hidden || !options.length) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        selected = selected < 0 ? (event.key === 'ArrowDown' ? 0 : options.length - 1) : (selected + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+        options.forEach((option,index)=>option.setAttribute('aria-selected',String(index===selected)));
+        input.setAttribute('aria-activedescendant',options[selected].id);
+        options[selected].scrollIntoView({block:'nearest'});
+      } else if (event.key === 'Enter' && selected >= 0) {
+        event.preventDefault(); location.assign(options[selected].href);
+      }
+    });
+    document.addEventListener('pointerdown',event=>{if(!form.contains(event.target))close();});
+    form.addEventListener('focusout',event=>{if(!form.contains(event.relatedTarget))close();});
+  });
   document.querySelectorAll('[data-search-shortcut]').forEach(link=>{
     link.title = '站内搜索 · Ctrl / ⌘ K';
     link.setAttribute('aria-keyshortcuts','Control+k Meta+k');

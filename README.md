@@ -6,11 +6,12 @@
 
 ## 本地预览
 
-需要 Node.js 20 或更新版本，无需安装依赖。
+需要 Node.js 20 或更新版本，先安装运行依赖。
 
 ```sh
 git clone https://github.com/CSU-minicamp/NanoCamp.git
 cd NanoCamp
+npm ci
 npm run dev
 ```
 
@@ -18,7 +19,7 @@ npm run dev
 
 ## 协作开发与发布
 
-本次交接包含官网第 18 版的源码、原始 Logo、字体及授权文件和测试，来源提交为 `427b06374cc3f47b8067662bfbb2f3489025e458`。网站采用原生 HTML、CSS 与 JavaScript；页面由 Node.js 在后端渲染，不依赖任何第三方包。
+本次交接包含官网第 18 版的源码、原始 Logo、字体及授权文件和测试，来源提交为 `427b06374cc3f47b8067662bfbb2f3489025e458`。网站采用原生 HTML、CSS 与 JavaScript；页面由 Node.js 在后端渲染，运行依赖见下方部署说明。
 
 | 命令 | 用途 |
 | --- | --- |
@@ -33,7 +34,17 @@ npm run dev
 
 ## 部署
 
-站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。只需要能运行 Node.js 20 的环境，**没有构建步骤**。唯一的运行时依赖是 `mysql2`（纯 JS，不需要编译），只用来连数据库：不启用账号功能时即使不装它，公开页面也照常服务。
+站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。需要 Node.js 20，**没有构建步骤**。运行依赖包括数据库驱动 `mysql2`，论坛渲染的 `markdown-it`、`sanitize-html`，以及头像解码与归一化的 `sharp`，启动前请执行 `npm ci`。
+
+头像功能需执行 `npm run avatar:migrate`。上传、读取、恢复默认及存储适配器约定见 [头像接口与迁移说明](docs/avatar-api.md)。当前文件内容保存在 MySQL，元数据独立，公开头像 URL 不绑定存储供应商。
+
+论坛入口为 `/forum/`，支持发帖、回复、关注、赞踩、收藏、消息与举报。论坛左侧“消息”进入 `/forum/messages/`，直接展示一对一私信，互动及系统通知保留原有路由，收发、屏蔽、举报与运营流程见 [私信运行说明](docs/private-messages.md)。上线前还需执行 `npm run forum:migrate`，初始化与命令行举报处理见 [论坛运行说明](docs/forum-operations.md)。
+
+帖子正文支持上传、粘贴和拖入 JPG/PNG/WebP 图片，单张 5MB、每帖最多 9 张。图片暂存在 MySQL，使用独立存储适配器及固定站内 URL，便于迁移对象存储。升级时再次执行 `npm run forum:migrate` 建立图片表；接口、可见性、过期草稿清理和迁移约定见 [帖子图片说明](docs/forum-images.md)。
+
+帖子与评论发布后不可修改，作者可以撤回自己的内容；撤回主帖保留已有回复与上下文，评论作者仍可继续撤回自己的评论。旧编辑页面返回 404，修改内容的 PATCH 请求返回 405。发布前仍可编辑草稿、预览。
+
+本地论坛端到端测试见 [QA 测试计划与用例](docs/forum-qa-plan.md)。在指定的本地隔离数据库上运行 `npm run forum:e2e:prepare`，会准备六类账号、测试内容及填好具体数据的 `data/forum-e2e-guide.md`；运行 `npm run forum:e2e:verify` 检查 HTTP 登录和环境就绪状态。账号密码和测试批次保存在被忽略的 `data/` 中。
 
 > 后端自身的结构、请求流程、每个 API 的入参与错误码、数据表与设计取舍，都在 **[`backend/README.md`](backend/README.md)**。
 
@@ -85,12 +96,12 @@ npm start
 服务端会把人送到 `/profile/force/`，填完再回到原目标 —— 这就是「不填完不能继续」。
 必填项定义在 `backend/auth.mjs` 的 `PROFILE_FIELDS`，加一项只改这个数组；「一句话介绍」是可选字段，不在此列。
 
-**查看资料**：`/profile/` 显示邮箱、昵称与一句话介绍。它按会话渲染，
+**查看资料**：右上角头像进入 `/forum/me/?tab=profile`，侧栏“我的资料”在 `/forum/me/?tab=profile` 内编辑公开昵称与简介；登录邮箱、密码及退出入口位于“账号安全” `/forum/me/?tab=security`。改密需验证当前密码并确认新密码，成功后所有会话失效，须重新登录。`/profile/` 兼容地址跳转到内嵌资料区，详见 [账号设置说明](docs/account-settings.md)。个人中心按会话渲染，
 所以**不进页面缓存**（`Cache-Control: no-store`，无 ETag）。未登录时 **303 跳 `/login/?next=/profile/`**
 （不先给一张 401 页面），登录后自动回到这里；缺必填项则 303 去 `/profile/force/`。
 
 ```sh
-# 1) 装依赖（mysql2 是唯一的运行时依赖）
+# 1) 装运行依赖
 npm install --omit=dev
 
 # 2) 生成密钥填进 data/config.json 的 auth.secret

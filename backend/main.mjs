@@ -27,6 +27,8 @@ import {assetRoot} from './base.mjs';
 import {handleRequest, routeInfo} from './app.mjs';
 import {authConfig, configPath, serverSettings, SERVER_DEFAULTS} from './config.mjs';
 import {site} from '../content/site.mjs';
+import {AVATAR_MAX_BYTES} from './avatar.mjs';
+import {FORUM_IMAGE_MAX_BYTES} from './forum-images.mjs';
 
 /** 优雅退出的兜底时限：超过这个时间还有连接没释放就强制退出。 */
 const SHUTDOWN_GRACE_MS = 5000;
@@ -119,7 +121,9 @@ const server = http.createServer(async (req, res) => {
   let closeAfter = false;
   try{
     // 页面只有 GET/HEAD，请求体留空；POST 才会去读流。
-    const body = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' ? await readBody(req): null;
+    const bodyPath=new URL(req.url,'http://localhost').pathname;
+    const bodyLimit=bodyPath==='/api/profile/avatar'?AVATAR_MAX_BYTES:bodyPath==='/api/forum/images'?FORUM_IMAGE_MAX_BYTES:64*1024;
+    const body = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' ? await readBody(req,bodyLimit): null;
     response = await handleRequest({method: req.method, url: req.url, headers: req.headers, body, ip: clientIp(req)});
   }
   catch(error){

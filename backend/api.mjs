@@ -10,7 +10,7 @@ import {randomBytes} from 'node:crypto';
 import {
   AuthError, authAvailable, requestEmailCaptcha, verifyEmailCaptcha, loginWithPassword,
   readSession, revokeSession, challengeCookieMaxAge, sessionCookieMaxAge,
-  missingFields, updateProfile
+  missingFields, updateProfile, changePassword
 } from './auth.mjs';
 import {isUnavailable, dbHealthy} from './db.mjs';
 import {mailPaused, dbConfig, authConfig} from './config.mjs';
@@ -114,7 +114,7 @@ function landing(user, next){
  * @param {object} headers 请求头。
  * @returns {boolean} 是否同源。
  */
-function sameOrigin(headers){
+export function sameOrigin(headers){
   const source = headers.origin || headers.referer;
   if(!source)
     return false;
@@ -170,6 +170,7 @@ function responseJson(status, payload, headers = {}){
 let warnedUnavailable = false;
 
 const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
+Object.assign(errorStatus,{password_change_required:403,current_password_invalid:403,password_mismatch:400,password_unchanged:400});
 
 /**
  * 处理 /api/* 请求。
@@ -224,7 +225,7 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     return response;
   }
   // 其余带cookie请求
-  if(!['/api/auth/email-captcha', '/api/auth/verify', '/api/auth/login', '/api/auth/logout', '/api/profile'].includes(pathname))
+  if(!['/api/auth/email-captcha', '/api/auth/verify', '/api/auth/login', '/api/auth/logout', '/api/profile', '/api/profile/password'].includes(pathname))
     return responseJson(404, {error: 'not_found'});
   if(method !== 'POST')
     return responseJson(405, {error: 'method_not_allowed'}, {allow: 'POST'});
@@ -270,7 +271,16 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
         'set-cookie': [setCookie(SESSION_COOKIE, result.token, {maxAge: sessionCookieMaxAge(), host})]
       });
     }
-    // 个人资料：目前只用来补密码，以后加必填字段也是走这里。
+    // 公开资料与首次密码初始化；已有密码的修改走独立的再次验证接口。
+    if(pathname === '/api/profile/password'){
+      const session=await readSession(cookies[SESSION_COOKIE]);
+      if(!session)return responseJson(401,{error:'unauthenticated'});
+      await changePassword({userId:session.user.id,token:cookies[SESSION_COOKIE],currentPassword:payload.currentPassword,newPassword:payload.newPassword,confirmPassword:payload.confirmPassword});
+      return responseJson(200,{ok:true,reauthenticate:true},{'set-cookie':[
+        setCookie(SESSION_COOKIE,'',{maxAge:0,host}),
+        setCookie(CSRF_COOKIE,'',{maxAge:0,httpOnly:false,host})
+      ]});
+    }
     if(pathname === '/api/profile'){
       let session = null;
       try{

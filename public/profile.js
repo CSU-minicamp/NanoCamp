@@ -1,6 +1,6 @@
 // 个人资料相关的两件事，共用一份脚本：
-//   /profile/force/ —— 补全/编辑表单（页面上有 [data-profile-form]）
-//   /profile/       —— 只读查看 + 退出登录（没有表单，只有 [data-profile-logout]）
+//   /profile/force/ —— 首次补全表单
+//   /forum/me/?tab=profile —— 个人中心内嵌资料编辑与退出登录
 //
 // 表单部分在没有表单的页面直接跳过；退出登录两个页面都能用。
 (() => {
@@ -96,7 +96,7 @@
   const reveal = form.querySelector('[data-auth-reveal]');
 
   // 必填与否由服务端渲染好了（见 src/profile.mjs），客户端只读结果，不再自己判断。
-  const needsPassword = !passwordRequired.hidden;
+  const needsPassword = Boolean(passwordRequired&&!passwordRequired.hidden);
   const needsNickname = !nicknameRequired.hidden;
 
   // 没登录就直接送去登录页，登录完回到这里。
@@ -142,7 +142,7 @@
       return;
     }
 
-    const password = passwordInput.value || '';
+    const password = passwordInput?.value || '';
     if (needsPassword && password.length < 8) {
       setStatus('先设置一个至少 8 位的密码。', 'error');
       passwordInput.focus();
@@ -169,6 +169,14 @@
       });
       const payload = await response.json().catch(() => null);
       if (response.status === 200 && payload?.ok) {
+        if (form.hasAttribute('data-profile-inline')) {
+          setStatus('资料已保存。');
+          if(passwordInput)passwordInput.value = '';
+          const sidebarName = document.querySelector('.f-self strong');
+          if (sidebarName) sidebarName.textContent = nickname;
+          window.dispatchEvent(new Event('pageshow'));
+          return;
+        }
         setStatus('已保存，正在继续…');
         location.assign(next || '/');
         return;

@@ -364,3 +364,21 @@ body[data-page] .site-header .desktop-nav .nav-search-form{width:120px;max-width
 }
 @media(min-width:641px) and (max-width:860px){body[data-page] .site-header .mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){body[data-page] .site-header .nav-symbol{transition:none;transform:none!important}}
+.header-account{position:absolute;right:20px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:7px;min-height:40px;min-width:0;color:var(--ink);text-decoration:none;font:600 12px/1.5 var(--font);white-space:nowrap}
+.header-account [data-account-label]{max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.header-account-avatar{display:grid;place-items:center;width:30px;height:30px;border:1px solid #dbd6ec;border-radius:50%;background:#f0edf8;flex-shrink:0}
+.header-account-avatar .brand-asset{width:19px!important;height:19px;display:block}
+.header-account-avatar>.account-avatar-image,.f-avatar>.account-avatar-image{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.header-account.is-signed-in .header-account-avatar{border-color:#acd6c2;background:#e2f3e9}
+.header-account:hover{color:#5164d7}
+@media(max-width:1100px){.header-account [data-account-label]{max-width:64px}}
+@media(max-width:700px){.header-account{gap:4px;font-size:11px}.header-account-avatar{width:27px;height:27px}.header-account [data-account-label]{max-width:44px}}
+@media(max-width:700px){body[data-page] .site-header .brand-asset{width:110px}body[data-page] .site-header .header-inner{padding-inline:10px;gap:6px}body[data-page] .site-header .header-actions{gap:5px}body[data-page] .site-header .header-actions .button{padding-inline:9px;font-size:10px}.header-account-avatar .brand-asset{width:19px!important}}
+@media(min-width:861px){body[data-page] .site-header .header-inner{max-width:calc(100% - 270px)}}
+@media(max-width:1100px){.header-account [data-account-label]{display:none}.header-account{right:14px}body[data-page] .site-header .header-inner{max-width:calc(100% - 100px)}}
+@media(max-width:860px){body[data-page] .site-header .header-inner{width:calc(100% - 106px);max-width:none;margin-left:12px;margin-right:94px}.header-account{right:14px}.header-account-avatar{width:30px;height:30px}}
+.header-account-avatar{position:relative}
+.header-account [data-unread-count]{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;background:#d74f67;color:white;border-radius:20px;text-align:center;font:11px/17px var(--font)}
+@media(max-width:1050px) and (min-width:861px){body[data-page] .site-header .desktop-nav{display:none}body[data-page] .site-header .menu-toggle{display:flex}}
+@media(max-width:860px){body[data-page] .site-header .header-inner{width:calc(100% - 64px);max-width:none;margin-right:52px}body[data-page] .site-header .header-inner>.brand .brand-asset{width:95px}}
+@media(max-width:380px){body[data-page] .site-header .header-inner>.brand .brand-asset{width:80px}body[data-page] .site-header .button-community-icon{display:none}}

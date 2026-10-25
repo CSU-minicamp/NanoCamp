@@ -1,0 +1,10 @@
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const files=['backend/forum.mjs','backend/forum-api.mjs','backend/forum-pages.mjs','backend/forum-schema.mjs','backend/forum-markdown.mjs','src/forum.mjs','public/forum.js','public/forum-nav.js','scripts/forum-migrate.mjs','scripts/forum-moderate.mjs'];
+files.push('scripts/forum-e2e-prepare.mjs','scripts/forum-e2e-verify.mjs');
+files.push('src/account.mjs','public/account.js');
+files.push('backend/avatar.mjs','backend/avatar-api.mjs','backend/avatar-storage.mjs','scripts/avatar-migrate.mjs');
+files.push('backend/forum-images.mjs','backend/forum-image-storage.mjs','scripts/forum-image-cleanup.mjs');
+files.push('backend/dm.mjs','backend/dm-api.mjs','backend/dm-schema.mjs','src/messages.mjs','public/messages.js');
+for(const file of files)execFileSync(process.execPath,['--check',fileURLToPath(new URL('../'+file,import.meta.url))],{stdio:'inherit'});
+console.log('PASS: forum modules syntax');

@@ -9,7 +9,7 @@ import {createHash, createHmac, randomBytes, scrypt, timingSafeEqual} from 'node
 import {promisify} from 'node:util';
 
 import {authConfig, mailPaused} from './config.mjs';
-import {dbReady, select, execute} from './db.mjs';
+import {dbReady, select, execute, transaction} from './db.mjs';
 import {createEmailCaptcha, sendLoginCode} from './mail.mjs';
 
 /** 挑战 cookie 与验证码有效期一致（分钟）之外的兜底：cookie 本身多留 5 分钟。 */
@@ -71,7 +71,8 @@ const toUser = row => ({
   email: row.email,
   nickname: row.nickname || '',
   bio: row.bio || '',
-  hasPassword: Boolean(row.has_password)
+  hasPassword: Boolean(row.has_password),
+  avatarUrl: `/api/users/${row.id}/avatar`
 });
 
 /** 验证码的存储形态：HMAC(challenge:code)，同一串码在不同挑战里哈希也不同。 */
@@ -359,7 +360,7 @@ export async function loginWithPassword({email, password, userAgent = ''}){
     return reject();
   // 不动 users.updated_at：那是「资料更新」时间，登录不等于改资料；活动时间由 sessions.last_seen_at 记。
   const user = toUser({...row, has_password: true});
-  const {token, expiresAt} = await issueSession({user, now, userAgent});
+  const {token, expiresAt} = await issueSession({user, now, userAgent,passwordHash:row.password_hash});
   // 密码对了 ⇒ 是本人：清掉之前那些「猜错」的旧账。
   await clearRateEvents(normalized);
   return {user, token, expiresAt};
@@ -407,13 +408,18 @@ async function ensureUser(email, now){
  * @param {string} [options.userAgent] UA 原文。
  * @returns {Promise<{token: string, expiresAt: Date}>} 令牌与绝对到期时间。
  */
-async function issueSession({user, now, userAgent = ''}){
+async function issueSession({user, now, userAgent = '',passwordHash}){
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(now.getTime() + authConfig().sessionDays * 24 * 60 * 60 * 1000);
-  await execute(
+  await transaction(async c=>{
+    const [[current]]=await c.execute('SELECT password_hash FROM users WHERE id=? FOR UPDATE',[user.id]);
+    if(!current||passwordHash!==undefined&&current.password_hash!==passwordHash)
+      throw new AuthError('credentials_invalid','凭据在登录期间已改变');
+    await c.execute(
     'INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at, ua_hash) VALUES (?, ?, ?, ?, ?, ?)',
     [hashToken(token), user.id, now, now, expiresAt, userAgent ? sha256(userAgent): '']
-  );
+    );
+  });
   return {token, expiresAt};
 }
 
@@ -497,8 +503,40 @@ export async function updateProfile({userId, password, nickname, bio, current = 
   sets.push('updated_at = ?');
   params.push(new Date());
   params.push(userId);
-  await execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
+  // This endpoint may initialize a password, never replace an existing one.
+  const saved=await execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?${password!==undefined?' AND password_hash IS NULL':''}`, params);
+  if(password!==undefined&&!saved.affectedRows)
+    throw new AuthError('password_change_required','已有密码必须通过安全验证修改');
   return {...current, id: userId, ...changed};
+}
+
+/** Verify current credentials and atomically revoke every existing session. */
+export async function changePassword({userId,token,currentPassword,newPassword,confirmPassword}){
+  assertAvailable();
+  if(typeof newPassword!=='string'||newPassword.length<PASSWORD_MIN||newPassword.length>PASSWORD_MAX)
+    throw new AuthError('invalid_password','新密码长度不合法');
+  if(newPassword!==confirmPassword)throw new AuthError('password_mismatch','两次新密码不一致');
+  if(newPassword===currentPassword)throw new AuthError('password_unchanged','新密码不能与当前密码相同');
+  const subject=hmac(`password-change:${userId}`);
+  const result=await transaction(async c=>{
+    const [[user]]=await c.execute('SELECT password_hash FROM users WHERE id=? FOR UPDATE',[userId]);
+    const [[session]]=await c.execute('SELECT user_id FROM sessions WHERE token_hash=? AND user_id=? AND expires_at>?',[hashToken(token),userId,new Date()]);
+    if(!user||!session)return {error:'unauthenticated'};
+    const [[attempts]]=await c.execute("SELECT COUNT(*) AS n FROM rate_events WHERE kind='password_change' AND subject=? AND at>?",[subject,new Date(Date.now()-15*60*1000)]);
+    if(attempts.n>=5)return {error:'rate_limited'};
+    if(typeof currentPassword!=='string'||currentPassword.length>72||!await verifyPassword(currentPassword,user.password_hash)){
+      await c.execute("INSERT INTO rate_events(kind,subject,at) VALUES ('password_change',?,?)",[subject,new Date()]);
+      return {error:'current_password_invalid'};
+    }
+    const hash=await hashPassword(newPassword);
+    await c.execute('UPDATE users SET password_hash=?,updated_at=? WHERE id=?',[hash,new Date(),userId]);
+    await c.execute('DELETE FROM sessions WHERE user_id=?',[userId]);
+    await c.execute("DELETE FROM rate_events WHERE kind='password_change' AND subject=?",[subject]);
+    return {ok:true};
+  });
+  // Failed checks must commit their rate counter rather than roll it back.
+  if(result.error)throw new AuthError(result.error,'修改密码验证失败',result.error==='rate_limited'?{retryAfter:900}:{});
+  return result;
 }
 
 // ---------------- 会话 ----------------

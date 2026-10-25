@@ -12,11 +12,14 @@ import {createHash} from 'node:crypto';
 import {types, readAsset, escapeHtml} from './base.mjs';
 import {handleApi, parseCookies, safeNext} from './api.mjs';
 import {readSession, missingFields} from './auth.mjs';
-import {renderProfile, renderProfileForce} from '../src/profile.mjs';
+import {renderProfileForce} from '../src/profile.mjs';
 import {routePaths, indexablePaths, renderPage, renderNotFound, renderUnauthorized} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
 import {canonicalUrl} from '../src/metadata.mjs';
 import {guides} from '../content/guides.mjs';
+import {handleForumApi} from './forum-api.mjs';
+import {handleForumPage} from './forum-pages.mjs';
+import {handleAvatarApi} from './avatar-api.mjs';
 
 /**
  * 全站唯一的缓存策略：一律 no-cache。
@@ -185,7 +188,7 @@ async function renderProfilePage({headers}){
   // 资料没补全则先去补，补完回这里。
   if(missingFields(session.user).length)
     return redirectSeeOther(`/profile/force/?next=${encodeURIComponent('/profile/')}`);
-  return sendPrivate(renderProfile(session.user), 200);
+  return redirectSeeOther('/forum/me/?tab=profile');
 }
 
 /**
@@ -259,6 +262,10 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}, bo
     return send('请求地址无法解析。\n', {type: types['.txt'], status: 400}, headers);
   }
   // 认证接口先分流：它要收 POST，而且响应与具体浏览器有关
+  if(pathname==='/api/profile/avatar'||/^\/api\/users\/[^/]+\/avatar$/.test(pathname))
+    return handleAvatarApi({method,pathname,headers,body});
+  if(pathname.startsWith('/api/forum/'))
+    return handleForumApi({method,url,headers,body,ip});
   if(pathname.startsWith('/api/'))
     return handleApi({method, pathname, headers, body, ip});
   // 其他页面一律只读
@@ -283,6 +290,7 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}, bo
   }
   if(!safeRoute(pathname))
     return send('请求地址非法。\n', { type: types['.txt'], status: 400 }, headers);
+  if(pathname==='/forum'||pathname.startsWith('/forum/'))return handleForumPage({url,headers});
   const route = pathname.endsWith('/index.html')? pathname.slice(0, -'index.html'.length): pathname;
 
   // 会话相关页面：自己读 cookie、自己决定状态码，所以既不走缓存也不进 dynamicRoutes。

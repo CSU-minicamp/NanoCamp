@@ -80,7 +80,7 @@ test('base.js 暴露统一渲染入口', () => {
   assert.deepEqual(Object.keys(api.nav).sort(), ['desktop', 'footer', 'footer-bottom', 'mobile']);
   assert.equal(typeof api.mount, 'function');
   assert.equal(typeof api.backToTop, 'function');
-  assert.equal(api.links.length, 10);
+  assert.equal(api.links.length, 11);
 });
 
 test('构建期输出与 base.js 的渲染逐节点一致', () => {
@@ -90,7 +90,7 @@ test('构建期输出与 base.js 的渲染逐节点一致', () => {
     mobile: ' aria-label="手机导航" class="mobile-nav" data-nav="mobile" hidden id="mobile-nav"',
     'footer-bottom': ' data-nav="footer-bottom"'
   };
-  for (const active of ['', 'home', 'minicamp', 'projects', 'community', 'resources', 'search']) {
+  for (const active of ['', 'home', 'minicamp', 'projects', 'community', 'forum', 'resources', 'search']) {
     for (const slot of ['desktop', 'mobile', 'footer-bottom']) {
       assert.equal(
         pageSlotHtml(active, slot, attributes[slot]),
@@ -105,20 +105,21 @@ test('桌面导航：首页在最左侧，合作与搜索直接可达', () => {
   const { document } = loadBase({ page: 'projects' });
   const links = slotOf(document, 'desktop').children;
   assert.deepEqual(links.map(node => node.getAttribute('href')), [
-    '/', '/minicamp/', '/activities/', '/projects/', '/community/', '/partners/', '/search/'
+    '/', '/minicamp/', '/activities/', '/projects/', '/community/', '/forum/', '/partners/', '/search/'
   ]);
   assert.equal(findFirst(document.body, '.nav-more'), null);
   assert.equal(links[0].querySelector('.nav-item-label').text, '首页');
-  assert.equal(links[5].querySelector('.nav-item-label').text, '合作');
+  assert.equal(links[5].querySelector('.nav-item-label').text, '论坛');
+  assert.equal(links[6].querySelector('.nav-item-label').text, '合作');
   assert.equal(links[3].getAttribute('aria-current'), 'page');
   assert.equal(links[0].getAttribute('aria-current'), null);
 });
 
-test('手机导航：与桌面相同的 7 项，搜索保留图标与快捷键钩子', () => {
+test('手机导航：与桌面相同的 8 项，搜索保留图标与快捷键钩子', () => {
   const { document } = loadBase({ page: 'search' });
   const links = slotOf(document, 'mobile').children;
-  assert.equal(links.length, 7);
-  const search = links[6];
+  assert.equal(links.length, 8);
+  const search = links[7];
   assert.equal(search.text, '');
   assert.equal(search.getAttribute('class'), 'nav-search');
   assert.equal(search.getAttribute('aria-label'), '站内搜索');
@@ -145,7 +146,7 @@ test('mount 替换槽位内原有的构建期内容', () => {
   api.mount();
   assert.deepEqual(
     slot.children.map(node => node.getAttribute('href')),
-    ['/', '/minicamp/', '/activities/', '/projects/', '/community/', '/partners/', '/search/']
+    ['/', '/minicamp/', '/activities/', '/projects/', '/community/', '/forum/', '/partners/', '/search/']
   );
   assert.equal(slot.children[2].getAttribute('aria-current'), 'page');
 });
