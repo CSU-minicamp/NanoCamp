@@ -48,12 +48,7 @@ if (root) {
       const description = document.createElement('p');
       highlighted(description, resultExcerpt(record, terms), terms);
       const arrow = document.createElement('span'); arrow.className = 'search-result-arrow'; arrow.setAttribute('aria-hidden','true'); arrow.textContent = '↗';
-      const art = document.createElement('span');
-      art.className = `search-card-art search-card-art-${record.type}`;
-      art.setAttribute('aria-hidden','true');
-      const glyphs = { page:'✦', event:'◎', guide:'✎', faq:'?', project:'◇' };
-      art.textContent = glyphs[record.type] || '✦';
-      link.append(meta,title,description,art,arrow); item.append(link);
+      link.append(meta,title,description,arrow); item.append(link);
       return item;
     }
     function updateLocation() {
