@@ -1,4 +1,4 @@
-// The letter is a presentation of the same draft exported by workshop.js.
+// 这封信只是 workshop.js 里那份草稿的展示形态，数据是同一份。
 const pen = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m20 6 6 6M7 19 21 5a3 3 0 0 1 4 4L11 23l-6 2 2-6Z"/><path d="M5 29h22"/></svg>';
 const copyIcon = '<svg class="brief-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>';
 const downloadIcon = '<svg class="brief-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>';

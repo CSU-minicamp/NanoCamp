@@ -1,15 +1,11 @@
-// NanoCamp base.js
-// 站点框架的**交互**层：手机导航的开合、回到顶部浮窗。
+// NanoCamp base.js —— 全站公共脚本
+// 站点框架（导航、页脚底部与回到顶部）的统一数据源与渲染入口。
 //
-// 导航本身不再由这里渲染。整页在请求期一次渲染（`src/components.mjs` 的 `header()` 把 nav 拼进
-// 同一根字符串），HTML 里就是成品 —— 无 JS 也有完整导航，首帧也不会「晚一拍出现」。
+// 工作方式：HTML 里保留构建期渲染好的 nav 作为首屏内容与无 JS 兜底；
+// base.js 用同一份配置在客户端重新渲染并替换掉原节点，保证 nav 结构
+// 与当前页面状态始终来自同一处。
 //
-// 这里以前还有一份 `NAV_LINKS`，把 desktop / mobile 两个槽位重画一遍，理由是「结构始终来自同一份定义」。
-// 但那份数据和 `src/components.mjs` 的 `navLinks` 是两处各写一遍的，产出又逐字节相同
-// （曾经靠 tests/nav-build.test.mjs 比对兜着），所以它只是重复渲染 + 重复维护。已整段删除。
-// **改导航请只改 src/components.mjs 一处。**
-//
-// 约定：HTML 里的槽位仍用 data-nav 标记，本文件**只读不写**：
+// 约定：HTML 里的 nav 槽位用 data-nav 标记。
 //   <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">
 //   <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>
 (() => {
@@ -18,6 +14,22 @@
   if (typeof window === 'undefined' || !window.document) return;
   const doc = window.document;
 
+  const NAV_LINKS = Object.freeze([
+    Object.freeze({ key: 'home', href: '/', label: '首页', compact: true, footer: false }),
+    Object.freeze({ key: 'minicamp', href: '/minicamp/', label: 'minicamp', compact: true, footer: true, footerLabel: '年度 minicamp' }),
+    Object.freeze({ key: 'activities', href: '/activities/', label: '活动', compact: true, footer: true, footerLabel: '活动总览' }),
+    Object.freeze({ key: 'projects', href: '/projects/', label: '作品', compact: true, footer: true, footerLabel: '社区作品' }),
+    Object.freeze({ key: 'resources', href: '/resources/', label: '资源', compact: false, footer: true, footerLabel: '共创资源', footerOnly: true }),
+    Object.freeze({ key: 'community', href: '/community/', label: '社区', compact: true, footer: true, footerLabel: '参与指南' }),
+    Object.freeze({ key: 'forum', href: '/forum/', label: '论坛', compact: true, footer: false }),
+    Object.freeze({ key: 'partners', href: '/partners/', label: '合作', compact: true, footer: true, footerLabel: '交流合作' }),
+    Object.freeze({ key: 'about', href: '/about/', label: '关于', compact: false, footer: true, footerLabel: '关于我们', footerOnly: true }),
+    Object.freeze({ key: 'search', href: '/search/', label: '站内搜索', compact: true, footer: true, footerLabel: '站内搜索', search: true }),
+    // 页脚专有项：主导航里没有，页脚渲染器接管时使用。
+    Object.freeze({ key: 'faq', href: '/faq/', label: '常见问题', compact: false, footer: true, footerLabel: '常见问题', footerOnly: true })
+  ]);
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
   let warned = false;
   let unbindMenu = () => {};
   const backToTopBindings = new WeakSet();
@@ -28,10 +40,91 @@
     console.warn('[NanoCamp base.js] ' + message);
   }
 
-  // 当前页以 <body data-page="..."> 为准；首页缺省为 home，404 不高亮。
-  // 高亮本身由服务端渲染的 aria-current 决定，这里只用于判断要不要挂「回到顶部」。
-  function navActive() {
-    return doc.body ? doc.body.getAttribute('data-page') || 'home' : 'home';
+  function svg(node, viewBox, attrs) {
+    node.setAttribute('viewBox', viewBox);
+    node.setAttribute('aria-hidden', 'true');
+    Object.keys(attrs || {}).forEach(name => node.setAttribute(name, attrs[name]));
+    return node;
+  }
+
+  function svgEl(name) {
+    return doc.createElementNS(SVG_NS, name);
+  }
+
+  function interfaceIcon(kind, classes) {
+    const node = svg(svgEl('svg'), '0 0 32 32', { class: 'ui-icon ' + classes, focusable: 'false' });
+    const use = svgEl('use');
+    use.setAttribute('href', '/images/interface-icons.svg#icon-' + kind);
+    node.append(use);
+    return node;
+  }
+
+  function searchIcon() {
+    return interfaceIcon('search', 'nav-search-icon');
+  }
+
+  function linkNode(link, active, label = link.label) {
+    const node = doc.createElement('a');
+    node.setAttribute('href', link.href);
+    if (active === link.key) node.setAttribute('aria-current', 'page');
+    if (link.search) {
+      node.setAttribute('class', 'nav-search');
+      node.setAttribute('aria-label', '站内搜索');
+      // discovery.js 依赖这个钩子补 title、aria-keyshortcuts 与 Ctrl/⌘ + K。
+      node.setAttribute('data-search-shortcut', '');
+      node.append(searchIcon());
+      const text = doc.createElement('span');
+      text.setAttribute('class', 'nav-search-label');
+      text.textContent = label;
+      node.append(text);
+      return node;
+    }
+    node.setAttribute('class', 'nav-destination');
+    node.append(interfaceIcon(link.key, 'nav-symbol'));
+    const text = doc.createElement('span');
+    text.setAttribute('class', 'nav-item-label');
+    text.textContent = label;
+    node.append(text);
+    return node;
+  }
+
+  function navLinks(active) {
+    return NAV_LINKS.filter(link => !link.footerOnly).map(link => linkNode(link, active));
+  }
+
+  function desktopNav(active = navActive()) {
+    const fragment = doc.createDocumentFragment();
+    navLinks(active).forEach(node => fragment.append(node));
+    return fragment;
+  }
+
+  function mobileNav(active = navActive()) {
+    const fragment = doc.createDocumentFragment();
+    navLinks(active).forEach(node => fragment.append(node));
+    return fragment;
+  }
+
+  function footerNav(active = navActive()) {
+    const fragment = doc.createDocumentFragment();
+    NAV_LINKS.filter(link => link.footer).forEach(link => {
+      const node = doc.createElement('a');
+      node.setAttribute('href', link.href);
+      if (active === link.key) node.setAttribute('aria-current', 'page');
+      node.textContent = link.footerLabel || link.label;
+      fragment.append(node);
+    });
+    return fragment;
+  }
+
+  // --- 页脚底部（数据源在这里，构建期会按同一份定义输出一份静态 HTML）---
+
+  // 署名块已整块移除，页脚底部留空。这里仍返回那个空容器：
+  // [data-nav="footer-bottom"] 是挂载点契约，静态 HTML 里也保留同样的空结构，
+  // 由 tests/nav-build.test.mjs 逐节点比对两边是否一致。
+  function footerBottom() {
+    const bottom = doc.createElement('div');
+    bottom.setAttribute('class', 'footer-bottom');
+    return bottom;
   }
 
   // 回到顶部浮窗：常驻右下角，下滑一段距离后由 mountBackToTop 显示。
@@ -54,7 +147,7 @@
 
   function mountBackToTop() {
     const active = navActive();
-    // 已有的浮窗先清空属性再复用节点：mount 可能被再次调用，重复插入会在页脚
+    // 已有的浮窗先清空属性再复用节点：navMount 可能被再次调用，重复插入会在页脚
     // 留下第二个按钮。这里不用 node.remove()，保持与测试用的精简 DOM 兼容。
     const existing = doc.querySelectorAll('[data-back-to-top]');
     Array.prototype.forEach.call(existing, (node, index) => {
@@ -75,7 +168,7 @@
     if (backToTopBindings.has(button)) return button;
     backToTopBindings.add(button);
 
-    // 点击行为归 base.js 所有：details.js 不插手这个元素，避免两处竞态。
+    // 点击行为归 base.js 所有：details.js 不再插手这个元素，避免两处竞态。
     button.addEventListener('click', () => {
       const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
@@ -105,7 +198,35 @@
     return button;
   }
 
-  // 手机导航面板的开合（槽位与按钮都由服务端模板提供，找不到就跳过）。
+  const NAV_RENDERERS = Object.freeze({
+    desktop: desktopNav,
+    mobile: mobileNav,
+    footer: footerNav,
+    'footer-bottom': footerBottom
+  });
+
+  // 当前页以 <body data-page="..."> 为准；首页缺省为 home，404 不高亮。
+  function navActive() {
+    return doc.body ? doc.body.getAttribute('data-page') || 'home' : 'home';
+  }
+
+  function navSlots() {
+    return Array.prototype.slice.call(doc.querySelectorAll('[data-nav]'));
+  }
+
+  function navMount() {
+    const active = navActive();
+    navSlots().forEach(slot => {
+      const name = slot.getAttribute('data-nav');
+      const render = NAV_RENDERERS[name];
+      if (!render) { warn('未知的 data-nav 槽位："' + name + '"，已跳过。'); return; }
+      slot.replaceChildren(render(active));
+    });
+    bindMenu();
+    mountBackToTop();
+  }
+
+  // 手机导航面板的开合（槽位与按钮都由本文件之外的模板提供，找不到就跳过）。
   function bindMenu() {
     unbindMenu();
     const button = doc.querySelector('[data-menu-toggle]');
@@ -153,18 +274,66 @@
     };
   }
 
-  // 唯一入口：挂上所有交互。可重复调用（先解绑再绑，不会叠加监听）。
-  function mount() {
-    bindMenu();
-    mountBackToTop();
-  }
-
   const api = Object.freeze({
+    links: NAV_LINKS,
     active: navActive,
-    mount,
+    slots: navSlots,
+    mount: navMount,
+    nav: NAV_RENDERERS,
     backToTop: mountBackToTop
   });
 
   window.NanoCampBase = api;
-  mount();
+  navMount();
+  const account = doc.querySelector('[data-header-account]');
+  if (account) {
+    let refreshing = false;
+    // 登录后把真实头像铺进那个圆里。服务端渲染不出登录态（页面按路由共享缓存），只能在这里补。
+    // 图片没来或加载失败时圆里的人像 glyph 还在，不会出现空圆；退登时把 img 摘掉，回落到 glyph。
+    const syncAvatar = (avatar, source) => {
+      let image = avatar.querySelector('.account-avatar-image');
+      if (!source) {
+        if (image) image.remove();
+        return;
+      }
+      if (!image) {
+        image = doc.createElement('img');
+        image.className = 'account-avatar-image';
+        image.alt = '';
+        image.width = 256;
+        image.height = 256;
+        image.decoding = 'async';
+        avatar.appendChild(image);
+      }
+      if (image.getAttribute('src') !== source) image.src = source;
+    };
+    const refreshAccount = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const response = await fetch('/api/session', {credentials: 'same-origin', cache: 'no-store'});
+        if (!response.ok) throw new Error(`Session request failed: ${response.status}`);
+        const session = await response.json();
+        const name = session.user?.nickname?.trim() || '个人中心';
+        document.documentElement.setAttribute('data-account', session.user ? 'member' : 'guest');
+        const avatar = account.querySelector('.account-avatar');
+        if (avatar) syncAvatar(avatar, session.user ? session.user.avatarUrl || '/images/default-account-avatar.png' : '');
+        account.href = session.user ? '/profile/' : '/login/?next=%2Fprofile%2F';
+        account.querySelector('[data-account-label]').textContent = session.user ? name : '登录';
+        account.setAttribute('aria-label', session.user ? `已登录：${name}，进入个人中心` : '登录');
+        account.title = session.user ? `已登录：${name} · 个人中心` : '登录';
+        account.classList.toggle('is-signed-in', Boolean(session.user));
+        window.dispatchEvent(new CustomEvent('nanocamp-session', {detail: {signedIn: Boolean(session.user)}}));
+      } catch (error) {
+        console.warn('[header-account] 无法更新登录状态：', error.message);
+        document.documentElement.setAttribute('data-account', 'guest');
+        account.href = '/profile/';
+        account.querySelector('[data-account-label]').textContent = '个人中心';
+        account.setAttribute('aria-label', '进入个人中心');
+      } finally { refreshing = false; }
+    };
+    refreshAccount();
+    window.addEventListener('pageshow', refreshAccount);
+    doc.addEventListener('visibilitychange', () => { if (!doc.hidden) refreshAccount(); });
+  }
 })();

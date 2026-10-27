@@ -18,6 +18,11 @@ export const createEmailCaptcha = () => String(randomInt(0, 1_000_000)).padStart
 // 仅供测试读取：console 模式下把最近一次验证码记在内存里，测试脚本据此走完整的验证流程。
 // 生产用 resend，不会走到这里；这里存的是本机调试用的码，不是任何真实凭证。
 const consoleCodes = new Map();
+/**
+ * 仅供测试：console 模式下最近一次发给这个邮箱的验证码。
+ * @param {string} to 收件邮箱。
+ * @returns {string} 六位码；没发过就返回空串。
+ */
 export const lastConsoleEmailCaptcha = to => consoleCodes.get(String(to).toLowerCase()) || '';
 
 /** 验证码邮件的文案在 content/mail.mjs（文案归内容、发送归后端），这里只管怎么发。 */

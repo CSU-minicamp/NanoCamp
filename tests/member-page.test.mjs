@@ -48,34 +48,11 @@ after(async () => {
 
 const get = async (url, headers = {}) => handleRequest({method: 'GET', url, headers});
 
-test('右上角账号入口：全站一个圆，两种形态都写在 HTML 里，由 <html data-account> 选', async () => {
-  for (const route of routePaths) {
-    const html = (await get(route)).body.toString('utf8');
-    assert.equal((html.match(/data-account-entry/g) || []).length, 1, route + ' 应该有且只有一个账号入口');
-    assert.match(
-      html,
-      /<a class="header-account" href="\/login\/" data-account-entry aria-label="登录 NanoCamp">/,
-      route + ' 的账号入口默认指向登录页'
-    );
-    assert.match(html, /<span class="account-label" aria-hidden="true">登录<\/span>/, route + ' 的圆里应写着「登录」');
-    // 头像（人像）也在同一个圆里，只是未登录时由 CSS 藏起来 —— 登录后直接换过来，不用重新渲染。
-    assert.match(html, /<svg class="avatar-glyph"/, route + ' 的圆里要带默认头像');
-  }
-});
-
-test('首帧就定好登录态：<head> 里的内联脚本按 nc_ui 标记设 data-account', async () => {
-  const html = (await get('/about/')).body.toString('utf8');
-  const head = html.slice(0, html.indexOf('</head>'));
-  assert.match(head, /<script>document\.documentElement\.setAttribute\("data-account",\/\(\?:\^\|;\\s\*\)nc_ui=\\d\{1,18\}\/\.test\(document\.cookie\)\?"member":"guest"\)<\/script>/,
-    '这段必须内联在 <head> 里，否则会先画「登录」再跳成头像');
-  // 页面本身仍然不含任何会话数据：同一份 HTML 发给所有人，会员态只在运行时由 cookie 决定。
-  assert.equal(/data-account="member"/.test(html), false, '不能把会员态写进共享缓存的那份 HTML');
-});
-
-test('登录态由 account.js 补 href / 对账，服务端始终输出同一份 HTML', async () => {
-  const html = (await get('/about/')).body.toString('utf8');
-  assert.match(html, /<script defer src="\/account\.js"><\/script>/);
-  assert.ok(html.indexOf('/base.js') < html.indexOf('/account.js'), 'account.js 应在 base.js 之后加载');
+test('公开主页沿用论坛账号入口和未读角标', async () => {
+ const html=(await get('/about/')).body.toString('utf8');
+ assert.match(html,/data-header-account/);
+ assert.match(html,/data-unread-count/);
+ assert.match(html,/forum-nav\.js/);
 });
 
 test('/user/<uid>/：编号非法或人不存在都是 404', async () => {

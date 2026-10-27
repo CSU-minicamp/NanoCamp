@@ -86,7 +86,7 @@
   });
 
 })();
-// Native details keeps the secondary navigation available without JavaScript.
+// 用原生 <details>：没有 JS 的时候二级导航照样能展开。
 (() => { const menu=document.querySelector('.nav-more'); if(!menu)return;
  document.addEventListener('click',event=>{if(!menu.contains(event.target))menu.open=false;});
   document.addEventListener('focusin',event=>{if(menu.open&&!menu.contains(event.target))menu.open=false;});

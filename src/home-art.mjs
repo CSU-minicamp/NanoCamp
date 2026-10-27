@@ -1,5 +1,5 @@
-// Original, code-native illustrations for the homepage. Decorative SVGs are hidden
-// from assistive technology; nearby headings and links carry their meaning.
+// 首页插画全部用代码画，不依赖位图。装饰性 SVG 对读屏隐藏，
+// 含义由旁边的小标题和链接承担。
 export function homeIcon(kind, classes = '') {
   const drawings = {
     planet: '<circle cx="60" cy="57" r="33" fill="#75adff"/><path d="M38 39c7-10 23-15 31-10" stroke="#afd1ff" stroke-width="12" stroke-linecap="round"/><ellipse cx="60" cy="61" rx="52" ry="15" transform="rotate(-24 60 61)" fill="none" stroke="#81d9b7" stroke-width="8"/><path d="M48 74a28 28 0 0 0 39-23" fill="none" stroke="#5596f1" stroke-width="9"/><path d="m99 15 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="#ffd46c"/>',

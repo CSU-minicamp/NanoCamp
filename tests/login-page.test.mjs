@@ -76,8 +76,15 @@ test('/profile/force/ 未登录时直接跳登录页', async () => {
   assert.match(decodeURIComponent(location), /^\/login\/\?next=\/profile\/force\/\?next=/);
 });
 
-test('/profile/force/ 与 /profile/、/profile/password/ 都不在静态路由表里（它们按会话渲染）', async () => {
+test('/profile/force/ 与 /profile/ 都不在静态路由表里（它们按会话渲染）', async () => {
   const {routePaths} = await import('../src/pages.mjs');
-  for (const route of ['/profile/force/', '/profile/', '/profile/password/'])
+  for (const route of ['/profile/force/', '/profile/'])
     assert.equal(routePaths.includes(route), false, route + ' 不该出现在静态路由表里');
+});
+
+test('/profile/password/ 已删除：改密表单在 /profile/?tab=security，老地址不再单独存在', async () => {
+  for (const url of ['/profile/password', '/profile/password/']) {
+    const response = await get(url);
+    assert.equal(response.status, 404, url + ' 应直接 404，不再有页面也不做重定向');
+  }
 });

@@ -72,8 +72,8 @@
     });
   }
 
-  // Read current positions only on scroll frames, while this section is visible.
-  // Cached observer ratios can otherwise select the article we just scrolled past.
+  // 只在滚动帧、且本节可见时读一次当前坐标；
+  // 否则缓存下来的观察比率会选中刚滚过去的那一篇。
   function followReading() {
     followFrame = 0;
     if (document.hidden || !readingVisible || hoverIndex !== null || desk?.contains(document.activeElement)) return;

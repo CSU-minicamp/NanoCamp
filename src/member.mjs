@@ -8,7 +8,8 @@
 // 不接收 users 整行：以后有人想在页面里加邮箱，得先改那个查询，不会顺手漏出去。
 //
 // owner 决定要不要给「编辑资料」入口：本人点它去 /profile/，别人看不到这个按钮。
-import {esc, documentPage, avatarGlyph} from './components.mjs';
+import {esc, documentPage, accountAvatar} from './components.mjs';
+import {isNoindex} from './seo.mjs';
 
 /** 成员编号：从 uid 推出来的展示用编号，不是另一个标识。 */
 const memberNo = id => `NC-${String(id).padStart(3, '0')}`;
@@ -43,7 +44,7 @@ export function memberView(user, {owner = false} = {}){
   <div class="member-sheet">
     <div class="member-strip" aria-hidden="true"><span class="mono">NANOCAMP MEMBER</span><span class="mono">${esc(memberNo(user.id))}</span></div>
     <div class="member-main">
-      <div class="member-portrait"><span class="member-avatar" aria-hidden="true">${avatarGlyph()}</span><span class="member-portrait-note mono" aria-hidden="true">DEFAULT AVATAR</span></div>
+      <div class="member-portrait"><span class="member-avatar" aria-hidden="true">${accountAvatar(user.id)}</span></div>
       <div class="member-copy">
         <span class="member-kicker">MEMBER SINCE ${esc(joined.year)}.${esc(joined.month)}</span>
         <h1 class="member-name" id="member-name">${esc(name)}</h1>
@@ -73,7 +74,8 @@ export function renderMember(user, options = {}){
     description: `${name} 在 NanoCamp 的公开主页：一句话介绍、加入时间与成员编号。`,
     route: `/user/${user.id}/`,
     active: 'user',
-    noindex: true,
+    // 成员主页默认不收录（不在 seo.mjs 的白名单里）；哪天要收录，只改那一处。
+    noindex: isNoindex(`/user/${user.id}/`),
     body: memberView(user, options)
   });
 }

@@ -1,12 +1,13 @@
-// MySQL 连接、表结构、以及「库还活着吗」。
+// MySQL 连接、执行，以及「库还活着吗」。
 //
-// 四件事：
-//   1. 连接池 + select() / execute()，给 auth.mjs 直接用；
-//   2. schemaStatements / migrate()：建表（幂等，可反复执行）；
-//   3. ping() / dbHealthy() / isUnavailable()：探活与「连不上」的判定；
-//   4. closePool()：脚本和测试收尾。
+// 五件事：
+//   1. 连接池：全项目只有这里 createPool（唯一 import mysql2 的地方）；
+//   2. select() / execute()：池级读写原语，各业务模块直接用；
+//   3. transaction(work)：回调共享同一个连接与事务，死锁自动重试两次；
+//   4. schemaStatements / migrate()：只建账号那 4 张表（论坛、私信、头像的 DDL 在各自模块里）；
+//   5. ping() / dbHealthy() / isUnavailable() / closePool()：探活、错误分类与收尾。
 //
-// **没有 store 抽象层** —— SQL 直接写在 auth.mjs 里，改一条查询不用在三层之间对照。
+// **没有 store 抽象层** —— SQL 直接写在 auth.mjs、forum/ 与 avatar/ 里，改一条查询不用在三层之间对照。
 // 这一层只管「怎么连、怎么执行、连不上算什么错误」，不管业务。
 //
 // 四条约定：
@@ -57,6 +58,34 @@ function getPool(){
     timezone: 'Z'
   });
   return pool;
+}
+
+/**
+ * 在一个连接上开事务：`work(connection)` 里的语句共用同一个连接、同一个事务。
+ *
+ * 死锁与锁等待超时自动重试（最多 3 次），其它错误原样抛出并回滚 —— 靠 isUnavailable() 区分「库挂了」。
+ * @param {(connection: object) => Promise<any>} work 事务体：收连接，返回要带出事务的结果。
+ * @returns {Promise<any>} work 的返回值。
+ */
+export async function transaction(work){
+  for(let attempt=0; ;attempt++){
+    const connection = await getPool().getConnection();
+    try{
+      await connection.beginTransaction();
+      const result = await work(connection);
+      await connection.commit();
+      return result;
+    }
+    catch(error){
+      await connection.rollback();
+      if(attempt >= 2 || !['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT'].includes(error.code))
+        throw error;
+      console.warn('[db:transaction] retry', error.code, 'attempt', attempt + 1);
+    }
+    finally{
+      connection.release();
+    }
+  }
 }
 
 /**
@@ -112,7 +141,7 @@ function markUnhealthy(error){
 }
 
 /**
- * 数据库当前是否可用（带 10 秒缓存）。
+ * 数据库当前是否可用（结论缓存 60 秒，见 HEALTH_TTL_MS）。
  * @returns {Promise<boolean>} 可用为 true。
  */
 export async function dbHealthy(){

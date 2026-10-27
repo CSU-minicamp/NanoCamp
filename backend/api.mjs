@@ -1,19 +1,23 @@
-// 认证接口层：只做 HTTP 的事 —— 读 cookie、验 CSRF、解析 JSON、映射状态码。
-// 业务判断全在 auth.mjs，这里不写 SQL、也不判断验证码对错。
+// API 层的唯一入口：/api/* 先在这里按 URL 空间分派（头像 → 论坛 → 剩下的认证接口），再各管各的。
+// 本文件只做 HTTP 的事 —— 读 cookie、验 CSRF、解析 JSON、映射状态码；业务判断全在 auth / avatar / forum 里。
 //
+// 分派顺序有意义：头像与论坛的前缀更具体，先匹配；剩下的一律当作认证接口（未知路径由它回 404）。
 // 三个信号别合成一个：
 //   disabled      账号系统（登录/会话）是否可用
 //   canSendCode   发码是否可用（同样需要数据库 —— 挑战要落库才能校验）
 //   user          当前会话的用户，或 null
 import {randomBytes} from 'node:crypto';
 
+import {handleAvatarApi} from './avatar/routes.mjs';
 import {
   AuthError, authAvailable, requestEmailCaptcha, verifyEmailCaptcha, loginWithPassword,
   readSession, revokeSession, challengeCookieMaxAge, sessionCookieMaxAge,
-  missingFields, updateProfile, changePassword
+  missingFields, updateProfile, initProfile, changePassword
 } from './auth.mjs';
-import {isUnavailable, dbHealthy} from './db.mjs';
+import {parseCookies,sameOrigin} from './base.mjs';
 import {mailPaused, dbConfig, authConfig} from './config.mjs';
+import {isUnavailable, dbHealthy} from './db.mjs';
+import {handleForumApi} from './forum/routes.mjs';
 import {site} from '../content/site.mjs';
 
 const SESSION_COOKIE = 'nc_sid';
@@ -31,24 +35,6 @@ const UI_COOKIE = 'nc_ui';
 
 /** 请求体上限：登录只需要一两个字段，超过 16 KB 一律拒绝。 */
 const MAX_BODY_BYTES = 16 * 1024;
-
-/**
- * 解析 cookie 头。
- * @param {string} [header] 原始 Cookie 头。
- * @returns {Record<string,string>} 名称到值的映射。
- */
-export function parseCookies(header = ''){
-  const cookies = {};
-  for(const part of String(header).split(';')){
-    const index = part.indexOf('=');
-    if(index < 0)
-      continue;
-    const name = part.slice(0, index).trim();
-    if(name)
-      cookies[name] = part.slice(index + 1).trim();
-  }
-  return cookies;
-}
 
 /**
  * 序列化一条 Set-Cookie。
@@ -127,24 +113,6 @@ function landing(user, next){
 }
 
 /**
- * 同源校验：POST 必须带 Origin，且主机与请求的 Host 一致。
- * 只比主机不比协议 —— 同一台机器上 http/https 都可能出现，比协议只会误伤本机调试。
- * @param {object} headers 请求头。
- * @returns {boolean} 是否同源。
- */
-function sameOrigin(headers){
-  const source = headers.origin || headers.referer;
-  if(!source)
-    return false;
-  try{
-    return new URL(source).host === headers.host;
-  }
-  catch{
-    return false;
-  }
-}
-
-/**
  * 解析 JSON 请求体。
  * @param {string|Buffer|null} body 原始请求体。
  * @returns {object|null} 解析结果；非法或超限返回 null。
@@ -183,14 +151,32 @@ function responseJson(status, payload, headers = {}){
   };
 }
 
-/** 错误码 → HTTP 状态码。 */
 /** 认证不可用只提示一次，避免每个请求刷一行日志。 */
 let warnedUnavailable = false;
 
-const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid: 400, invalid_password: 400, invalid_profile: 400, current_password_invalid: 400, password_not_set: 400, credentials_invalid: 401, unauthenticated: 401, rate_limited: 429, mail_failed: 502, unavailable: 503};
+/** 错误码 → HTTP 状态码。没登记的按 400 处理（都是「调用方参数不对」）。 */
+const errorStatus = {
+  mail_paused: 503,
+  invalid_email: 400,
+  email_captcha_invalid: 400,
+  invalid_password: 400,
+  invalid_profile: 400,
+  credentials_invalid: 401,
+  unauthenticated: 401,
+  rate_limited: 429,
+  mail_failed: 502,
+  unavailable: 503,
+  password_change_required: 403,
+  current_password_invalid: 403,
+  password_mismatch: 400,
+  password_unchanged: 400,
+  password_not_set: 400
+};
 
 /**
- * 处理 /api/* 请求。
+ * 处理剩下的认证接口：`/api/session`、`/api/auth/*`、`/api/profile*`。
+ *
+ * 头像与论坛的路径在 `handleApiRequest` 里就被分走了，这里不再判断前缀，只认具体的路径名。
  * @param {object} request 请求描述。
  * @param {string} request.method HTTP 方法。
  * @param {string} request.pathname 已解码的路径。
@@ -199,11 +185,10 @@ const errorStatus = {mail_paused: 503, invalid_email: 400, email_captcha_invalid
  * @param {string} [request.ip] 来源 IP（由传输层给出，不读自定义头）。
  * @returns {Promise<{status: number, headers: object, body: Buffer}>} 响应描述。
  */
-export async function handleApi({method, pathname, headers, body = null, ip = ''}){
+async function handleAuthApi({method, pathname, headers, body = null, ip = ''}){
   const cookies = parseCookies(headers.cookie);
   const host = headers.host || '';
   const available = authAvailable();
-
   /**
    * 读当前会话，供「必须登录」的写接口复用。
    * 读库失败不能伪装成未登录（前端要能把「掉登录」和「服务挂了」区分开），所以返回 failure 让调用方直接发出去。
@@ -267,7 +252,7 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     return response;
   }
   // 其余带cookie请求
-  if(!['/api/auth/email-captcha', '/api/auth/verify', '/api/auth/login', '/api/auth/logout', '/api/profile', '/api/profile/password'].includes(pathname))
+  if(!['/api/auth/email-captcha', '/api/auth/verify', '/api/auth/login', '/api/auth/logout', '/api/profile', '/api/profile/init', '/api/profile/password'].includes(pathname))
     return responseJson(404, {error: 'not_found'});
   if(method !== 'POST')
     return responseJson(405, {error: 'method_not_allowed'}, {allow: 'POST'});
@@ -317,14 +302,17 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
         ]
       });
     }
-    // 个人资料：常规资料（昵称 / 介绍）走这里。
-    if(pathname === '/api/profile'){
+    // 个人资料两个入口，各自对应一个函数：
+    //   /api/profile       日常编辑（昵称 / 简介），**不收密码**
+    //   /api/profile/init  首次补全（昵称 + 一次性密码 + 简介）
+    if(pathname === '/api/profile' || pathname === '/api/profile/init'){
       const {session, failure} = await currentSession();
       if(failure)
         return failure;
       if(!session)
         return responseJson(401, {error: 'unauthenticated'});
-      const user = await updateProfile({
+      const write = pathname === '/api/profile/init'? initProfile: updateProfile;
+      const user = await write({
         userId: session.user.id,
         current: session.user,
         password: payload.password,
@@ -333,19 +321,22 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
       });
       return responseJson(200, {ok: true, user, missing: missingFields(user)});
     }
-    // 改密码：验旧密码 → 换哈希 → 撤掉这个账号的全部会话 → 连 cookie 一起清，客户端回登录页。
+    // 修改密码：旧密码 + 两遍新密码。改完这个账号的全部会话都作废（三块cookie一并清掉）。
+    // 首次设置密码不在这里 —— 那是 /api/profile 的活（它只补空密码，不覆盖已有密码）。
     if(pathname === '/api/profile/password'){
       const {session, failure} = await currentSession();
       if(failure)
         return failure;
       if(!session)
         return responseJson(401, {error: 'unauthenticated'});
-      const result = await changePassword({
-        userId: session.user.id,
+      await changePassword({
+        token: cookies[SESSION_COOKIE],
         currentPassword: payload.currentPassword,
-        password: payload.password
+        newPassword: payload.newPassword,
+        confirmPassword: payload.confirmPassword
       });
-      return responseJson(200, {ok: true, revoked: result.revoked, redirect: '/login/'}, {
+      // 这个账号的全部会话都撤了，客户端只能回登录页；next 指向安全设置那栏，重新登录后能回到原地。
+      return responseJson(200, {ok: true, redirect: '/login/?next=' + encodeURIComponent('/profile/?tab=security')}, {
         'set-cookie': [
           setCookie(SESSION_COOKIE, '', {maxAge: 0, host}),
           setCookie(CSRF_COOKIE, '', {maxAge: 0, httpOnly: false, host}),
@@ -378,4 +369,27 @@ export async function handleApi({method, pathname, headers, body = null, ip = ''
     }
     throw error;
   }
+}
+
+/**
+ * `/api/*` 的唯一入口：按 URL 空间分派给具体实现。
+ *
+ * 顺序有意义 —— 头像占两条路径（自己的 `/api/profile/avatar` 和别人的 `/api/users/<id>/avatar`），
+ * 论坛是 `/api/forum/` 前缀；剩下的一律交给认证接口，由它自己把未知路径回成 404。
+ * 页面层（app.mjs）只要认「以 /api/ 开头」这一件事，不用知道 API 内部怎么分。
+ * @param {object} request 请求描述。
+ * @param {string} request.method HTTP 方法。
+ * @param {string} request.url 原始 URL（论坛接口要读查询串）。
+ * @param {string} request.pathname 已解码的路径。
+ * @param {object} request.headers 请求头。
+ * @param {string|Buffer|null} [request.body] 原始请求体。
+ * @param {string} [request.ip] 来源 IP（由传输层给出，不读自定义头）。
+ * @returns {Promise<{status: number, headers: object, body: Buffer}>} 响应描述。
+ */
+export async function handleApiRequest({method, url, pathname, headers, body = null, ip = ''}){
+  if(pathname==='/api/profile/avatar'||/^\/api\/users\/[^/]+\/avatar$/.test(pathname))
+    return handleAvatarApi({method, pathname, headers, body});
+  if(pathname.startsWith('/api/forum/'))
+    return handleForumApi({method, url, headers, body, ip});
+  return handleAuthApi({method, pathname, headers, body, ip});
 }

@@ -1,6 +1,6 @@
 # backend/
 
-站点服务端。**不用框架、不用构建、没有 npm 之外的依赖**（只有 `mysql2`），
+站点服务端。**不用框架、不用构建**，依赖只有三个（`mysql2` / `sharp` / `markdown-it`），
 `node backend/main.mjs` 就是全部。
 
 页面在请求到达时由 `src/` 渲染成 HTML —— 这个目录只负责：解析地址、挑渲染函数、发响应、
@@ -13,15 +13,33 @@
 | 文件 | 只做这一件事 | 不做什么 |
 |---|---|---|
 | `main.mjs` | 监听端口、读请求体、算客户端 IP、收日志、优雅退出 | 不判断业务、不读页面 |
-| `app.mjs` | 路由分发（三张表）、渲染缓存、401/303/404/500 的响应形态 | 不写 SQL、不碰 cookie 语义 |
-| `api.mjs` | `/api/*`：cookie 解析、CSRF 校验、JSON 解析、错误码映射 | 不判断验证码对错、不做业务决策 |
+| `app.mjs` | 路由分发（三张表）、渲染缓存、401/303/404/500 的响应形态；`/api/*` 整体交给 `api.mjs` | 不写 SQL、不碰 cookie 语义、不判断 API 内部的路径 |
+| `api.mjs` | `/api/*` 的唯一入口：先按 URL 空间分派（头像 → 论坛 → 认证），再做 cookie 解析、CSRF 校验、JSON 解析、错误码映射 | 不判断验证码对错、不做业务决策 |
 | `auth.mjs` | 身份规则：发码、验码、密码登录、会话、必填项、限流 | 不发信、不碰 HTTP |
 | `db.mjs` | 连接池、`select()` / `execute()`、建表语句、连通性探活 | 不写业务 SQL |
 | `mail.mjs` | 投递适配器（resend / console） | 不写邮件文案 |
 | `config.mjs` | **唯一**的配置读取入口 | 不自己打日志 |
 | `base.mjs` | `public/` 静态资源、MIME、路径逃逸防护 | 不碰页面路由 |
+| `forum/base.mjs` | 论坛公共层：错误类型、编号形状、长度/分页校验、成员校验、事务查询助手 | 不认识帖子与私信（分类与举报理由在 content/forum.mjs） |
+| `forum/index.mjs` | 论坛的写路径与数据模型：表结构、幂等写、帖子与回复、互动、审核 | 不碰账号体系 |
+| `forum/read.mjs` | 论坛的读路径：列表、详情、我的内容、关系列表、通知 | 不写业务、不改表 |
+| `forum/images.mjs` | 论坛图片管线：上传解码与缩放、读取、存储适配器、过期草稿清理 | 不认识帖子正文 |
+| `forum/routes.mjs` | 论坛的 HTTP 边界：`/forum/*` 页面与 `/api/forum/*` 接口 | 一条 SQL 都不写 |
+| `forum/dm.mjs` | 私信的全部：表结构、会话与消息、举报处理、接口路由 | 不碰帖子的业务规则 |
+| `avatar/` | `index.mjs` 表结构 + 字节存储 + 图片处理；`routes.mjs` 只做 HTTP 边界 | 不碰资料字段 |
 
 > 邮件文案在 `content/mail.mjs`（文案归内容、发送归后端）。
+>
+> `forum/` / `avatar/` 都是**按功能域**收的：一个功能域一处，
+> 加字段/改规则时不用在几个文件之间来回跳。论坛这块整个在 `forum/` 里：`index`（写与模型）/
+> `read`（读与通知）/ `images`（图片管线）/ `routes`（页面与接口）/ `dm`（私信）。
+> 拆法按「改东西时你会打开哪个」而不是按技术层 —— 改数据模型进 `index`，加筛选条件进 `read`，
+> 动图片进 `images`，加页面/接口进 `routes`，动私信进 `dm`。每个文件都在 600 行以内。
+> 依赖只有一个方向 —— `forum/base.mjs` 只认识 `../auth.mjs` 与 `../db.mjs`；`dm.mjs` 只认识它（不认识论坛任何业务函数，
+> 虽然同在一个目录）；`index.mjs` 认识两者，`read.mjs` / `images.mjs` 认识 `index.mjs`，`routes.mjs` 认识全部。
+> 目录内的相对引用是 `./`，出目录一律 `../`（引 `src/` 则 `../../src/`）。
+> 页面的 Markdown 渲染放在 `src/markdown.mjs`：它产出的是 HTML，和模板同一层，也避免了
+> 后端与 `src/forum.mjs` 互相引用。
 
 ---
 
@@ -130,7 +148,8 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 | `POST` | `/api/auth/verify` | CSRF | 验证码登录；邮箱首次验证时自动建号 |
 | `POST` | `/api/auth/login` | CSRF | 邮箱 + 密码登录 |
 | `POST` | `/api/auth/logout` | CSRF | 撤销当前会话 |
-| `POST` | `/api/profile` | CSRF + 会话 | 更新昵称 / 密码 / 一句话介绍 |
+| `POST` | `/api/profile` | CSRF + 会话 | 日常编辑：昵称 / 一句话介绍（**不收密码**） |
+| `POST` | `/api/profile/init` | CSRF + 会话 | 首次补全：昵称 + 一次性密码 + 简介 |
 
 ### `GET /api/session`
 
@@ -182,15 +201,26 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 请求体可省略。返回 `200 {ok: true}`，并让 `nc_sid` / `nc_csrf` 立即过期。
 已失效的会话也返回 200（重放不报错）。
 
-### `POST /api/profile`
+### `POST /api/profile` —— 日常编辑
 
 ```json
-{"nickname": "阿岚", "bio": "在做一个小工具", "password": "…（可选）"}
+{"nickname": "阿岚", "bio": "在做一个小工具"}
 ```
 
 - 至少要带一个字段，否则 `400 invalid_profile`；
-- 昵称传了就必须非空（必填项）；`bio` 可以为空；`password` 不传表示不改；
+- 昵称传了就必须非空（必填项）；`bio` 可以为空；
+- **带 `password` 直接 `400 invalid_profile`**：这个入口不收密码（见下一条），避免「悄悄忽略」；
 - 成功返回 `{ok: true, user, missing}` —— `missing` 为空就说明资料齐了。
+
+### `POST /api/profile/init` —— 首次补全
+
+```json
+{"nickname": "阿岚", "bio": "…（可选）", "password": "…（可选）"}
+```
+
+字段与上一节相同，另外**允许**一次写密码。密码只补空：账号已有密码时返回
+`403 password_change_required`，必须去 `/api/profile/password` 验旧密码。
+两个入口共用 `auth.mjs` 的 `writeProfile()`，所以长度/字符/黑名单规则只有一处。
 
 ---
 
@@ -220,7 +250,7 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 | `POST /api/auth/verify` | 6–7 | 老账号 6 条、首次建号 7 条 |
 | `POST /api/auth/login` | 4 | 失败计数 + 查用户 + 建会话 + 清计数 |
 | `GET /profile/`、`/profile/force/` | 1 | 读会话 |
-| `POST /api/profile` | 2 | 读会话 + 更新 |
+| `POST /api/profile`、`/api/profile/init` | 2 | 读会话 + 更新 |
 
 ---
 
@@ -257,7 +287,7 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 ```bash
 npm run dev         # node --watch，本地开发
 npm start           # 生产启动
-npm test            # 154 条测试（含 21 条打真库）
+npm test            # 214 条（其中一批要连真库，库不可用时会跳过）
 npm run check       # 全站完整性：页面数、锚点、搜索索引、sitemap、元数据
 
 npm run db:migrate  # 建表（幂等；需要应用账号有 DDL 权限）
@@ -354,6 +384,9 @@ ALTER TABLE `Nanocamp-test`.sessions
 ---
 
 ## 8. 状态码
+
+> 各种「写死的限制」（编号形状、文本长度、体积、频率、分页规则）集中记在
+> [docs/limits.md](../docs/limits.md)，改限制时连同那一页一起更新。
 
 | 码 | 什么时候 | 备注 |
 |---|---|---|

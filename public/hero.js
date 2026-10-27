@@ -1,5 +1,5 @@
-// The hero lives in /intro/. Keep its animations local and respect the parent's
-// pause preference without ever hiding text or making navigation depend on JS.
+// 首屏在 /intro/ 里：动画只作用于自己，跟随父页面的暂停偏好，
+// 但绝不隐藏文字，也不让导航依赖 JS。
 (() => {
   const hero = document.querySelector('.hero-playground');
   if (!hero) return;

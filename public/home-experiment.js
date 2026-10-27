@@ -1,4 +1,4 @@
-// Optional visual layer. No navigation or content depends on this script.
+// 纯装饰层：导航和内容都不依赖这个脚本。
 (() => {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const fine = matchMedia('(hover:hover) and (pointer:fine)');
@@ -20,7 +20,7 @@
         size: dot.size,
       }));
       positions.forEach((dot, i) => {
-        // Keep the headline region quiet; the constellation frames the copy.
+        // 标题区压暗一点，点阵只当背景框住文字。
         const central = dot.x > width * .27 && dot.x < width * .73 && dot.y > height * .25 && dot.y < height * .75;
         context.fillStyle = central ? 'rgba(199,207,255,.13)' : 'rgba(199,221,255,.55)';
         context.beginPath();context.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);context.fill();
@@ -55,7 +55,7 @@
       const ratio = Math.min(devicePixelRatio || 1, 1.5);
       canvas.width = Math.round(width * ratio);canvas.height = Math.round(height * ratio);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      // Deterministic positions keep resizing from shuffling the scene.
+      // 位置由公式算出：窗口变大变小不会把点重新洗牌。
       dots = Array.from({ length: width < 700 ? 30 : 58 }, (_, i) => ({
         x: ((i * 61 + 17) % 997) / 997,
         y: ((i * 137 + 53) % 991) / 991,
@@ -123,7 +123,7 @@
   });
 })();
 
-// The route is decorative: native scrolling and the full page work without it.
+// 这条路径只是装饰：原生滚动和整页内容都不依赖它。
 (() => {
   const flow = document.querySelector('[data-home-flow]');
   if (!flow) return;
@@ -149,7 +149,7 @@
       ink.style.strokeDashoffset = '0';
       signal.style.display = 'none';
     } else {
-      // Follow the reading position along a monotonic curve, including its bends.
+      // 用二分法在单调曲线上找当前阅读位置（拐弯段也算对），别整条扫。
       let low = 0, high = length;
       for (let i = 0; i < 12; i++) {
         const middle = (low + high) / 2;
@@ -171,7 +171,7 @@
       const hero = frame?.getBoundingClientRect();
       const progress = hero && !reduced.matches ? Math.max(0, Math.min(1, -hero.top / hero.height)) : 0;
       frame?.contentDocument?.documentElement.style.setProperty('--hero-exit', String(progress));
-    } catch { /* Cross-origin embeds keep their independent, static layout. */ }
+    } catch { /* 跨域 iframe 读写不了，保持它自己的静态版式。 */ }
   }
 
   function schedule() {
@@ -190,7 +190,7 @@
     const a = regions[0];
     let d;
     if (width <= 640) {
-      // On phones the route lives in the gutter, away from text and controls.
+      // 手机上路径走页面外侧的留白，避开文字与控件。
       const x = Math.max(8, width * .025);
       d = `M${x} 12`;
       regions.slice(0, -1).forEach(region => {
@@ -209,7 +209,7 @@
           points.push([edge, region.bottom - 200], [width * (onRight ? .89 : .11), region.bottom - 95], [width * (onRight ? .75 : .25), height - 38], [width * .5, height - 5]);
         }
       });
-      // Shared tangents make the whole route a continuous curve, without corners.
+      // 相邻线段共用切线，整条路径是连续曲线，没有硬拐角。
       d = `M${points[0].join(' ')}`;
       for (let i = 0; i < points.length - 1; i++) {
         const p0 = points[Math.max(0, i - 1)], p1 = points[i];

@@ -61,7 +61,7 @@ if (root) {
       const query = submittedQuery.trim();
       query ? url.searchParams.set('q',query) : url.searchParams.delete('q');
       type === 'all' ? url.searchParams.delete('type') : url.searchParams.set('type',type);
-      try { history.replaceState(null,'',url); } catch { /* Search still works without history access. */ }
+      try { history.replaceState(null,'',url); } catch { /* 读写不了 history 时，搜索本身照常能用。 */ }
     }
     function render({ write = true, expand = false } = {}) {
       clearTimeout(timer);

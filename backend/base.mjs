@@ -1,9 +1,12 @@
 // backend/ 内部共用的基础件，只服务于 backend/ 里的脚本：
 //   · escapeHtml —— 转义任意文本，供手写标签输出的地方使用（当前是 sitemap.xml）；
+//   · parseCookies / sameOrigin —— HTTP 层的两个小工具，认证接口、头像接口、论坛接口都要用。
 //   · 站点资源目录、后缀到 Content-Type 的映射，以及限定在目录内读取文件的辅助函数 —— 站点的唯一文件系统出口。
 import {readFile, stat} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+
+import {esc} from '../common/text.mjs';
 
 /**
  * 转义文本里会破坏标记结构的五个字符。
@@ -13,7 +16,8 @@ import {fileURLToPath} from 'node:url';
  * @param {unknown} value 待转义的值，会先转成字符串。
  * @returns {string} 转义后的字符串。
  */
-export const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
+// 转义只有一份实现，在 common/text.mjs（前后端都要用）。这里保留 escapeHtml 这个名字给既有调用方。
+export const escapeHtml = esc;
 
 /** 项目根目录（本文件位于 <root>/backend/ 下）。 */
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -73,4 +77,40 @@ export async function readAsset(pathname){
     return null;
   const type = types[path.extname(pathname).toLowerCase()];
   return type? {type, body}: null;
+}
+
+/**
+ * 解析 cookie 头。
+ * @param {string} [header] 原始 Cookie 头。
+ * @returns {Record<string,string>} 名称到值的映射。
+ */
+export function parseCookies(header = ''){
+  const cookies = {};
+  for(const part of String(header).split(';')){
+    const index = part.indexOf('=');
+    if(index < 0)
+      continue;
+    const name = part.slice(0, index).trim();
+    if(name)
+      cookies[name] = part.slice(index + 1).trim();
+  }
+  return cookies;
+}
+
+/**
+ * 同源校验：POST 必须带 Origin，且主机与请求的 Host 一致。
+ * 只比主机不比协议 —— 同一台机器上 http/https 都可能出现，比协议只会误伤本机调试。
+ * @param {object} headers 请求头。
+ * @returns {boolean} 是否同源。
+ */
+export function sameOrigin(headers){
+  const source = headers.origin || headers.referer;
+  if(!source)
+    return false;
+  try{
+    return new URL(source).host === headers.host;
+  }
+  catch{
+    return false;
+  }
 }

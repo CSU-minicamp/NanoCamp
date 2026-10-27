@@ -68,8 +68,8 @@
       if (hash === '#groups') select(3);
     };
     window.addEventListener('hashchange', () => selectHash(location.hash));
-    // Re-activating the current fragment does not emit hashchange. Native
-    // anchor clicks also cover Enter activation without replacing scrolling.
+    // 重复点当前锚点不会再发 hashchange，所以另听一次 click 兜住；
+    // 顺带覆盖回车激活，且不拦原生滚动。
     document.addEventListener('click', event => {
       if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest('a[href]');
@@ -96,8 +96,8 @@
       try {
         const anchoredItem = items.find(item => item.id === decodeURIComponent(url.hash.slice(1)));
         if (anchoredItem?.hidden) url.hash = '';
-      } catch { /* A malformed fragment must not interrupt filtering. */ }
-      try { history.replaceState(null, '', url); } catch { /* Filtering also works in restricted previews. */ }
+      } catch { /* 锚点里的片段解析失败，不该打断筛选。 */ }
+      try { history.replaceState(null, '', url); } catch { /* 受限预览里改不了地址，筛选照样能用。 */ }
     }
     function apply(updateLocation = true) {
       clearTimeout(timer);
@@ -159,7 +159,7 @@
     revealHash();
   });
 
-  // Ambient orbit only runs while visible and when the visitor permits motion.
+  // 背景环绕只在「这一段可见 + 用户没要求减少动效」时才跑。
   document.querySelectorAll('.activity-art').forEach(art => {
     let visible = false;
     const update = () => art.classList.toggle('art-in-view', visible && !document.hidden && !window.NanoCampMotion?.stopped);

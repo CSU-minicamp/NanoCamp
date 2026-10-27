@@ -52,7 +52,7 @@ export const projects = rawProjects.map(project => ({ ...project, category: proj
 export const communityProjects = [];
 export const personalProjects = [];
 
-// Published on the official minicamp activity site. These entries stay scoped to the annual recap.
+// 取自 minicamp 官方活动站已发布的作品；这几条只用于年度回顾板块，不进作品总表。
 export const featuredProjects = minicamp2026.featuredProjectIds.map(id => projects.find(project => project.id === id)).filter(Boolean);
 
 export const moments = [

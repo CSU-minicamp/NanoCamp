@@ -8,7 +8,7 @@
   if (!tabs.length || tabs.length !== panels.length || tabs.length !== screens.length) return;
   picker.setAttribute('role', 'tablist');
   const colors = ['#79adf2', '#7ed0b0', '#b5a1e9', '#efa786', '#ecd075', '#e9a4c0'];
-  // Keep the detail link usable even if a published cover later goes missing.
+  // 封面以后 404 了，「查看详情」这个链接也得能用。
   screens.forEach(screen => {
     const image = screen.querySelector('img');
     if (!image) return;
@@ -68,7 +68,7 @@
   box.classList.add('is-ready');
 })();
 
-// Follow the system motion preference; animate visible sections and one-time entrances.
+// 跟随系统动效偏好：只处理可见区块和一次性的入场动画。
 (() => {
   if (document.body.dataset.page !== 'home') return;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -100,7 +100,7 @@
           visible.add(el);
           if (!entered.has(el) && !stopped() && !document.hidden) {
             entered.add(el);
-            // Finite, cancellable animation; default HTML/CSS remains fully visible.
+            // 动画有限且可取消；就算不播，HTML/CSS 本身也是完整可见的。
             const animation = el.animate([{ opacity: .65, translate: '0 20px' }, { opacity: 1, translate: '0 0' }], { duration: 600, easing: 'cubic-bezier(.2,.7,.2,1)' });
             entrances.add(animation);
             animation.finished.then(() => entrances.delete(animation), () => entrances.delete(animation));

@@ -2,7 +2,25 @@ import { site } from '../content/site.mjs';
 import { metadata } from './metadata.mjs';
 import { galleryDialog } from './recap.mjs';
 
-export const esc = (value = '') => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+import {esc} from '../common/text.mjs';
+
+export {esc};
+
+export const defaultAccountAvatar = () => '<img class="account-avatar-image" src="/images/default-account-avatar.png" alt="" width="256" height="256" decoding="async">';
+export const accountAvatar = id => Number.isSafeInteger(Number(id))&&Number(id)>0?`<img class="account-avatar-image" src="/api/users/${Number(id)}/avatar" alt="" width="256" height="256" decoding="async">`:defaultAccountAvatar();
+export const avatarGlyph = () => '<svg class="avatar-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.6" r="3.9"/><path d="M4.7 20.4c.9-3.9 3.8-6 7.3-6s6.4 2.1 7.3 6"/></svg>';
+
+// 右上角的账号入口：**永远是一个圆形**，与站内其它圆形控件一致。
+//
+//   未登录 —— 主题色实心圆，里面两个白字「登录」；
+//   已登录 —— 白底圆 + 人像。
+//
+// 两种形态都写在这份 HTML 里，画哪一个由 <html data-account> 决定（见 public/base.js）：
+// 服务端渲染不出登录态，所以先按未登录输出，拿到会话后再改标记。
+// data-header-account / data-account-entry 两个钩子都留着：前者给 forum-nav.js 挂角标，后者给对账脚本定位。
+export function accountEntry(){
+  return `<a class="header-account" href="/login/" data-account-entry data-header-account aria-label="登录 NanoCamp"><span class="account-avatar"><span class="account-label" data-account-label aria-hidden="true">登录</span>${avatarGlyph()}<span data-unread-count hidden></span></span></a>`;
+}
 export function safeUrl(value, local = false) {
   if (typeof value !== 'string' || !value.trim()) return null;
   if (local && /^\/(?!\/)/.test(value) && !/[\\\r\n]/.test(value)) return value;
@@ -18,8 +36,8 @@ export function logoMark(kind = 'wordmark', classes = '', lazy = false) {
   let source = safeUrl(symbol ? site.symbol : site.logo, true);
   let crop = symbol ? null : (kind === 'signature' ? site.signatureCrop : site.logoCrop);
   let imageAttributes = '';
-  // These derivatives use the supplied originals and the existing wordmark crop.
-  // Custom images or crop settings continue to use their own source unchanged.
+  // 这几个衍生图用的是原有素材与既定的字标裁切；
+  // 换成自定义图片或裁切参数时，走各自的原图，不受影响。
   if (kind === 'wordmark' && source === '/images/nanocamp-wordmark.png' && Array.isArray(crop) && crop.join(',') === '48,438,1170,290,1254') {
     source = '/images/nanocamp-wordmark-468.webp';
     crop = [0, 0, 1170, 290, 1170];
@@ -34,31 +52,15 @@ export function logoMark(kind = 'wordmark', classes = '', lazy = false) {
 }
 
 export const arrowIcon = (external = false) => `<svg class="link-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="${external ? 'M5 15 15 5M5 5h10v10' : 'M3 10h13m-5-5 5 5-5 5'}"/></svg>`;
-// The external SVG sprite is shared with base.js; no duplicated icon drawings.
+// 图标统一从 /images/interface-icons.svg 取，不在模板里重画一份。
 export function uiIcon(kind, classes = '') {
-  const name = ['home','minicamp','activities','projects','community','partners','search','join','chat','calendar'].includes(kind) ? kind : 'home';
+  const name = ['home','minicamp','activities','projects','community','forum','partners','search','join','chat','calendar'].includes(kind) ? kind : 'home';
   return `<svg class="ui-icon ${classes}" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="/images/interface-icons.svg#icon-${name}"></use></svg>`;
 }
 export const joinButton = (label = '加入社区', classes = '') => `<button type="button" class="button button-primary ${classes}" data-join>${uiIcon('join', 'button-community-icon')}<span class="button-label">${label}</span><span class="button-plus" aria-hidden="true">+</span></button><a class="button button-primary join-fallback ${classes}" href="/faq/#join-channel">${uiIcon('join', 'button-community-icon')}${label}<span aria-hidden="true">↗</span></a>`;
 export const pageLink = (href, label, classes = '') => `<a class="button button-secondary ${classes}" href="${href}"><span class="button-label">${label}</span>${arrowIcon()}</a>`;
-// Section headings carry the hierarchy; keep the shared call signature.
+// 层级靠各节自己的标题表达，这里保留空标签以维持统一调用签名。
 export const eyebrow = () => '';
-
-// 默认头像（人像）。导航圆与成员主页共用同一个形状，换图片时只改这里和调用处。
-export const avatarGlyph = () => '<svg class="avatar-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.6" r="3.9"/><path d="M4.7 20.4c.9-3.9 3.8-6 7.3-6s6.4 2.1 7.3 6"/></svg>';
-
-// 右上角的账号入口：**永远是一个圆形**，与站内其它圆形控件一致。
-//
-//   未登录 —— 主题色实心圆，里面两个白字「登录」；
-//   已登录 —— 默认头像（那个人像），以后有图片就换成图片。
-//
-// 两种形态**都写在这份 HTML 里**，画哪一个由 <html data-account> 决定（见 accountBoot）：
-// 服务端渲染不出登录态（页面按路由共享缓存），但可以靠可读的 nc_ui 标记在首帧前定下来。
-// href 仍是 /login/：登录后由 public/account.js 改成 /user/<uid>/，点得快也只是先到登录页、
-// 再被服务端 303 送到 /profile/ —— 不会走丢。
-export function accountEntry() {
-  return `<a class="header-account" href="/login/" data-account-entry aria-label="登录 NanoCamp"><span class="account-avatar"><span class="account-label" aria-hidden="true">登录</span>${avatarGlyph()}</span></a>`;
-}
 
 export function header(active) {
   return `<a class="skip-link" href="#main">跳到主要内容</a><header class="site-header"><div class="container header-inner">
@@ -66,22 +68,24 @@ export function header(active) {
     <nav class="desktop-nav" aria-label="主导航" data-nav="desktop">${desktopNavigation(active)}</nav>
     <div class="header-actions">${active === 'community' ? `<a class="button button-primary button-small" href="#contact">${uiIcon('chat', 'button-community-icon')}联系我们</a>` : joinButton(site.join.qrCode || site.join.contact ? '加入社区' : '加入方式', 'button-small')}${accountEntry()}<button class="menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-nav" aria-label="打开导航菜单"><span></span><span></span></button></div>
     <nav id="mobile-nav" class="mobile-nav" aria-label="手机导航" data-nav="mobile" hidden>${mobileNavigation(active)}</nav>
-  </div></header>`;
+  </div><script defer src="/forum-nav.js"></script></header>`;
 }
 
-// 站内导航的**唯一数据源**。改导航只改这里：整页在请求期一次渲染，nav 就是其中一个片段，
-// 客户端不再重画一遍（base.js 只绑菜单开合与回到顶部）。加一项就会同时出现在桌面与手机两个 nav 里。
+// 站内导航的数据源是 public/base.js：客户端由它统一渲染，
+// 这里按同一份定义做一份构建期输出，作为首屏内容与无 JS 兜底。
+// 两边由 tests/nav.test.mjs 比对，改动时请同时更新 public/base.js。
 const navLinks = [
   { key: 'home', href: '/', label: '首页' },
   { key: 'minicamp', href: '/minicamp/', label: 'minicamp' },
   { key: 'activities', href: '/activities/', label: '活动' },
   { key: 'projects', href: '/projects/', label: '作品' },
   { key: 'community', href: '/community/', label: '社区' },
+  { key: 'forum', href: '/forum/', label: '论坛' },
   { key: 'partners', href: '/partners/', label: '合作' },
   { key: 'search', href: '/search/', label: '站内搜索', search: true }
 ];
 
-// 当前页高亮由服务端给 aria-current —— 客户端不需要再算一遍。
+// 属性顺序与 public/base.js 的 DOM 输出保持一致，替换时不会产生无谓的结构差异。
 function navLink(link, active, label = link.label) {
   const current = (active || 'home') === link.key ? ' aria-current="page"' : '';
   if (link.search) {
@@ -113,7 +117,7 @@ export function media({ src, alt = '活动照片', label = '现场照片', id = 
   return `<div class="media-frame tone-${esc(theme)} ${esc(classes)} has-image"><a class="media-open" href="${esc(original)}" data-lightbox="${esc(original)}" data-caption="${esc(caption)}" data-album="${esc(album)}" data-album-label="${esc(albumLabel)}" aria-label="查看大图：${esc(alt)}"><img src="${esc(image)}" alt="${esc(alt)}" loading="lazy" decoding="async" data-media-image><span class="media-zoom" aria-hidden="true">${zoom}</span></a>${labelRow}</div>`;
 }
 
-// Shared invitation: homepage and every existing join section use this component.
+// 全站共用的邀请区块：首页和各页的「加入」小节都走这个组件。
 export function joinSection({ showAvailabilityNote = false } = {}) {
   const available = Boolean(site.join.qrCode || site.join.contact);
   return `<section class="join-section" aria-labelledby="join-heading"><div class="container join-inner"><div class="join-copy"><h2 id="join-heading">有想做的，<br>就会有人一起。</h2><p>说一句你想做什么，自然会有人接话。</p></div><div class="join-paper"><strong>See you<br>at NanoCamp.</strong><span>${showAvailabilityNote && !available ? '加入渠道尚未公布，可先阅读参与指南。' : '欢迎每一份好奇心。'}</span>${joinButton(available ? '查看加入渠道' : '查看加入方式', 'button-small')}</div></div></section>`;
@@ -125,8 +129,8 @@ export function shareButton(label = '复制页面链接') {
 
 // 页脚全站统一：口号（双色两行）+ 三栏导航 + 通栏字标，与站内搜索页同款结构。
 // 原来的署名块（图形标志 + WHO WE BUILD WITH）已整块移除，页脚底部留空。
-// [data-nav="footer-bottom"] 是历史遗留的空槽位（以前 base.js 会往里渲染、现在不碰了），
-// 保留它是因为 nav-build 测试按它确认「页脚底部仍然是空的」，也方便以后有需要时挂东西。
+// [data-nav="footer-bottom"] 槽位保留为空容器：它仍是 base.js 的挂载点契约，
+// 静态 HTML 与客户端渲染的空结构由 tests/nav-build.test.mjs 逐节点比对。
 // 回到顶部浮窗完全由 base.js 在客户端生成，静态 HTML 里没有它的标记。
 export function footer() {
   const nav = '<nav aria-label="页脚导航">'
@@ -152,14 +156,6 @@ export function dialogs() {
     ${galleryDialog()}`;
 }
 
-// 首帧的那一行脚本：只要读到 nc_ui 标记，就把 <html data-account="member"> 定下来。
-//
-// 为什么必须内联、还必须在 <head> 里：页面是按路由共享缓存的，服务端渲染不出登录态；
-// 而等 /api/session 回来再画，圆会先显示「登录」再跳成头像（闪一下）。
-// 这段跑在 body 解析之前，所以**第一帧就是对的**。读不到标记（无 JS、未登录）就是普通登录入口。
-// 它只决定「画什么」，不携带任何凭证，也不参与任何权限判断。
-const accountBoot = '<script>document.documentElement.setAttribute("data-account",/(?:^|;\\s*)nc_ui=\\d{1,18}/.test(document.cookie)?"member":"guest")</script>';
-
 export function documentPage({ title, description, active, body, route, noindex = false }) {
   // 首页在内容中放置共享加入区；其余内容页和错误页在这里追加一次。
   if (active && active !== 'search') body += joinSection();
@@ -169,5 +165,5 @@ export function documentPage({ title, description, active, body, route, noindex 
   const favicon = safeUrl(site.symbol === '/images/nanocamp-symbol.png' ? '/images/nanocamp-favicon.png' : site.symbol, true);
   const workshop = ['resources', 'partners'].includes(active);
   const album = !active || ['minicamp','projects'].includes(active);
-  return `<!doctype html><html lang="zh-CN" class="no-js"><head>${accountBoot}<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${['login', 'profile', 'user'].includes(active) ? '<link rel="stylesheet" href="/auth.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}<link rel="stylesheet" href="/interactions.css">${homeAssets}<script defer src="/base.js"></script><script defer src="/account.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${active === 'login' ? '<script defer src="/auth.js"></script>' : ''}${active === 'profile' ? '<script defer src="/profile.js"></script>' : ''}${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-playground.js"></script><script defer src="/home-experiment.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
+  return `<!doctype html><html lang="zh-CN" class="no-js"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FAFAF6"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${metadata({ title, description, route, noindex })}${favicon ? `<link rel="icon" type="image/png" href="${esc(favicon)}">` : ''}${fontAssets}<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/details.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/discovery.css">${album ? '<link rel="stylesheet" href="/gallery.css">' : ''}${album ? '<link rel="stylesheet" href="/projects.css">' : ''}${active === 'minicamp' || active === 'projects' ? '<link rel="stylesheet" href="/recap.css">' : ''}${workshop ? '<link rel="stylesheet" href="/workshop.css">' : ''}<link rel="stylesheet" href="/collage.css">${active === 'search' ? '<link rel="stylesheet" href="/search.css">' : ''}${['login','profile','user'].includes(active) ? '<link rel="stylesheet" href="/auth.css">' : ''}${active === 'partners' ? '<link rel="stylesheet" href="/partners.css"><link rel="stylesheet" href="/partner-draft.css"><link rel="stylesheet" href="/partner-scenes.css">' : ''}<link rel="stylesheet" href="/interactions.css">${homeAssets}<script defer src="/base.js"></script><script defer src="/app.js"></script><script defer src="/details.js"></script>${partnerAssets}<script defer src="/community.js"></script><script defer src="/discovery.js"></script>${active === 'login' ? '<script defer src="/auth.js"></script>' : ''}${active === 'profile' ? '<script defer src="/profile.js"></script>' : ''}${album ? '<script defer src="/gallery.js"></script>' : ''}${active === 'minicamp' ? '<script defer src="/recap.js"></script>' : ''}${active === 'search' ? '<script type="module" src="/search.js"></script>' : ''}${workshop ? '<script defer src="/workshop.js"></script>' : ''}${!active ? '<script defer src="/hero.js"></script><script defer src="/home-playground.js"></script><script defer src="/home-experiment.js"></script>' : ''}</head><body id="top" data-page="${active || 'home'}">${header(active)}<main id="main">${body}</main>${footer(active)}${dialogs()}</body></html>`;
 }

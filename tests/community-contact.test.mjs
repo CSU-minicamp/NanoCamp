@@ -51,7 +51,7 @@ function fixture(hash = '#contact') {
       preventDefault() { this.defaultPrevented = true; },
       ...properties,
     };
-    // Native DOM events bubble from the target to the document.
+    // 原生 DOM 事件会从目标一路冒泡到 document，这里照做一遍。
     for (let node = target; node; node = node.parentNode) node.dispatchEvent(event);
     document.dispatchEvent(event);
     return event;
@@ -104,7 +104,7 @@ test('keyboard card navigation and native Enter link activation expose the reque
   dispatch(tabs[5], 'keydown', { key: 'Home' });
   await settle();
   assertSelected(papers, 0);
-  // A native <a> activated with Enter emits click with detail=0.
+  // 原生 <a> 用回车激活时，发出的 click 事件 detail 为 0。
   contactLink.focus();
   const event = dispatch(contactLink, 'click', { detail: 0 });
   await settle();

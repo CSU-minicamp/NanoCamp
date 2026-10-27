@@ -55,7 +55,7 @@
     if (panelAnimation) settleDisclosure();
   }
   function transitionDisclosure(open) {
-    // Read the current frame before cancelling: a second click reverses smoothly.
+    // 取消动画前先读当前高度：连点第二次时才能从当下位置平滑反向。
     const from = disclosure.getBoundingClientRect().height;
     const reversing = Boolean(panelAnimation);
     panelAnimation?.cancel();
@@ -69,7 +69,7 @@
     draftContent.inert = !open;
     disclosure.dataset.briefTransition = open ? 'opening' : 'closing';
     summary.setAttribute('aria-expanded', String(open));
-    // Keep native content rendered until the closing transition has finished.
+    // 收起动画没播完之前，原生内容不能提前消失。
     disclosure.open = true;
     disclosure.style.height = 'auto';
     const style = getComputedStyle(disclosure);
@@ -185,7 +185,7 @@
     transitionDisclosure(!requestedOpen);
   });
   disclosure.addEventListener('toggle', () => {
-    // A programmatic native toggle must also release any temporary clipping.
+    // 代码触发的原生开合，也要把过渡期间加的临时裁剪释放掉。
     if (panelAnimation) {
       if (!disclosure.open) {
         requestedOpen = false;

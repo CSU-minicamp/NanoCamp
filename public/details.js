@@ -38,7 +38,7 @@
   reduced.addEventListener('change', applyPreference);
   applyPreference();
 
-  // One bounded ripple per control. Keyboard activation starts at the center.
+  // 每个控件同时只留一个波纹；键盘激活时从中心扩散。
   function addWave(button, clientX, clientY) {
     if (stopped() || document.hidden || !button || button.disabled) return;
     button.querySelectorAll('.tap-wave').forEach(removeWave);
@@ -67,7 +67,7 @@
     addWave(button);
   });
 
-  // Pointer light updates once per frame, with no idle animation loop.
+  // 光斑每帧最多更新一次，闲时没有常驻的动画循环。
   document.querySelectorAll('[data-detail-surface]').forEach(surface => {
     surface.addEventListener('pointermove', event => {
       if (stopped() || !finePointer.matches || event.pointerType === 'touch' || document.hidden) return;

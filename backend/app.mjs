@@ -10,15 +10,17 @@
 
 import {createHash} from 'node:crypto';
 
-import {types, readAsset, escapeHtml} from './base.mjs';
-import {handleApi, parseCookies, safeNext} from './api.mjs';
+import {types, readAsset, escapeHtml, parseCookies} from './base.mjs';
+import {handleApiRequest, safeNext} from './api.mjs';
+import {isId} from './forum/base.mjs';
 import {readSession, missingFields, findPublicUser} from './auth.mjs';
-import {renderProfile, renderProfileForce, renderPassword} from '../src/profile.mjs';
+import {renderProfileForce} from '../src/profile.mjs';
 import {renderMember} from '../src/member.mjs';
 import {routePaths, indexablePaths, renderPage, renderNotFound, renderUnauthorized} from '../src/pages.mjs';
 import {renderIntroPage} from '../src/intro.mjs';
 import {canonicalUrl} from '../src/metadata.mjs';
 import {guides} from '../content/guides.mjs';
+import {handleForumPage} from './forum/routes.mjs';
 
 /**
  * 全站唯一的缓存策略：一律 no-cache。
@@ -39,9 +41,8 @@ const cacheControl = 'no-cache';
  */
 const sessionRoutes = new Map([
   ['/login/', {render: renderLoginPage}],
-  ['/profile/', {render: renderProfilePage}],
-  ['/profile/force/', {render: renderProfileForcePage}],
-  ['/profile/password/', {render: renderProfilePasswordPage}]
+  ['/profile/', {render: handleForumPage}],
+  ['/profile/force/', {render: renderProfileForcePage}]
 ]);
 
 /**
@@ -171,32 +172,6 @@ function redirectSeeOther(location){
 }
 
 /**
- * /profile/：读出会话 → 决定是「去登录」「去补全」还是「渲染资料」。
- *
- * 每次请求现算（不进缓存），响应明确 no-store。
- * @param {object} context 请求上下文。
- * @param {object} context.headers 请求头（用它取会话 cookie）。
- * @returns {Promise<object>} 响应描述。
- */
-async function renderProfilePage({headers}){
-  let session = null;
-  try{
-    session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
-  }
-  catch(error){
-    console.error('[profile] 读取会话失败：', error.message);
-    return sendPrivate('账号系统暂时不可用，请稍后再试。\n', 503, types['.txt']);
-  }
-  // 没登录直接去登录页，并带上回来要去的地址。
-  if(!session)
-    return redirectSeeOther(`/login/?next=${encodeURIComponent('/profile/')}`);
-  // 资料没补全则先去补，补完回这里。
-  if(missingFields(session.user).length)
-    return redirectSeeOther(`/profile/force/?next=${encodeURIComponent('/profile/')}`);
-  return sendPrivate(renderProfile(session.user), 200);
-}
-
-/**
  * /profile/force/：补全必填项。
  *
  * 服务端就要把三种情况分开，而不是先给一张表单再让 JS 去跳：
@@ -225,33 +200,6 @@ async function renderProfileForcePage({headers, url = '/'}){
   if(!missing.length)
     return redirectSeeOther(target);
   return sendPrivate(renderProfileForce(missing, session.user), 200);
-}
-
-/**
- * /profile/password/：改密码页。
- *
- * 两种情况先在服务端分流，而不是渲染一张用不了的表单：
- *   没登录              → 303 去登录页（带回跳）
- *   还没设置过密码      → 303 去补全页（「改密码」得先有一个密码可改）
- *
- * @param {object} context 请求上下文。
- * @param {object} context.headers 请求头。
- * @returns {Promise<object>} 响应描述。
- */
-async function renderProfilePasswordPage({headers}){
-  let session = null;
-  try{
-    session = await readSession(parseCookies(headers.cookie || '').nc_sid || '');
-  }
-  catch(error){
-    console.error('[profile] 读取会话失败：', error.message);
-    return sendPrivate('账号系统暂时不可用，请稍后再试。\n', 503, types['.txt']);
-  }
-  if(!session)
-    return redirectSeeOther(`/login/?next=${encodeURIComponent('/profile/password/')}`);
-  if(missingFields(session.user).includes('password'))
-    return redirectSeeOther(`/profile/force/?next=${encodeURIComponent('/profile/password/')}`);
-  return sendPrivate(renderPassword(session.user), 200);
 }
 
 /**
@@ -355,9 +303,9 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}, bo
     // 非法的百分号编码
     return send('请求地址无法解析。\n', {type: types['.txt'], status: 400}, headers);
   }
-  // 认证接口先分流：它要收 POST，而且响应与具体浏览器有关
+  // API 一律交给 api.mjs
   if(pathname.startsWith('/api/'))
-    return handleApi({method, pathname, headers, body, ip});
+    return handleApiRequest({method, url, pathname, headers, body, ip});
   // 其他页面一律只读
   if(method !== 'GET' && method !== 'HEAD'){
     return {
@@ -380,6 +328,8 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}, bo
   }
   if(!safeRoute(pathname))
     return send('请求地址非法。\n', { type: types['.txt'], status: 400 }, headers);
+  if(pathname==='/forum' || pathname.startsWith('/forum/'))
+    return handleForumPage({url, headers});
   const route = pathname.endsWith('/index.html')? pathname.slice(0, -'index.html'.length): pathname;
 
   // 会话相关页面：自己读 cookie、自己决定状态码，所以既不走缓存也不进 dynamicRoutes。
@@ -392,6 +342,10 @@ export async function handleRequest({method = 'GET', url = '/', headers = {}, bo
     // 少一个斜杠时先补上，和 /about → /about/ 的处理保持一致。
     if(!route.endsWith('/'))
       return redirect(route + '/');
+    // 路由只认「一串数字」，合法性回 community.isId（全站唯一编号规则）：0195、0、18 位都不是编号。
+    // 以前这里放过前导零，/user/0195/ 和 /user/195/ 会打开同一页。
+    if(!isId(member[1]))
+      return send(renderOnce('/404.html', renderNotFound), {type: types['.html'], status: 404, source: 'notfound'}, headers);
     return renderMemberPage(member[1], {headers});
   }
   // 站点级派生文件（sitemap / robots / 404）

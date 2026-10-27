@@ -9,8 +9,9 @@ import {createHash, createHmac, randomBytes, scrypt, timingSafeEqual} from 'node
 import {promisify} from 'node:util';
 
 import {authConfig, mailPaused} from './config.mjs';
-import {dbReady, select, execute} from './db.mjs';
+import {dbReady, select, execute, transaction} from './db.mjs';
 import {createEmailCaptcha, sendLoginCode} from './mail.mjs';
+import {BIO_MAX, NICKNAME_MAX, PASSWORD_MAX, PASSWORD_MIN} from '../common/limits.mjs';
 
 /** 挑战 cookie 与验证码有效期一致（分钟）之外的兜底：cookie 本身多留 5 分钟。 */
 const CHALLENGE_COOKIE_SLACK_MINUTES = 5;
@@ -42,6 +43,20 @@ export class AuthError extends Error{
   }
 }
 
+/**
+ * 昵称里不允许出现的字符：路径分隔符、C0/C1 控制字符、不可见的空白/连接/方向/隔离字符。
+ *
+ * 昵称只当显示文本用（链接一律走 `/forum/users/<id>/`），所以这些字符不会立刻炸掉什么；
+ * 但 `/` `\` 会被读成路径或「某组织/某人」；零宽空格、连接符、方向标记、BOM 这类看不见的字符
+ * 能造出视觉上同名或空名的账号 —— 都不该放进来。
+ *
+ * **组合 emoji 因此不被支持**：👨‍👩‍👧 这种用 U+200D（ZWJ）拼起来的序列会被拒。
+ * 这是有意的取舍 —— 宁可少支持一类 emoji，也不留「看起来同名、字符串不同」的缝隙。
+ * 单码点 emoji（🌱、👩）与肤色修饰符不受影响。
+ * 用**黑名单**而不是白名单：emoji、日文、全角符号这些正常昵称不该被误伤。
+ */
+const FORBIDDEN_NICKNAME = /[/\\\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2028\u2029\u2060\u2066-\u2069\ufeff]/;
+
 /** 邮箱规范化：去首尾空白 + 全转小写。 */
 export const normalizeEmail = value => String(value ?? '').trim().toLowerCase();
 
@@ -71,7 +86,8 @@ const toUser = row => ({
   email: row.email,
   nickname: row.nickname || '',
   bio: row.bio || '',
-  hasPassword: Boolean(row.has_password)
+  hasPassword: Boolean(row.has_password),
+  avatarUrl: `/api/users/${row.id}/avatar`
 });
 
 /** 验证码的存储形态：HMAC(challenge:code)，同一串码在不同挑战里哈希也不同。 */
@@ -100,9 +116,7 @@ function assertAvailable(){
 const scryptAsync = promisify(scrypt);
 const SCRYPT = {N: 16384, r: 8, p: 1, keylen: 64};
 
-/** 密码长度边界：与前端 input 的 minlength/maxlength 对齐。 */
-export const PASSWORD_MIN = 8;
-export const PASSWORD_MAX = 72;
+/** 密码长度边界在 common/limits.mjs —— 模板的 minlength/maxlength 也从那里取，只有一处默认值。 */
 
 /**
  * 生成密码哈希。
@@ -359,7 +373,7 @@ export async function loginWithPassword({email, password, userAgent = ''}){
     return reject();
   // 不动 users.updated_at：那是「资料更新」时间，登录不等于改资料；活动时间由 sessions.last_seen_at 记。
   const user = toUser({...row, has_password: true});
-  const {token, expiresAt} = await issueSession({user, now, userAgent});
+  const {token, expiresAt} = await issueSession({user, now, userAgent, passwordHash: row.password_hash});
   // 密码对了 ⇒ 是本人：清掉之前那些「猜错」的旧账。
   await clearRateEvents(normalized);
   return {user, token, expiresAt};
@@ -407,13 +421,18 @@ async function ensureUser(email, now){
  * @param {string} [options.userAgent] UA 原文。
  * @returns {Promise<{token: string, expiresAt: Date}>} 令牌与绝对到期时间。
  */
-async function issueSession({user, now, userAgent = ''}){
+async function issueSession({user, now, userAgent = '', passwordHash}){
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(now.getTime() + authConfig().sessionDays * 24 * 60 * 60 * 1000);
-  await execute(
-    'INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at, ua_hash) VALUES (?, ?, ?, ?, ?, ?)',
-    [hashToken(token), user.id, now, now, expiresAt, userAgent ? sha256(userAgent): '']
-  );
+  await transaction(async c => {
+    const [[current]] = await c.execute('SELECT password_hash FROM users WHERE id=? FOR UPDATE', [user.id]);
+    if(!current || passwordHash !== undefined && current.password_hash !== passwordHash)
+      throw new AuthError('credentials_invalid', '凭据在登录期间已改变');
+    await c.execute(
+      'INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at, ua_hash) VALUES (?, ?, ?, ?, ?, ?)',
+      [hashToken(token), user.id, now, now, expiresAt, userAgent? sha256(userAgent): '']
+    );
+  });
   return {token, expiresAt};
 }
 
@@ -441,31 +460,60 @@ export function missingFields(user){
 }
 
 /**
- * 更新个人资料。**目前只有密码** —— 这一版不做昵称/学校/简介，
- * 加字段时同时改 PROFILE_FIELDS、表结构和 /profile/force/ 的模板。
+ * 写个人资料（昵称 / 一句话介绍）—— `POST /api/profile` 用这个。
  *
- * 密码在这里只校验长度、直接哈希写入 —— 同一条路径既用于「首次设置」也用于「以后修改」，
- * 因为验证身份是上一步的事（能拿到会话就说明已经验证过）。
+ * **这个入口不收密码**：首次设置走 initProfile()（`POST /api/profile/init`），
+ * 以后修改走 changePassword()（`POST /api/profile/password`，要验旧密码）。
+ * 传了 password 直接 400 —— 与其悄悄忽略，不如让调用方立刻知道走错了门。
  * @param {object} options 参数。
  * @param {number} options.userId 用户编号（来自会话）。
- * @param {string} [options.password] 新密码。
  * @param {string} [options.nickname] 昵称（必填项，传了就校验非空）。
  * @param {string} [options.bio] 一句话介绍（可选，可以为空）。
  * @param {object} [options.current] 会话里的用户对象（用来合并返回值，省一次回查）。
  * @returns {Promise<object>} 更新后的用户对象。
  */
-export async function updateProfile({userId, password, nickname, bio, current = {}}){
+export const updateProfile = options => writeProfile(options, {init: false});
+
+/**
+ * 首次补全 —— `POST /api/profile/init` 用这个：昵称 + 一次性密码 + 简介。
+ *
+ * 密码只补空：UPDATE 上带 `AND password_hash IS NULL`，账号已有密码时打不中，
+ * 于是抛 password_change_required，逼客户端去账号安全走「验旧密码」的正路。
+ * @param {object} options 参数，同 updateProfile，另加 password。
+ * @param {string} [options.password] 首次设置的密码。
+ * @returns {Promise<object>} 更新后的用户对象。
+ */
+export const initProfile = options => writeProfile(options, {init: true});
+
+/**
+ * 两个入口共用的写法：校验 → 拼**一条** UPDATE → 返回合并后的用户。
+ *
+ * 多字段合成一条语句是故意的：一次往返、原子生效，不会出现「昵称改了、密码没改」。
+ * 两个入口共用它而不是各写一份，是为了让长度/字符/密码规则只有一处。
+ * @param {object} options 待写字段。
+ * @param {object} options.userId 用户编号（来自会话）。
+ * @param {string} [options.password] 密码（只有 init 入口允许）。
+ * @param {string} [options.nickname] 昵称。
+ * @param {string} [options.bio] 一句话介绍。
+ * @param {object} [options.current] 会话里的用户对象。
+ * @param {object} options2 开关。
+ * @param {boolean} options2.init 是否允许写密码。
+ * @returns {Promise<object>} 更新后的用户对象。
+ */
+async function writeProfile({userId, password, nickname, bio, current = {}}, {init}){
   assertAvailable();
   if(!userId)
     throw new AuthError('unauthenticated', '未登录');
+  if(password !== undefined && !init)
+    throw new AuthError('invalid_profile', '密码只能首次设置；修改密码请走账号安全');
   const sets = [];
   const params = [];
   /** 本次真正改掉的字段；返回值直接由它和会话用户合并，不再回查一次数据库。 */
   const changed = {};
-  /** 去空白 + 限长。 */
+  /** 去空白 + 限长。按**码点**数（Array.from）而不是 UTF-16 单元：一个 emoji 算 1 个字符，和数据库 VARCHAR 的口径一致。 */
   const text = (value, max) => {
     const trimmed = String(value ?? '').trim();
-    if(trimmed.length > max)
+    if(Array.from(trimmed).length > max)
       throw new AuthError('invalid_profile', `最多 ${max} 个字符`);
     return trimmed;
   };
@@ -478,16 +526,18 @@ export async function updateProfile({userId, password, nickname, bio, current = 
     changed.hasPassword = true;
   }
   if(nickname !== undefined){
-    const value = text(nickname, 24);
+    const value = text(nickname, NICKNAME_MAX);
     // 昵称是必填项：传了空值就是错，而不是悄悄存个空字符串。
     if(!value)
       throw new AuthError('invalid_profile', '昵称不能为空');
+    if(FORBIDDEN_NICKNAME.test(value))
+      throw new AuthError('invalid_profile', '昵称不能包含 / \\ 或不可见字符');
     sets.push('nickname = ?');
     params.push(value);
     changed.nickname = value;
   }
   if(bio !== undefined){
-    const value = text(bio, 160);
+    const value = text(bio, BIO_MAX);
     sets.push('bio = ?');
     params.push(value);
     changed.bio = value;
@@ -497,55 +547,79 @@ export async function updateProfile({userId, password, nickname, bio, current = 
   sets.push('updated_at = ?');
   params.push(new Date());
   params.push(userId);
-  await execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
+  // 这个接口只负责**补**密码，绝不替换已有的：已有密码必须走改密接口，那里要验旧密码。
+  const saved = await execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?${password !== undefined? ' AND password_hash IS NULL': ''}`, params);
+  if(password !== undefined && !saved.affectedRows)
+    throw new AuthError('password_change_required', '已有密码必须通过安全验证修改');
   return {...current, id: userId, ...changed};
 }
 
 /**
- * 改密码：先验旧密码，再写新哈希，最后**撤掉这个账号的所有会话**。
+ * 改密码：凭会话令牌认出是谁 → 验旧密码 → 写新哈希 → 撤掉这个账号的全部会话。
  *
- * 为什么连其它设备一起撤：密码通常是在别处泄露时才去改，只踢掉当前这个会话，
- * 等于把别人的登录留着 —— 用户以为「我改过了」，其实并没有摆脱对方。
- * 所以调用方（接口层）在成功后要连同当前会话的 cookie 一起清掉，把人送回登录页。
- *
- * 旧密码猜错也记限流事件（kind = 'change_fail'）：拿到会话的人不能无限次试旧密码。
- * @param {object} options 参数。
- * @param {number} options.userId 用户编号（来自会话）。
- * @param {string} options.currentPassword 当前密码。
- * @param {string} options.password 新密码。
- * @returns {Promise<{revoked: number}>} 被撤掉的会话数。
+ * 只收 token、不收 userId：调用方说不出「改谁的密码」，一切以这条会话为准，
+ * 「userId 和 token 不是一对」这种串号从结构上就不存在。
+ * 会话校验与写入在同一个事务里，所以「读到会话之后、写入之前被撤销」也会被拒。
+ * @param {object} params 参数。
+ * @param {string} params.token 当前会话令牌原文（函数内哈希后比对，光有 cookie 不算数）。
+ * @param {string} params.currentPassword 旧密码。
+ * @param {string} params.newPassword 新密码。
+ * @param {string} params.confirmPassword 再输一遍新密码。
+ * @returns {Promise<{ok: true}>} 成功（会话已被撤销，调用方必须把人送回登录页）。
  */
-export async function changePassword({userId, currentPassword, password}){
+export async function changePassword({token, currentPassword, newPassword, confirmPassword}){
   assertAvailable();
-  if(!userId)
-    throw new AuthError('unauthenticated', '未登录');
-  const input = String(password ?? '');
-  if(input.length < PASSWORD_MIN || input.length > PASSWORD_MAX)
-    throw new AuthError('invalid_password', `新密码需 ${PASSWORD_MIN}–${PASSWORD_MAX} 个字符`);
-  const rows = await select('SELECT password_hash FROM users WHERE id = ?', [userId]);
-  const row = rows[0];
-  if(!row)
-    throw new AuthError('unauthenticated', '用户不存在');
-  if(!row.password_hash){
-    // 只用验证码登录过的账号没有密码可验：去补全页设一个，而不是在这里「改」。
-    await burnPasswordTime(String(currentPassword ?? ''));
-    throw new AuthError('password_not_set', '这个账号还没有设置过密码');
+  if(typeof newPassword !== 'string' || newPassword.length < PASSWORD_MIN || newPassword.length > PASSWORD_MAX)
+    throw new AuthError('invalid_password', '新密码长度不合法');
+  if(newPassword !== confirmPassword)
+    throw new AuthError('password_mismatch', '两次新密码不一致');
+  if(newPassword === currentPassword)
+    throw new AuthError('password_unchanged', '新密码不能与当前密码相同');
+  const result = await transaction(async c => {
+    const [[session]] = await c.execute('SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?', [hashToken(token), new Date()]);
+    if(!session)
+      return {error: 'unauthenticated'};
+    return applyPassword(c, session.user_id, {currentPassword, newPassword});
+  });
+  if(result.error)
+    throw new AuthError(result.error, '修改密码验证失败', result.error === 'rate_limited'? {retryAfter: 900}: {});
+  return result;
+}
+
+/**
+ * 在**已开的事务里**换掉指定账号的密码，并撤销它全部会话。
+ *
+ * 刻意不导出、也不自己开事务：会话校验必须是同一个事务的一部分，否则「校验通过 → 写入之前被撤销」那个窗口又回来了。
+ * 将来要有第二个入口（管理端强制重置之类），在它自己的事务里调这个函数。
+ * 猜错的计数必须留下（`password_change`，15 分钟 5 次），所以失败不走异常回滚，
+ * 而是返回错误标记让事务正常提交，由调用方出了事务再抛。
+ * @param {object} c 事务连接。
+ * @param {number} userId 用户编号。
+ * @param {object} input 新旧密码。
+ * @param {string} input.currentPassword 旧密码。
+ * @param {string} input.newPassword 新密码（长度与两遍一致已在外层校验）。
+ * @returns {Promise<{ok: true}|{error: string}>} 成功，或可映射成错误码的失败标记。
+ */
+async function applyPassword(c, userId, {currentPassword, newPassword}){
+  const subject = hmac(`password-change:${userId}`);
+  const [[user]] = await c.execute('SELECT password_hash FROM users WHERE id=? FOR UPDATE', [userId]);
+  if(!user)
+    return {error: 'unauthenticated'};
+  // 只用验证码登录过的账号没有密码可验：该去补全页设一个，而不是在这里「改」。
+  if(!user.password_hash)
+    return {error: 'password_not_set'};
+  const [[attempts]] = await c.execute("SELECT COUNT(*) AS n FROM rate_events WHERE kind='password_change' AND subject=? AND at>?", [subject, new Date(Date.now() - 15 * 60 * 1000)]);
+  if(attempts.n >= 5)
+    return {error: 'rate_limited'};
+  if(typeof currentPassword !== 'string' || currentPassword.length > 72 || !await verifyPassword(currentPassword, user.password_hash)){
+    await c.execute("INSERT INTO rate_events(kind,subject,at) VALUES ('password_change',?,?)", [subject, new Date()]);
+    return {error: 'current_password_invalid'};
   }
-  const now = new Date();
-  const subject = hmac(String(userId));
-  const failures = await countEvents('change_fail', subject, FAIL_WINDOW_MINUTES * 60 * 1000, now);
-  if(failures.count >= FAIL_LIMIT)
-    throw new AuthError('rate_limited', '旧密码错误次数过多', {retryAfter: failures.retryAfter});
-  if(!await verifyPassword(String(currentPassword ?? ''), row.password_hash)){
-    await recordEvent('change_fail', subject, now);
-    throw new AuthError('current_password_invalid', '当前密码不正确');
-  }
-  await execute('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [await hashPassword(input), now, userId]);
-  const revoked = await execute('DELETE FROM sessions WHERE user_id = ?', [userId]);
-  // 这次改密之后不该还背着之前那几次猜错的账。
-  await execute("DELETE FROM rate_events WHERE kind = 'change_fail' AND subject = ?", [subject])
-    .catch(error => console.error('[auth] 清空改密限流计数失败：', error.message));
-  return {revoked: revoked.affectedRows || 0};
+  const hash = await hashPassword(newPassword);
+  await c.execute('UPDATE users SET password_hash=?,updated_at=? WHERE id=?', [hash, new Date(), userId]);
+  await c.execute('DELETE FROM sessions WHERE user_id=?', [userId]);
+  await c.execute("DELETE FROM rate_events WHERE kind='password_change' AND subject=?", [subject]);
+  return {ok: true};
 }
 
 // ---------------- 公开主页 ----------------
@@ -554,9 +628,8 @@ export async function changePassword({userId, currentPassword, password}){
  *
  * 邮箱、密码哈希、验证时间一概不碰 —— 那个页面只接收这一个返回值，
  * 所以「模板里不小心写出邮箱」这类事故在数据层面就不可能发生。
- * 要看自己的完整资料（含邮箱）请走 /profile/，那里才用 toUser()。
- * @param {number|string} id 用户编号（URL 里的 uid）。
- * @returns {Promise<{id: number, nickname: string, bio: string, joinedAt: Date} | null>} 没这个人或是非法编号时返回 null。
+ * @param {string|number} id 用户编号（URL 里的 uid）。
+ * @returns {Promise<{id: number, nickname: string, bio: string, joinedAt: Date} | null>} 没这个人或编号非法时返回 null。
  */
 export async function findPublicUser(id){
   const uid = Number(id);
@@ -604,7 +677,11 @@ export async function readSession(token){
   return {user: toUser(row), expiresAt: row.expires_at};
 }
 
-/** 撤销一个会话。已不存在也算成功，避免退出按钮因重放而报错。 */
+/**
+ * 撤销一个会话。已不存在也算成功，避免退出按钮因重放而报错。
+ * @param {string} token 会话令牌原文。
+ * @returns {Promise<void>} 无。
+ */
 export async function revokeSession(token){
   if(!token || !dbReady())
     return;
