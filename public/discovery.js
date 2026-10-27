@@ -68,6 +68,7 @@
     input.autocomplete = 'off';
     input.setAttribute('data-search-shortcut','');
     form.append(input);
+    import('./nav-search-preview.js').then(({ bindSearchPreview }) => bindSearchPreview(form, input)).catch(() => {});
     form.addEventListener('submit',event=>{
       if (!input.value.trim()) { event.preventDefault(); input.focus(); }
     });

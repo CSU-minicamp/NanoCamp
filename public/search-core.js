@@ -33,3 +33,20 @@ export function resultExcerpt(record, terms = [], limit = 100) {
   const bodyTerms = terms.filter(term => !summary.includes(term));
   return excerpt(bodyTerms.length ? body || description : description || body, bodyTerms.length ? bodyTerms : terms, limit);
 }
+
+// Navigation preview: title matches keep the introductory summary; body matches show context.
+export function previewExcerpt(record, terms = [], limit = 90) {
+  const title = normalizeSearch(record.title);
+  const description = String(record.description ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+  const body = String(record.text ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+  if (terms.some(term => title.includes(term))) return excerpt(description || body, [], limit);
+  const source = terms.some(term => normalizeSearch(description).includes(term)) ? description : body || description;
+  const lower = source.toLocaleLowerCase();
+  const positions = terms.map(term => lower.indexOf(term)).filter(index => index >= 0);
+  if (!positions.length) return excerpt(source, [], limit);
+  const first = Math.min(...positions);
+  // Keep the first match near the start, so it survives a two-line visual clamp on narrow screens.
+  const start = Math.max(0, first - 12);
+  const end = Math.min(source.length, start + limit);
+  return (start ? '…' : '') + source.slice(start, end) + (end < source.length ? '…' : '');
+}
