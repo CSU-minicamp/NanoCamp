@@ -17,11 +17,10 @@ test('私信直接收发与隐私隔离',{skip:!dbReady()},async t=>{
   const hash=await hashPassword(password),now=new Date();
   for(const name of ['甲','乙','丙']){const email=`dm-${tag}-${name.codePointAt(0)}@example.test`;const r=await execute('INSERT INTO users(email,password_hash,nickname,email_verified_at,created_at,updated_at) VALUES (?,?,?,?,?,?)',[email,hash,'私信'+name+tag,now,now,now]);users.push(r.insertId);await call(r.insertId,'/api/session');assert.equal((await call(r.insertId,'/api/auth/login',{email,password})).status,200);}
   [a,b,c]=users;
-  await t.test('登录回跳、导航迁移和旧通知兼容',async()=>{
+  await t.test('登录回跳与导航迁移',async()=>{
    assert.equal((await call(0,'/forum/messages/')).status,303);
-   assert.equal((await call(a,'/forum/notifications/')).headers.location,'/forum/messages/?tab=activity');
    const page=await call(a,'/forum/messages/');assert.equal(page.status,200);assert.match(page.text,/data-dm-center/);assert.match(page.text,/messages\.js/);assert.match(page.text,/noindex/);assert.equal(page.headers['cache-control'],'no-store');
-   const center=await call(a,'/profile/');assert.ok(!center.text.includes('href="/forum/notifications/"'));assert.match(center.text,/\/profile\/\?tab=profile/);
+   const center=await call(a,'/profile/');assert.match(center.text,/\/profile\/\?tab=profile/);
    assert.equal((await call(a,'/forum/messages/new/?to='+a)).status,403);
   });
   await t.test('用户搜索与直接收发，幂等及访问隔离',async()=>{
@@ -58,7 +57,7 @@ test('私信直接收发与隐私隔离',{skip:!dbReady()},async t=>{
    const page=await call(a,`/forum/messages/conversations/${conversation}/`);assert.ok(!page.text.includes('<script>alert(1)</script>'));assert.match(page.text,/&lt;script&gt;/);
    await call(a,`/api/forum/dm/conversations/${conversation}/hide`,{});assert.equal((await call(a,'/api/forum/dm/conversations')).json.items.length,0);
    await call(b,`/api/forum/dm/conversations/${conversation}/messages`,{body:'一条新的消息'});assert.equal((await call(a,'/api/forum/dm/conversations')).json.items.length,1);
-   assert.equal((await select('SELECT COUNT(*) AS n FROM forum_notifications WHERE user_id IN (?,?) AND target_type=?',[a,b,'dm_message']))[0].n,0);
+   assert.equal((await select('SELECT COUNT(*) AS n FROM forum_notifications WHERE receiver IN (?,?) AND target_type=?',[a,b,'dm_message']))[0].n,0);
   });
   await t.test('双向屏蔽及解除隔离，禁言用户仍可防骚扰',async()=>{
    await call(a,`/api/forum/dm/conversations/${conversation}/block`,{});
@@ -66,28 +65,34 @@ test('私信直接收发与隐私隔离',{skip:!dbReady()},async t=>{
    await call(b,`/api/forum/dm/conversations/${conversation}/block`,{});await call(a,`/api/forum/dm/conversations/${conversation}/unblock`,{});
    assert.equal((await call(a,`/api/forum/dm/conversations/${conversation}/messages`,{body:'仍被拦截'})).status,409);
    await call(b,`/api/forum/dm/conversations/${conversation}/unblock`,{});
-   await execute('INSERT INTO forum_members(user_id,suspended_until) VALUES (?,?)',[b,new Date(Date.now()+3600000)]);
+   await execute('INSERT INTO forum_member_roles(member_id,type,expired_at,created_at) VALUES (?,\'ban\',?,?)',[b,new Date(Date.now()+3600000),new Date()]);
    assert.equal((await call(b,`/api/forum/dm/conversations/${conversation}/messages`,{body:'禁言期间'})).status,403);
+   // 禁言（mute）不影响私信：这一档只拦公开发言。
+   // 发完把这条的时间往前挪 2 分钟，别占掉后面「20 条/分钟」测试的额度。
+   await execute('UPDATE forum_member_roles SET type=\'mute\' WHERE member_id=?',[b]);
+   const muted=await call(b,`/api/forum/dm/conversations/${conversation}/messages`,{body:'禁言期间仍可私信'});
+   assert.equal(muted.status,200);
+   await execute('UPDATE forum_dm_messages SET sent_at=? WHERE id=?',[new Date(Date.now()-120000),muted.json.id]);
    assert.equal((await call(b,`/api/forum/dm/conversations/${conversation}/block`,{})).status,200);
-   await execute('UPDATE forum_members SET suspended_until=NULL WHERE user_id=?',[b]);await call(b,`/api/forum/dm/conversations/${conversation}/unblock`,{});
+   await execute('DELETE FROM forum_member_roles WHERE member_id=?',[b]);await call(b,`/api/forum/dm/conversations/${conversation}/unblock`,{});
   });
   await t.test('私信举报、领取、有限证据、处理、系统反馈及恢复',async()=>{
    const reported=await call(b,'/api/forum/dm/reports',{message_id:message,reason:'人身攻击或骚扰',details:'测试举报'});assert.equal(reported.status,200);report=reported.json.id;
    assert.equal((await call(b,'/api/forum/dm/reports',{message_id:message,reason:'人身攻击或骚扰'})).json.id,report);
    assert.equal((await call(a,'/api/forum/dm/reports',{message_id:message,reason:'其他'})).status,403);
    assert.equal((await call(c,'/api/forum/dm/reports',{message_id:message,reason:'其他'})).status,404);
-   await execute("INSERT INTO forum_members(user_id,role) VALUES (?,'admin')",[c]);
+   await execute("INSERT INTO forum_member_roles(member_id,type,created_at) VALUES (?,'admin',?)",[c,new Date()]);
    await assert.rejects(reviewReports(a,report),e=>e.status===403);await assert.rejects(reviewReports(c,report),e=>e.status===403);
    await moderate(c,{reportId:report,version:1,action:'claim',reason:'领取测试举报'});const evidence=await reviewReports(c,report);assert.ok(evidence.evidence.length<=11);
    assert.equal((await call(b,`/api/forum/dm/reports/${report}/withdraw`,{})).status,409);
-   await moderate(c,{reportId:report,version:2,action:'uphold',reason:'测试核实，隐藏消息'});
-   assert.equal((await call(a,`/api/forum/dm/conversations/${conversation}/messages`)).json.items[0].body,'消息已隐藏');
+   await moderate(c,{reportId:report,version:2,action:'uphold',reason:'测试核实，删除消息'});
+   assert.equal((await call(a,`/api/forum/dm/conversations/${conversation}/messages`)).json.items[0].body,'消息已删除');
    const notes=(await call(b,'/api/forum/notifications?filter=system')).json;assert.ok(notes.items.some(n=>n.kind==='dm_report_result'));
    assert.equal((await call(b,'/profile/?tab=reports&kind=dm')).status,200);
    await moderate(c,{reportId:report,version:3,action:'restore',reason:'复核通过，恢复消息'});
    assert.equal((await call(a,`/api/forum/dm/conversations/${conversation}/messages`)).json.items[0].body,'你好，讨论一下合作。');
-   assert.equal((await call(a,'/api/forum/notifications?filter=system')).json.items.find(n=>n.kind==='dm_content_hidden').title,'测试核实，隐藏消息');
-   for(let i=0;i<20;i++)await execute("INSERT INTO forum_dm_reports(reporter_id,conversation_id,message_id,reason,details,status,created_at,updated_at) VALUES (?,?,?,?,?,'dismissed',?,?)",[b,conversation,message,'其他','历史举报 '+i,new Date(),new Date()]);
+   assert.equal((await call(a,'/api/forum/notifications?filter=system')).json.items.find(n=>n.kind==='dm_content_deleted').title,'测试核实，删除消息');
+   for(let i=0;i<20;i++)await execute("INSERT INTO forum_dm_reports(reporter_id,conversation_id,message_id,reason,detail,status,created_at,updated_at) VALUES (?,?,?,?,?,'dismissed',?,?)",[b,conversation,message,'其他','历史举报 '+i,new Date(),new Date()]);
    assert.equal((await call(b,'/api/forum/dm/reports?report='+report)).json.page,2);
    assert.equal((await call(c,'/api/forum/dm/reports?report='+report)).status,404);
    assert.ok((await call(b,'/profile/?tab=reports&kind=dm&report='+report)).text.includes('id="dm-report-'+report+'"'));
@@ -101,7 +106,7 @@ test('私信直接收发与隐私隔离',{skip:!dbReady()},async t=>{
   });
   await t.test('历史只加载30条、游标无重复，通知全部已读不影响私信',async()=>{
    const [{last_seq}]=await select('SELECT last_seq FROM forum_dm_conversations WHERE id=?',[conversation]);
-   for(let i=1;i<=40;i++)await execute('INSERT INTO forum_dm_messages(conversation_id,seq,sender_id,client_message_id,body,created_at) VALUES (?,?,?,?,?,?)',[conversation,last_seq+i,b,randomUUID(),'历史私信 '+i,new Date(Date.now()-120000)]);
+   for(let i=1;i<=40;i++)await execute('INSERT INTO forum_dm_messages(conversation_id,sequence,sender_id,client_message_id,body,sent_at) VALUES (?,?,?,?,?,?)',[conversation,last_seq+i,b,randomUUID(),'历史私信 '+i,new Date(Date.now()-120000)]);
    await execute('UPDATE forum_dm_conversations SET last_seq=? WHERE id=?',[last_seq+40,conversation]);
    const latest=(await call(a,`/api/forum/dm/conversations/${conversation}/messages`)).json;assert.equal(latest.items.length,30);assert.equal(latest.has_more,true);
    const older=(await call(a,`/api/forum/dm/conversations/${conversation}/messages?before_seq=${latest.items[0].seq}`)).json;assert.ok(older.items.at(-1).seq<latest.items[0].seq);
@@ -126,6 +131,6 @@ test('私信直接收发与隐私隔离',{skip:!dbReady()},async t=>{
    for(let i=0;i<11;i++){const response=await call(b,`/api/forum/dm/conversations/${conversation}/messages`,{body:'普通频率测试'});assert.equal(response.status,i<10?200:429);if(i===10){assert.equal(response.json.retry_after,60);assert.equal(response.headers['retry-after'],'60');}}
   });
  }finally{
-  if(users.length){const marks=users.map(()=>'?').join(',');await execute(`DELETE FROM forum_dm_reports WHERE reporter_id IN (${marks}) OR conversation_id IN (SELECT id FROM forum_dm_conversations WHERE user_low IN (${marks}) OR user_high IN (${marks}))`,[...users,...users,...users]);await execute(`DELETE FROM forum_audit WHERE actor_id IN (${marks})`,users);await execute(`DELETE FROM users WHERE id IN (${marks})`,users);}await closePool();
+  if(users.length){const marks=users.map(()=>'?').join(',');await execute(`DELETE FROM forum_dm_reports WHERE reporter_id IN (${marks}) OR conversation_id IN (SELECT id FROM forum_dm_conversations WHERE user_low IN (${marks}) OR user_high IN (${marks}))`,[...users,...users,...users]);await execute(`DELETE FROM users WHERE id IN (${marks})`,users);}await closePool();
  }
 });

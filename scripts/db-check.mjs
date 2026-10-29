@@ -4,7 +4,8 @@
 //
 // 只读，不改任何数据。上线后怀疑「登录挂了」时先跑这个：能把
 // 「库没起来 / 密码错 / 库名不对 / 忘了建表」四种情况一次分开。
-import {dbReady, ping, select, closePool, schemaStatements, isUnavailable} from '../backend/db.mjs';
+import {dbReady, ping, select, closePool, isUnavailable} from '../backend/db.mjs';
+import {tableNames} from '../backend/schema.mjs';
 import {dbConfig} from '../backend/config.mjs';
 
 if(!dbReady()){
@@ -25,7 +26,8 @@ if(!health.ok){
 console.log(`✓ 连接正常（${health.ms} ms，MySQL ${health.version}）`);
 
 // 表是否存在：information_schema 一次问完，不用逐张 SHOW。
-const names = [...schemaStatements.map(statement => /CREATE TABLE IF NOT EXISTS (\w+)/.exec(statement)?.[1])].filter(Boolean);
+// 表名从 schema.mjs 的建表语句里解析，不维护第二份清单。
+const names = tableNames;
 // execute() 不会把数组展开成 IN (?,?,?) —— 占位符要自己拼（数量来自代码里的常量，不是用户输入）。
 const placeholders = names.map(() => '?').join(', ');
 const rows = await select(

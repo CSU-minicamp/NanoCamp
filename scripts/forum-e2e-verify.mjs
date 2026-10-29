@@ -18,7 +18,7 @@ async function client(){
 }
 const anon=await client();
 assert.equal((await anon('/forum/')).status,200);
-assert.equal((await anon('/forum/me/')).status,303);
+assert.equal((await anon('/forum/me/')).status,404);   // 旧地址已删：论坛没上线过，不需要兼容
 for(const [key,account]of Object.entries(m.accounts)){
   const call=await client();await call('/api/session');
   assert.equal((await call('/api/auth/login',{email:account.email,password:m.password})).status,200,`${key} login`);

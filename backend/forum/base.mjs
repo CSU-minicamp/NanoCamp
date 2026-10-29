@@ -1,12 +1,4 @@
-// 论坛域的公共层 —— 注意不是 backend/base.mjs（那个是全局基础件：转义、静态资源、cookie 解析）。
-//
-// 单独成一个文件的原因只有一个 —— **打断循环依赖**：dm 要用论坛的成员校验与错误类型，
-// 论坛的消息页又要读 dm 的数据；两边直接互相 import 就成环。把这些共同依赖放这里，
-// 依赖方向变成 `base ← dm ← {index, read}`：dm 不认识 index/read，index/read 认识 dm。
-//
-// 所以这里只放「与具体内容无关」的东西：错误类型、编号形状、长度校验、分页、成员校验、事务里的查询助手。
-// 帖子怎么排序、私信怎么分页这类规则，各自留在 index/read 与 dm.mjs 里。
-// 词表（分类名、举报理由）不在这里 —— 那两份是内容，被模板和后端共用，放在 content/forum.mjs。
+// 论坛域的公共层
 import {missingFields} from '../auth.mjs';
 
 /**
@@ -35,9 +27,7 @@ export const fail = (code, status = 422) => { throw new CommunityError(code, sta
 /**
  * 全站编号的唯一形状：1 到 15 位十进制、不以 0 开头。
  *
- * 只在这里定义一次，`isId()` / `idOf()` 都用它。路由正则只负责「是不是一串数字」，
- * 合法性一律回到这里判 —— 以前 `/user/` 用 `\d{1,18}`、论坛页面用 `\d+`，
- * 结果 `/user/0195/` 打得开而 `/forum/users/0195/` 是 404，同一个 id 两套行为。
+ * 只在这里定义一次，`isId()` / `idOf()` 都用它。路由正则只负责「是不是一串数字」，合法性一律回到这里判
  */
 const ID_RE = /^[1-9]\d{0,14}$/;
 
@@ -74,15 +64,13 @@ export const rows = async (c, sql, args = []) => {
   return result;
 };
 
-/** 页码上限：只用来挡住荒谬的 OFFSET（`(page-1)*20`），不是业务页数上限。 */
-export const MAX_PAGE = 500;
-
 /**
- * 分页参数：只接受 `1`–`MAX_PAGE` 的十进制正整数，其余一律 404 —— **不做任何钳位**。
+ * 分页参数：只接受十进制正整数，其余一律 404，钳位10^10。
  *
- * 以前是 `Math.min(500, Math.max(1, parseInt(…)))`，把 `?page=9999` 静默变成第 500 页并回 200，
- * 同一篇内容于是有了两个地址；`?page=0`、`?page=abc` 也会被悄悄改写。
- * 现在「没给参数」才等于第 1 页，给了但不在范围内就是不存在。
+ * 有两条形状检查：
+ *   1. 不能是 `0` / `0195` / `-1` / `1.5` / `1e3` / ` 1` 这类根本不是页码的东西；
+ *   2. 最多 9 位，保证 `(page-1)*每页` 落在双精度安全整数内。
+ * 「没给参数」才是第 1 页；给了但不存在的页由 ensurePage() 回 404，不是悄悄改成最后一页。
  * @param {unknown} value 原始分页参数。
  * @returns {number} 页码。
  */
@@ -90,7 +78,7 @@ export const pageOf = value => {
   const raw = String(value ?? '');
   if(raw === '')
     return 1;
-  if(!/^[1-9]\d{0,5}$/.test(raw) || Number(raw) > MAX_PAGE)
+  if(!/^[1-9]\d{0,8}$/.test(raw))
     fail('not_found', 404);
   return Number(raw);
 };
@@ -128,17 +116,37 @@ export const text = (value, min, max) => {
 };
 
 /**
- * 成员校验：任何写内容的动作之前都要过一遍。
+ * 这个人此刻实际的身份：没有行、或那一行已过期 → `member`（等于完全普通的成员）。
+ *
+ * 唯一该用来判断身份的函数 —— 直接读 `row.type` 会把过期行当成还在生效。
+ * @param {object|null|undefined} row forum_member_roles 的一行（带 type / expired_at）。
+ * @returns {'member'|'mute'|'ban'|'moderator'|'admin'} 身份。
+ */
+export const memberType = row => (Boolean(row) && (!row.expired_at || new Date(row.expired_at) > new Date()))? row.type: 'member';
+
+/**
+ * 是不是仍然在任的版务（moderator / admin）。被封的人即使以前是版务也不算。
+ * @param {object|null|undefined} row forum_member_roles 的一行。
+ * @returns {boolean} 是版务为 true。
+ */
+export const isStaff = row => ['moderator', 'admin'].includes(memberType(row));
+
+/**
+ * 成员校验：任何写动作之前都要过一遍。
  *
  * 顺序是刻意的：先确认登录，再锁用户行（同一人的写请求串行，限流与幂等重放才准），
- * 最后才检查资料完整度与封禁状态。`passive` 用于「只改自己的阅读状态」那种动作（标记已读）：
- * 仍然要求登录、仍然加锁，但不拦资料不完整或被禁言的人 —— 否则被禁言的人连已读都标不了。
+ * 最后才检查资料完整度与处罚状态。两个开关各有分工：
+ *   · `passive`  只改自己的阅读状态（标记已读）时用：仍然要求登录、仍然加锁，但不拦资料与被处罚的人（否则被处罚的人连红点都清不掉）
+ *   · `speaking` 这个动作算不算「公开发言」。`mute` 只拦公开发言，`ban` 拦全部写动作；私信、收藏、关注、删自己的内容都不算发言，被禁言也能做。
+ * 两种处罚都**不影响登录与浏览**：处罚是社区内的，不是账号层面的。
  * @param {object} c 事务连接。
  * @param {object|null} user 会话里的用户。
- * @param {boolean} [passive=false] 是否跳过资料与封禁检查。
+ * @param {object} [options] 参数。
+ * @param {boolean} [options.passive=false] 只改自己的阅读状态（跳过资料与处罚检查）。
+ * @param {boolean} [options.speaking=false] 这个动作算不算公开发言（决定 mute 拦不拦）。
  * @returns {Promise<void>} 无。
  */
-export async function checkMember(c, user, passive = false){
+export async function checkMember(c, user, {passive = false, speaking = false} = {}){
   if(!user)
     fail('unauthenticated', 401);
   const [actor] = await rows(c, 'SELECT id FROM users WHERE id=? FOR UPDATE', [user.id]);
@@ -148,7 +156,10 @@ export async function checkMember(c, user, passive = false){
     return;
   if(missingFields(user).length)
     fail('profile_incomplete', 403);
-  const [state] = await rows(c, 'SELECT * FROM forum_members WHERE user_id=?', [user.id]);
-  if(state?.banned_at || state?.suspended_until && new Date(state.suspended_until) > new Date())
+  const [state] = await rows(c, 'SELECT type,expired_at FROM forum_member_roles WHERE member_id=?', [user.id]);
+  const type = memberType(state);
+  if(type === 'ban')
     fail('posting_suspended', 403);
+  if(type === 'mute' && speaking)
+    fail('posting_muted', 403);
 }

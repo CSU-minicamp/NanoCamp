@@ -1,9 +1,10 @@
-// 建表（幂等，可反复执行）。
+// 建表（幂等，可反复执行）。DDL 全在 backend/schema.mjs，这里只是入口。
 //
 // 应用账号按设计只有 DML 权限，所以建表通常要由有 DDL 权限的账号执行：
 //   node scripts/migrate.mjs                                  # 用 data/config.json 里的账号试一次
 //   node scripts/migrate.mjs --print | sudo mysql 'Nanocamp-test'   # 没有 DDL 权限时走这条
-import {dbReady, migrate, closePool, schemaStatements} from '../backend/db.mjs';
+import {dbReady, closePool} from '../backend/db.mjs';
+import {migrateSchema, schemaStatements, migrationsTable} from '../backend/schema.mjs';
 import {dbConfig} from '../backend/config.mjs';
 
 if(!dbReady()){
@@ -18,14 +19,14 @@ const config = dbConfig();
 // 中文列注释会被当成 latin1 存进去、永久变成乱码。
 if(process.argv.includes('--print')){
   console.log('SET NAMES utf8mb4;\n');
-  console.log(schemaStatements.map(statement => `${statement};`).join('\n\n'));
+  console.log([migrationsTable, ...schemaStatements].map(statement => `${statement};`).join('\n\n'));
   process.exit(0);
 }
 
 console.log(`目标：${config.user}@${config.host}:${config.port}/${config.database}`);
 try{
-  const count = await migrate();
-  console.log(`完成：执行了 ${count} 条建表语句（已存在的表会被跳过）`);
+  const applied = await migrateSchema();
+  console.log(applied.length? `完成：执行了 ${applied.join('、')}（共 ${schemaStatements.length} 张表）`: '完成：已经是最新版本，没有需要执行的段');
 }
 catch(error){
   console.error(`建表失败：${error.message}`);

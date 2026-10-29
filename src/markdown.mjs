@@ -10,7 +10,7 @@ import MarkdownIt from 'markdown-it';
 const markdown = new MarkdownIt({html: false, linkify: false, typographer: false, breaks: true});
 
 /** 本站图片地址。正文里只认这种形态，外链图片一律不渲染。 */
-export const forumImagePath = /^\/api\/forum\/images\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/;
+export const forumImagePath = /^\/api\/forum\/images\/([1-9]\d{0,14})$/;
 
 // 渲染结果里允许出现的标签，与 markdown-it 默认预设能产出的标签一一对应。
 // 这一层替代原先 sanitize-html 的 allowedTags：html:false 已经把原文 HTML 转义成文本，这里再兜一层，

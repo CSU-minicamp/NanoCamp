@@ -35,7 +35,7 @@
 .dm-center .dm-history{padding:28px;background:#f6f8fc;scrollbar-width:thin;scrollbar-color:#d7dfec transparent}
 .dm-center .dm-history:focus-visible{outline:2px solid #aec2e9;outline-offset:-3px}
 .dm-center .dm-bubble-row{margin-bottom:18px}
-.dm-center .dm-bubble{max-width:min(86%,520px);padding:11px 16px;border-color:#e3e8f0;border-radius:3px 12px 12px 12px;font-size:18px;line-height:1.75;color:#344155;background:#fff}
+.dm-center .dm-bubble{max-width:min(86%,520px);padding:11px 16px;border-color:#e3e8f0;border-radius:3px 12px 12px 12px;font-size:14px;line-height:1.75;color:#344155;background:#fff}
 .dm-center .is-mine .dm-bubble{background:var(--dm-accent);border-color:var(--dm-accent);border-radius:12px 3px 12px 12px;color:#fff}
 .dm-center .dm-bubble-meta{gap:12px;margin:7px 3px 0;font-size:11px;line-height:1.5;color:#8995a8}
 .dm-center .dm-bubble-meta button{color:#7889a3;min-height:18px}
@@ -73,7 +73,7 @@
  .dm-center .dm-peer .f-avatar{width:34px;height:34px}
  .dm-center .dm-options summary{min-width:42px;min-height:34px}
  .dm-center .dm-history{padding:22px 16px}
- .dm-center .dm-bubble{font-size:17px;max-width:92%;padding:10px 13px}
+ .dm-center .dm-bubble{font-size:15px;max-width:92%;padding:10px 13px}
  .dm-center .dm-bubble-row{margin-bottom:20px}
  .dm-center .dm-composer{padding:13px 16px max(14px,env(safe-area-inset-bottom))}
  .dm-center .dm-composer textarea{min-height:70px;padding:10px 12px;margin-bottom:10px}

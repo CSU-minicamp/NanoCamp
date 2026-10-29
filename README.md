@@ -36,11 +36,11 @@ npm run dev
 
 站点是动态服务：`backend/` 在请求到达时渲染 HTML，`public/` 直接提供图片、字体、CSS 与 JS。需要 Node.js 20，**没有构建步骤**。运行依赖包括数据库驱动 `mysql2`、论坛渲染的 `markdown-it`，以及头像与论坛图片解码归一化的 `sharp`，启动前请执行 `npm ci`。
 
-头像功能需执行 `npm run avatar:migrate`。上传、读取、恢复默认及存储适配器约定见 [头像接口与迁移说明](docs/avatar-api.md)。当前文件内容保存在 MySQL，元数据独立，公开头像 URL 不绑定存储供应商。
+头像、论坛与私信的表结构都在 `backend/schema.mjs`，部署时执行 `npm run db:migrate`（应用账号没有 DDL 权限时，用 `node scripts/migrate.mjs --print | sudo mysql …` 交给管理员）。头像存两份：**原图保存**（`GET /api/users/<id>/avatar/full`，看大图用；上传时只剥掉 EXIF/XMP 元数据，像素不动），另存一张 256×256 的 webp 缩略图（`GET /api/users/<id>/avatar`，列表与导航用）；公开 URL 不绑定存储供应商。
 
-论坛入口为 `/forum/`，支持发帖、回复、关注、赞踩、收藏、消息与举报。论坛左侧“消息”进入 `/forum/messages/`，直接展示一对一私信，互动及系统通知保留原有路由，收发、屏蔽、举报与运营流程见 [私信运行说明](docs/private-messages.md)。上线前还需执行 `npm run forum:migrate`，初始化与命令行举报处理见 [论坛运行说明](docs/forum-operations.md)。
+论坛入口为 `/forum/`，支持发帖、回复、关注、赞踩、收藏、消息与举报。论坛左侧“消息”进入 `/forum/messages/`，一对一私信与互动/系统通知都在这个入口里（`?tab=activity|system`）。
 
-帖子正文支持上传、粘贴和拖入 JPG/PNG/WebP 图片，单张 5MB、每帖最多 9 张。图片暂存在 MySQL，使用独立存储适配器及固定站内 URL，便于迁移对象存储。升级时再次执行 `npm run forum:migrate` 建立图片表；接口、可见性、过期草稿清理和迁移约定见 [帖子图片说明](docs/forum-images.md)。
+帖子正文支持上传、粘贴和拖入 JPG/PNG/WebP 图片，单张 5MB、每帖最多 9 张。图片暂存在 MySQL，使用独立存储适配器及固定站内 URL，便于迁移对象存储。表结构由 `backend/schema.mjs` 统一管理，部署时 `npm run db:migrate` 一次建齐（含图片表）。
 
 帖子与评论发布后不可修改，作者可以撤回自己的内容；撤回主帖保留已有回复与上下文，评论作者仍可继续撤回自己的评论。旧编辑页面返回 404，修改内容的 PATCH 请求返回 405。发布前仍可编辑草稿、预览。
 
@@ -96,7 +96,7 @@ npm start
 服务端会把人送到 `/profile/force/`，填完再回到原目标 —— 这就是「不填完不能继续」。
 必填项定义在 `backend/auth.mjs` 的 `PROFILE_FIELDS`，加一项只改这个数组；「一句话介绍」是可选字段，不在此列。
 
-**查看资料**：右上角头像进入 `/profile/`，侧栏“我的资料”在 `/profile/?tab=profile` 内编辑公开昵称与简介；登录邮箱、密码及退出入口位于“账号安全” `/profile/?tab=security`。改密需验证当前密码并确认新密码，成功后所有会话失效，须重新登录。旧地址 `/forum/me/?tab=...` 保留 303 跳转（参与类标签回 `/forum/?view=...`），详见 [账号设置说明](docs/account-settings.md)。个人中心按会话渲染，
+**查看资料**：右上角头像进入 `/profile/`，侧栏“我的资料”在 `/profile/?tab=profile` 内编辑公开昵称与简介；登录邮箱、密码及退出入口位于“账号安全” `/profile/?tab=security`。改密需验证当前密码并确认新密码，成功后所有会话失效，须重新登录。个人中心的入口只有 `/profile/?tab=...` 一处（旧的 `/forum/me/` 已删除），详见 [账号设置说明](docs/account-settings.md)。个人中心按会话渲染，
 所以**不进页面缓存**（`Cache-Control: no-store`，无 ETag）。未登录时 **303 跳 `/login/?next=/profile/`**
 （不先给一张 401 页面），登录后自动回到这里；缺必填项则 303 去 `/profile/force/`。
 

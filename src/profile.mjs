@@ -14,6 +14,7 @@
 import {esc, documentPage} from './components.mjs';
 import {eyeButton} from './auth.mjs';
 import {BIO_MAX,NICKNAME_MAX,PASSWORD_MAX,PASSWORD_MIN} from '../common/limits.mjs';
+import {NICKNAME_FORBIDDEN_SOURCE} from '../common/nickname.mjs';
 
 /**
  * 资料表单。
@@ -43,7 +44,7 @@ export function profileCard({missing = [], user = {}, inline = false} = {}){
           <span class="auth-required" data-profile-nickname-required${needNickname? '': ' hidden'}>必填</span>
           <span class="auth-optional"${needNickname? ' hidden': ''}>可选</span>
         </div>
-        <input id="profile-nickname" placeholder="怎么称呼你" autocomplete="nickname" data-max="${NICKNAME_MAX}" value="${esc(user.nickname || '新伙伴')}">
+        <input id="profile-nickname" data-nickname-forbidden="${NICKNAME_FORBIDDEN_SOURCE}" placeholder="怎么称呼你" autocomplete="nickname" data-max="${NICKNAME_MAX}" value="${esc(user.nickname || '新伙伴')}">
       </div>
 
       ${needPassword?`<div class="form-field" data-profile-password>

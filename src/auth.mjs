@@ -9,6 +9,7 @@
 //
 // 跳转参数（?next=…）不在渲染期处理 —— 后端按路由缓存渲染结果、不解析查询串，
 // 所以回跳目标一律由 public/auth.js 在客户端读取并校验。详见那里的 safeTarget()。
+import {EMAIL_MAX} from '../common/limits.mjs';
 
 const eyeOpen = '<svg class="auth-eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.6 12S6.2 5.6 12 5.6 21.4 12 21.4 12 17.8 18.4 12 18.4 2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="3.1"/></svg>';
 const eyeClosed = '<svg class="auth-eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.2 4.4 20.8 19.6"/><path d="M10.5 6.2A9.3 9.3 0 0 1 12 6.1c5.8 0 9.4 5.9 9.4 5.9a16.4 16.4 0 0 1-3.3 3.8M6.4 8.1A16.6 16.6 0 0 0 2.6 12S6.2 17.9 12 17.9a9.6 9.6 0 0 0 3.5-.6"/><path d="M9.7 10.2a3.2 3.2 0 0 0 4.4 4.4"/></svg>';
@@ -26,7 +27,7 @@ export function loginPage() {
 
       <div class="form-field">
         <label for="login-email">邮箱</label>
-        <input id="login-email" name="email" type="email" inputmode="email" autocomplete="username" maxlength="120" placeholder="you@example.com">
+        <input id="login-email" name="email" type="email" inputmode="email" autocomplete="username" maxlength="${EMAIL_MAX}" placeholder="you@example.com">
       </div>
 
       <div data-auth-step="password">

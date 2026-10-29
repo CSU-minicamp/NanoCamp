@@ -1,12 +1,14 @@
 (() => {
   const root=document.querySelector('[data-forum]');if(!root)return;
   const userId=Number(root.dataset.userId),topicId=Number(root.dataset.topicId);
+  // 图片上限来自模板（源头是 common/forum.mjs），这里不写死数字。
+  const imageMax=Number(root.dataset.imageMax)||0,imageMaxBytes=Number(root.dataset.imageMaxBytes)||0,imageMaxMb=Math.round(imageMaxBytes/1048576);
   const initialReply=location.hash.match(/^#reply-([1-9]\d{0,14})$/)?.[1];
   if(topicId&&initialReply&&!document.getElementById('reply-'+initialReply)&&!new URLSearchParams(location.search).has('reply')){
     location.replace('/forum/replies/'+initialReply+'/');return;
   }
-  const imageMessages={image_too_large:'图片不能超过 5MB。',unsupported_image_type:'请选择 JPG、PNG 或 WebP 图片。',invalid_image:'图片无法读取，请选择完整的静态图片。',too_many_images:'每个帖子最多发布 9 张图片。',invalid_image_reference:'图片不存在、已过期或不属于当前草稿，请重新上传。'};
-  const messages={unauthenticated:'登录状态已过期，请重新登录。',profile_incomplete:'请先完善昵称和密码。',posting_suspended:'当前账号暂时不能参与互动。',csrf_invalid:'页面状态已变化，请刷新后重试。',invalid_content:'请检查字数：标题 4–80 字，正文 10–15000 字，回复 1–3000 字。',invalid_category:'请选择有效分类。',version_conflict:'内容已在其他页面修改。你的输入已保留，请复制后刷新再合并。',request_conflict:'请求内容已变化，请刷新页面重试。',idempotency_required:'请求标识缺失，请刷新后重试。',rate_limited:'操作较频繁，请稍后重试。',report_cooldown:'同一内容刚处理过举报，请在 24 小时后补充新依据。',invalid_reason:'请选择举报原因。',self_vote:'不能对自己的内容投票。',self_follow:'不能关注自己。',not_found:'内容不存在或已隐藏。',topic_closed:'讨论已撤回，不能继续回复。',content_unavailable:'内容状态已变化，请刷新查看。',report_in_progress:'举报已开始处理，不能撤回。',request_too_large:'内容过大，请适当缩短。',unavailable:'服务暂时不可用，你的输入已保留。'};
+  const imageMessages={image_too_large:`图片不能超过 ${imageMaxMb}MB。`,unsupported_image_type:'请选择 JPG、PNG 或 WebP 图片。',invalid_image:'图片无法读取，请选择完整的静态图片。',too_many_images:`每个帖子最多发布 ${imageMax} 张图片。`,invalid_image_reference:'图片不存在、已过期或不属于当前草稿，请重新上传。'};
+  const messages={unauthenticated:'登录状态已过期，请重新登录。',profile_incomplete:'请先完善昵称和密码。',posting_suspended:'当前账号暂时不能参与互动。',posting_muted:'禁言期间不能发帖、回复或投票，其他功能照常。',csrf_invalid:'页面状态已变化，请刷新后重试。',invalid_content:'请检查字数：标题 4–80 字，正文 10–15000 字，回复 1–3000 字。',invalid_category:'请选择有效分类。',version_conflict:'内容已在其他页面修改。你的输入已保留，请复制后刷新再合并。',request_conflict:'请求内容已变化，请刷新页面重试。',idempotency_required:'请求标识缺失，请刷新后重试。',rate_limited:'操作较频繁，请稍后重试。',report_cooldown:'同一内容刚处理过举报，请在 24 小时后补充新依据。',invalid_reason:'请选择举报原因。',self_vote:'不能对自己的内容投票。',self_follow:'不能关注自己。',not_found:'内容不存在或已隐藏。',topic_closed:'讨论已撤回，不能继续回复。',content_unavailable:'内容状态已变化，请刷新查看。',report_in_progress:'举报已开始处理，不能撤回。',request_too_large:'内容过大，请适当缩短。',unavailable:'服务暂时不可用，你的输入已保留。'};
   let sessionPromise;
   const pendingKeys=new Map();
   function session(){return sessionPromise||(sessionPromise=fetch('/api/session',{cache:'no-store',credentials:'same-origin'}).then(async r=>{if(!r.ok)throw Error('会话暂时不可用');return r.json();}).catch(e=>{sessionPromise=null;throw e;}));}
@@ -136,8 +138,8 @@
         const submit=form.querySelector('[type=submit]');if(uploading||submit.disabled||!files.length)return;
         try{
           const count=(body.value.match(/!\[[^\]]*\]\(\/api\/forum\/images\//g)||[]).length;
-          if(count+files.length>9)throw Error(imageMessages.too_many_images);
-          for(const file of files){if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error(imageMessages.unsupported_image_type);if(file.size>5*1024*1024)throw Error(imageMessages.image_too_large);}
+          if(count+files.length>imageMax)throw Error(imageMessages.too_many_images);
+          for(const file of files){if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error(imageMessages.unsupported_image_type);if(file.size>imageMaxBytes)throw Error(imageMessages.image_too_large);}
           uploading=true;submit.disabled=true;imageButton.disabled=true;imageInput.disabled=true;
           const status=form.querySelector('[data-form-status]');status.textContent='正在上传图片…';
           const s=await session();if(!s.user){login();return;}
@@ -194,7 +196,7 @@
     });
     form.querySelector('[data-preview]').addEventListener('click',async()=>{
       const button=form.querySelector('[data-preview]');button.disabled=true;
-      try{const result=await api('/api/forum/preview',{body:body.value,images:mode==='topic'});const preview=form.querySelector('[data-preview-body]');preview.innerHTML=result.html;prepareImages(form);preview.hidden=false;body.hidden=true;button.setAttribute('aria-pressed','true');form.querySelector('[data-write]').setAttribute('aria-pressed','false');}
+      try{const result=await api('/api/forum/preview',{body:body.value,images:mode==='post'});const preview=form.querySelector('[data-preview-body]');preview.innerHTML=result.html;prepareImages(form);preview.hidden=false;body.hidden=true;button.setAttribute('aria-pressed','true');form.querySelector('[data-write]').setAttribute('aria-pressed','false');}
       catch(error){errorIn(form,error);}finally{button.disabled=false;}
     });
     form.querySelector('[data-write]').addEventListener('click',()=>{body.hidden=false;form.querySelector('[data-preview-body]').hidden=true;form.querySelector('[data-write]').setAttribute('aria-pressed','true');form.querySelector('[data-preview]').setAttribute('aria-pressed','false');body.focus();});
@@ -226,7 +228,7 @@
     try {
       if(button.hasAttribute('data-vote')){
         const group=button.closest('[data-vote-group]');const value=button.getAttribute('aria-pressed')==='true'?0:Number(button.dataset.vote);
-        const result=await api(`/api/forum/${button.dataset.kind==='topic'?'topics':'replies'}/${button.dataset.id}/vote`,{value});
+        const result=await api(`/api/forum/${button.dataset.kind==='post'?'topics':'replies'}/${button.dataset.id}/vote`,{value});
         group.querySelector('[data-up]').textContent=result.up;const down=group.querySelector('[data-down]');if(down)down.textContent=result.down;
         group.querySelectorAll('[data-vote]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.vote)===result.mine)));
       }else if(button.hasAttribute('data-follow')){
@@ -244,15 +246,15 @@
         textarea.focus({preventScroll:true});form.dispatchEvent(new Event('input'));
       }else if(button.hasAttribute('data-withdraw')){
         if(!confirm('确定撤回这段内容？已有讨论将保留占位。'))return;
-        const [kind,id]=button.dataset.withdraw.split(':');await api(`/api/forum/${kind==='topic'?'topics':'replies'}/${id}/withdraw`,{});location.reload();
+        const [kind,id]=button.dataset.withdraw.split(':');await api(`/api/forum/${kind==='post'?'topics':'replies'}/${id}/withdraw`,{});location.reload();
       }else if(button.hasAttribute('data-report')){
         const dialog=document.querySelector('#forum-report-dialog'),form=dialog.querySelector('form');form.reset();form.querySelector('[data-form-status]').textContent='';form.dataset.target=button.dataset.report;
-        const [kind]=button.dataset.report.split(':'),article=button.closest('article');const context=dialog.querySelector('[data-report-context]');context.replaceChildren();const title=document.createElement('strong');title.textContent='举报对象：'+(kind==='topic'?'当前主帖':'当前回复');const quote=document.createElement('p');quote.textContent=article.querySelector('.f-prose')?.textContent.slice(0,100)||'';context.append(title,quote);dialog.showModal();
+        const [kind]=button.dataset.report.split(':'),article=button.closest('article');const context=dialog.querySelector('[data-report-context]');context.replaceChildren();const title=document.createElement('strong');title.textContent='举报对象：'+(kind==='post'?'当前主帖':'当前回复');const quote=document.createElement('p');quote.textContent=article.querySelector('.f-prose')?.textContent.slice(0,100)||'';context.append(title,quote);dialog.showModal();
       }else if(button.hasAttribute('data-open-notice')){
         await api('/api/forum/notifications/read',{ids:button.dataset.openNotice.split(',').map(Number)});window.dispatchEvent(new Event('forum-notifications-changed'));
         if(button.dataset.href)location.assign(button.dataset.href);else {button.closest('.f-notice').classList.remove('is-unread');toast('相关内容已不可见，消息已标为已读。');}
       }else if(button.hasAttribute('data-read-all')){await api('/api/forum/notifications/read',{ids:'all',filter:button.dataset.noticeFilter||'all'});document.querySelectorAll('.f-notice').forEach(e=>e.classList.remove('is-unread'));window.dispatchEvent(new Event('forum-notifications-changed'));toast('已全部标为已读');}
-      else if(button.hasAttribute('data-withdraw-report')){if(!confirm('确定撤回这条尚未处理的举报？'))return;await api(`/api/forum/reports/${button.dataset.withdrawReport}/withdraw`,{});location.reload();}
+      else if(button.hasAttribute('data-withdraw-report')){if(!confirm('确定撤回这条尚未处理的举报？'))return;await api(`/api/forum/reports/${String(button.dataset.withdrawReport).replace(':','/')}/withdraw`,{});location.reload();}
     }catch(error){toast(error.message);}finally{button.disabled=false;}
   });
   document.addEventListener('click',event=>{const button=event.target.closest('[data-close-modal]');if(button)button.closest('dialog')?.close();});

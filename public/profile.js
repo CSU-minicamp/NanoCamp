@@ -143,8 +143,11 @@
       nicknameInput.focus();
       return;
     }
-    if (/[/\\]/.test(nickname)) {
-      setStatus('昵称不能包含 / 这类符号。', 'error');
+    // 禁用字符集与后端同一份：模板把 common/nickname.mjs 的字符类源码渲染进 data-nickname-forbidden。
+    // 前端只负责给一句中文提示，判定权威仍在服务端。
+    const forbidden = new RegExp(nicknameInput.dataset.nicknameForbidden || '$^', 'u');
+    if (forbidden.test(nickname)) {
+      setStatus('昵称不能包含 / \\ 或不可见字符。', 'error');
       nicknameInput.focus();
       return;
     }

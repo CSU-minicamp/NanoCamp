@@ -148,7 +148,9 @@
   }
 
   const emailValue = () => (emailInput?.value || '').trim();
-  const emailLooksValid = () => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue());
+  // 邮箱格式**不在这里判**：字段是 type="email"，用浏览器原生校验（validity.valid）。
+  // 前端只负责「明显填错」的早退，最终判定仍在后端的 isEmail()——规则只有那一份。
+  const emailLooksValid = () => Boolean(emailValue()) && emailInput.validity.valid;
 
   // 进页面先问一次状态：登录是否可用、发码是否可用。两件事分开处理。
   (async () => {

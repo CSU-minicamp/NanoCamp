@@ -28,6 +28,8 @@
     window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
     profile.addEventListener('submit',async event=>{
       event.preventDefault();if(busy||!dirty()||!profile.reportValidity())return;
+      // 禁用字符集与后端同一份（模板渲染的 data-nickname-forbidden），这里只给中文提示。
+      if(new RegExp(nickname.dataset.nicknameForbidden||'$^','u').test(nickname.value.trim())){setStatus(profile,'昵称不能包含 / \\ 或不可见字符。');nickname.focus();return;}
       busy=true;sync();setStatus(profile,'正在保存…');
       try{
         const data=await post('/api/profile',{nickname:nickname.value.trim(),bio:bio.value.trim()});
@@ -42,7 +44,7 @@
   if(picker){
     const image=document.querySelector('.f-account-avatar img'),choose=document.querySelector('[data-select-avatar]'),reset=document.querySelector('[data-reset-avatar]'),actions=document.querySelector('[data-avatar-actions]'),save=document.querySelector('[data-save-avatar]'),cancel=document.querySelector('[data-cancel-avatar]'),status=document.querySelector('[data-avatar-status]');
     let selected=null,previewUrl='',savedSource=image.getAttribute('src'),isDefault=true,selectionVersion=0,avatarChanged=false;
-    const avatarErrors={avatar_too_large:'图片不能超过 2MB。',invalid_image:'图片无法使用，请选择有效的 JPG、PNG 或 WebP 静态图片。',unsupported_image_type:'请选择 JPG、PNG 或 WebP 图片。',rate_limited:'头像修改较频繁，请稍后重试。',profile_incomplete:'请先完善账号资料。',csrf_invalid:'页面状态已变化，请刷新后重试。',avatar_unavailable:'头像服务暂时不可用，请稍后重试。'};
+    const avatarErrors={avatar_too_large:'图片不能超过 2MB。',invalid_image:'图片无法使用，请选择有效的 JPG、PNG、WebP 或 GIF 图片。',unsupported_image_type:'请选择 JPG、PNG、WebP 或 GIF 图片。',rate_limited:'头像修改较频繁，请稍后重试。',profile_incomplete:'请先完善账号资料。',csrf_invalid:'页面状态已变化，请刷新后重试。',avatar_unavailable:'头像服务暂时不可用，请稍后重试。'};
     const dispose=()=>{if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl='';};
     const sync=()=>{for(const button of [choose,reset,save,cancel])button.disabled=busy;picker.disabled=busy;actions.hidden=!selected;reset.hidden=isDefault||Boolean(selected);syncProfile();};
     const refreshImages=result=>{savedSource=result.url+'?v='+(result.version||Date.now());document.querySelectorAll('.account-avatar-image').forEach(img=>{if(img===image||new URL(img.getAttribute('src'),location.origin).pathname===result.url)img.src=savedSource;});};
@@ -50,7 +52,7 @@
     choose.addEventListener('click',()=>{if(!busy)picker.click();});
     picker.addEventListener('change',async()=>{
       const file=picker.files[0];picker.value='';if(!file||busy)return;const version=++selectionVersion;
-      if(!['image/jpeg','image/png','image/webp'].includes(file.type)){status.textContent=avatarErrors.unsupported_image_type;return;}
+      if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){status.textContent=avatarErrors.unsupported_image_type;return;}
       if(file.size>Number(picker.dataset.maxBytes||0)){status.textContent=avatarErrors.avatar_too_large;return;}
       const url=URL.createObjectURL(file);let accepted=false;
       try{const check=new Image();check.src=url;await check.decode();if(version!==selectionVersion)return;if(check.naturalWidth*check.naturalHeight>16*1024*1024)throw Error('图片尺寸过大，请选择较小的图片。');dispose();previewUrl=url;selected=file;image.src=url;accepted=true;status.textContent='';sync();}

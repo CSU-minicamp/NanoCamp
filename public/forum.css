@@ -42,7 +42,7 @@ body[data-page="forum"] .site-footer{margin-top:70px}
 .f-sidebar h2{font-size:17px;margin:0 12px 16px}
 .f-sidebar nav{display:grid;gap:5px}
 .f-sidebar nav a,.f-personal-entry{display:flex;gap:12px;align-items:center;padding:12px;border-radius:5px;color:#526073;line-height:1.4}
-.f-sidebar a[aria-current],.f-sidebar a:hover{background:#eef2fe;color:var(--f-blue)}
+.f-sidebar a[aria-current]:not(.f-primary),.f-sidebar a:hover:not(.f-primary){background:#eef2fe;color:var(--f-blue)}
 .f-sidebar hr{border:0;border-top:1px solid var(--f-border);margin:22px 4px}
 .f-main-list{min-width:0;overflow:hidden}
 .f-list-tools{display:flex;align-items:center;gap:18px;padding:20px 24px 0;border-bottom:1px solid var(--f-border);flex-wrap:wrap}

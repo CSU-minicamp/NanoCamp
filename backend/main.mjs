@@ -28,7 +28,7 @@ import {handleRequest, routeInfo} from './app.mjs';
 import {authConfig, configPath, serverSettings, SERVER_DEFAULTS} from './config.mjs';
 import {site} from '../content/site.mjs';
 import {AVATAR_MAX_BYTES} from './avatar/index.mjs';
-import {FORUM_IMAGE_MAX_BYTES} from './forum/images.mjs';
+import {FORUM_IMAGE_MAX_BYTES} from '../common/forum.mjs';
 
 /** 优雅退出的兜底时限：超过这个时间还有连接没释放就强制退出。 */
 const SHUTDOWN_GRACE_MS = 5000;

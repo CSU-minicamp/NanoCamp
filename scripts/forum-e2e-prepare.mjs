@@ -13,7 +13,14 @@ const manifestUrl=new URL('../data/forum-e2e.json',import.meta.url);
 const specs=[['author','作者','完整资料的发帖人'],['participant','参与者','完整资料的回复人'],['reporter','举报人','核对举报隐私和处理结果'],['incomplete','待完善','缺少昵称'],['muted','禁言账号','可阅读，不能进行论坛互动'],['operator','处理人员','仅通过服务器命令行处理举报']];
 async function writeGuide(manifest){
   const accounts=specs.map(([key,name])=>`| ${name} | ${manifest.accounts[key].email} | ${manifest.accounts[key].id} |`).join('\n');
-  let guide=await readFile(new URL('../docs/forum-qa-plan.md',import.meta.url),'utf8');
+  let guide;
+  try{guide=await readFile(new URL('../docs/forum-qa-plan.md',import.meta.url),'utf8');}
+  catch(error){
+    if(error.code!=='ENOENT')
+      throw error;
+    console.log('（docs/forum-qa-plan.md 不存在，跳过生成手测指南）');
+    return;
+  }
   const variables={BASE:manifest.base,RUN:manifest.run,PASSWORD:manifest.password,ACCOUNTS:accounts,OPERATOR:manifest.accounts.operator.id,AUTHOR:manifest.accounts.author.id,REPORT_REPLY:manifest.replies.report,LAST_REPLY:manifest.replies.lastPage};
   for(const [key,t]of Object.entries(manifest.topics))variables[key.toUpperCase()]=t.url;
   guide=guide.replace(/^这是测试流程模板。.*$/m,'本文件已填入当前本地批次的账号、密码和数据链接，可直接按顺序测试。');
@@ -38,9 +45,10 @@ try {
       for(const [key,name,bio]of specs){
         const email=`e2e-${run}-${key}@example.test`,nickname=key==='incomplete'?'':`端测${name}`;
         const [r]=await c.execute('INSERT INTO users(email,nickname,bio,password_hash,email_verified_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',[email,nickname,bio,passwordHash,now,now,now]);
-        manifest.accounts[key]={id:r.insertId,email,nickname,role:key==='operator'?'moderator':'member'};
-        await c.execute('INSERT INTO forum_members(user_id,role,suspended_until) VALUES (?,?,?)',[r.insertId,key==='operator'?'moderator':'member',key==='muted'?new Date('2099-01-01T00:00:00Z'):null]);
-        if(key==='operator')await c.execute('INSERT INTO forum_audit(actor_id,action,target_type,target_id,reason,before_state,after_state,created_at) VALUES (?,?,?,?,?,?,?,?)',[r.insertId,'e2e_setup','user',r.insertId,'Isolated local E2E fixture operator','member','moderator',now]);
+        manifest.accounts[key]={id:r.insertId,email,nickname,role:key==='operator'?'moderator':key==='muted'?'ban':'member'};
+        // 有这一行才不是「完全普通的成员」：operator 是永久版务，muted 是到 2099 年的禁言。
+        if(key === 'operator' || key === 'muted')
+          await c.execute('INSERT INTO forum_member_roles(member_id,type,expired_at,created_at) VALUES (?,?,?,?)', [r.insertId, key === 'operator'? 'moderator': 'ban', key === 'muted'? new Date('2099-01-01T00:00:00Z'): null, now]);
       }
       const topics=[
         ['main','交流主帖','questions','准备参加 minicamp，想找伙伴一起做校园工具。\n\n## 想讨论的问题\n\n- 如何选择第一版功能？\n- 如何分工？\n\n欢迎分享你的经验。'],
@@ -51,16 +59,18 @@ try {
         ['cancel','举报撤回','teams','这是用于领取前撤回举报的独立测试内容。撤回后不在同一账号下立即重新举报此内容。']
       ];
       for(const [key,title,category,body]of topics){
-        const [r]=await c.execute('INSERT INTO forum_topics(author_id,category,title,body,last_activity_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',[manifest.accounts.author.id,category,`[E2E ${run}] ${title}`,body,now,now,now]);
+        const [r]=await c.execute('INSERT INTO forum_posts(poster_id,category,title,content,last_activity_at,created_at) VALUES (?,?,?,?,?,?)',[manifest.accounts.author.id,category,`[E2E ${run}] ${title}`,body,now,now]);
         manifest.topics[key]={id:r.insertId,title:`[E2E ${run}] ${title}`,url:`${manifest.base}/forum/topics/${r.insertId}/`};
       }
       const addReply=async(key,body,seq)=>{
-        const [r]=await c.execute('INSERT INTO forum_replies(topic_id,author_id,body,sequence,created_at,updated_at) VALUES (?,?,?,?,?,?)',[manifest.topics[key].id,manifest.accounts.participant.id,body,seq,now,now]);return r.insertId;
+        const [r]=await c.execute('INSERT INTO forum_post_replies(post_id,poster_id,content,sequence,created_at) VALUES (?,?,?,?,?)',[manifest.topics[key].id,manifest.accounts.participant.id,body,seq,now]);return r.insertId;
       };
-      manifest.replies.report=await addReply('main','[E2E] 这条回复专门用于举报成立、隐藏和恢复测试，不包含真实违规内容。',1);
-      await c.execute('UPDATE forum_topics SET reply_count=1 WHERE id=?',[manifest.topics.main.id]);
+      // 直接写库绕过了发号器，所以要把 next_sequence 与 reply_count 一起对齐，否则后续回复会撞唯一键。
+      const syncPost=async key=>c.execute('UPDATE forum_posts SET reply_count=(SELECT COUNT(*) FROM forum_post_replies WHERE post_id=?),next_sequence=(SELECT COALESCE(MAX(sequence),0)+1 FROM forum_post_replies WHERE post_id=?) WHERE id=?',[manifest.topics[key].id,manifest.topics[key].id,manifest.topics[key].id]);
+      manifest.replies.report=await addReply('main','[E2E] 这条回复专门用于举报成立、删除和恢复测试，不包含真实违规内容。',1);
+      await syncPost('main');
       for(let i=1;i<=31;i++)manifest.replies.lastPage=await addReply('pages',`[E2E] 分页测试回复 ${String(i).padStart(2,'0')}`,i);
-      await c.execute('UPDATE forum_topics SET reply_count=31 WHERE id=?',[manifest.topics.pages.id]);
+      await syncPost('pages');
     });
     // 这些数据直接写库（不走接口），免得把手工测试账号的发帖额度用光。
     await mkdir(new URL('../data/e2e-runs/',import.meta.url),{recursive:true});

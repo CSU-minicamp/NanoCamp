@@ -4,6 +4,10 @@
 // 论坛帖子的长度（标题 4–80、正文 10–15000、回复 1–3000、私信 1–2000）暂时仍写在
 // backend/forum/ 里：它们只在后端用，模板不渲染对应计数，等真需要时再搬。
 
+/** 邮箱长度上下限（后端 isEmail() 与登录页 maxlength 共用这一份）。 */
+export const EMAIL_MIN = 6;
+export const EMAIL_MAX = 254;
+
 /** 昵称最多几个字符（按码点，一个 emoji 算 1）。 */
 export const NICKNAME_MAX = 24;
 

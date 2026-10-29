@@ -26,12 +26,12 @@ const files = [
   'public/messages.js',
   'public/account.js',
   // 运维脚本
-  'scripts/forum-migrate.mjs',
   'scripts/forum-moderate.mjs',
   'scripts/forum-e2e-prepare.mjs',
   'scripts/forum-e2e-verify.mjs',
   'scripts/forum-image-cleanup.mjs',
-  'scripts/avatar-migrate.mjs'
+  // 全部 DDL 都在这一个文件里
+  'backend/schema.mjs'
 ];
 
 for(const file of files)

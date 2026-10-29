@@ -8,7 +8,7 @@
 //   · 静态页：`src/pages.mjs` 的 routes 表里逐页声明，派生 `indexablePaths`（sitemap、搜索索引、
 //     check.mjs 都从它推导，改一处三处跟着变）；
 //   · 动态页：下面手写的**形状**白名单 —— 只有确实值得被搜到的几种地址形态。
-// 不在这里的，包括 `/forum/messages/*`、`/forum/me/*`、`/profile/*`、`/user/<id>/`，全部 noindex。
+// 不在这里的，包括 `/forum/messages/*`、`/profile/*`、`/user/<id>/`，全部 noindex。
 import {indexablePaths} from './pages.mjs';
 
 /**

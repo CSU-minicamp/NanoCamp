@@ -4,21 +4,21 @@
 // 加页面、加接口是最高频的改动，而它们与写入逻辑、读逻辑的检查方式完全不同
 // （这里看的是状态码、cookie、参数校验，业务层看的是事务与权限）。
 // 依赖方向：本文件 → index.mjs / read.mjs / images.mjs，三个都不认识它。
-import {CommunityError, fail, idOf, text} from './base.mjs';
+import {CommunityError, fail, idOf} from './base.mjs';
 import {missingFields, readSession} from '../auth.mjs';
 import {parseCookies, sameOrigin} from '../base.mjs';
-import {dbReady, isUnavailable, select} from '../db.mjs';
+import {dbReady, isUnavailable} from '../db.mjs';
 import * as dm from './dm.mjs';
 import {authorPage, composePage, forumDocument, forumIndex, messagePage, personalAccountPage, personalPage, personalTabs, topicDetail} from '../../src/forum.mjs';
 import {renderMarkdown} from '../../src/markdown.mjs';
 import {dmReportPage, messageCenter} from '../../src/messages.mjs';
-import {createTopic, createReply, withdrawContent, vote, follow, bookmark, report, withdrawReport} from './index.mjs';
-import {listTopics, publicUser, getTopic, locateReply, myContent, relations, publicReplies, notifications, markRead} from './read.mjs';
+import {createPost, createReply, deleteContent, vote, follow, bookmark, report, withdrawReport} from './index.mjs';
+import {listPosts, publicUser, getPost, locateReply, myContent, relations, publicReplies, notifications, markRead} from './read.mjs';
 import {uploadForumImage, readForumImage} from './images.mjs';
 
 // ======================= 页面 =======================
 
-/** 303 跳转（表单页、旧地址都走它）。 */
+/** 303 跳转（表单页与回复固定链接都走它）。 */
 const redirect = href => ({status: 303, headers: {location: href, 'cache-control': 'no-store'}, body: Buffer.alloc(0)});
 
 /** 页面响应一律 no-store：每条都带当前用户。 */
@@ -51,7 +51,7 @@ export async function handleForumPage({url, headers}){
     const params = Object.fromEntries(target.searchParams);
     // 「只看关注/收藏…」是登录后才有的视图，未登录看首页时不该被拦，所以这里单独判断。
     const forumView = ['topics', 'replies', 'following', 'bookmarks'].includes(params.view)? params.view: '';
-    const privatePage = path.startsWith('/forum/messages/') || path === '/forum/new/' || path === '/profile/' || path === '/forum/notifications/' || params.feed === 'following' || path === '/forum/' && Boolean(forumView);
+    const privatePage = path.startsWith('/forum/messages/') || path === '/forum/new/' || path === '/profile/' || params.feed === 'following' || path === '/forum/' && Boolean(forumView);
     if(privatePage && !user)
       return redirect('/login/?next=' + encodeURIComponent(path + target.search));
     if((path === '/forum/new/' || path === '/profile/') && missingFields(user).length)
@@ -83,21 +83,10 @@ export async function handleForumPage({url, headers}){
         fail('not_found', 404);
     }
     else if(path === '/forum/')
-      body = forumIndex(forumView? await myContent(user.id, forumView, params.page): await listTopics(params, user?.id), {...params, view: forumView}, user, url);
+      body = forumIndex(forumView? await myContent(user.id, forumView, params.page): await listPosts(params, user?.id), {...params, view: forumView}, user, url);
     else if(path === '/forum/new/'){
       body = composePage();
       title = '发起讨论';
-    }
-    else if(path === '/forum/me/'){
-      // 旧地址保留：参与类标签回论坛列表，资料/粉丝/举报/安全回 /profile/，其余 query 原样带过去。
-      const tab = params.tab === 'security'? 'security': personalTabs.some(entry => entry[0] === params.tab)? params.tab: 'profile';
-      const view = ['topics', 'replies', 'following', 'bookmarks'].includes(tab);
-      const next = new URL(view? '/forum/': '/profile/', 'http://localhost');
-      next.searchParams.set(view? 'view': 'tab', tab);
-      for(const key of ['page', 'fragment', 'kind', 'report'])
-        if(target.searchParams.has(key))
-          next.searchParams.set(key, target.searchParams.get(key));
-      return redirect(next.pathname + next.search);
     }
     else if(path === '/profile/'){
       const tab = params.tab === 'security'? 'security': personalTabs.some(entry => entry[0] === params.tab)? params.tab: 'profile';
@@ -116,11 +105,6 @@ export async function handleForumPage({url, headers}){
         : ['profile', 'security'].includes(tab)? personalAccountPage(user, tab): personalPage(await myContent(user.id, tab, params.page), tab, user, url);
       title = '个人中心';
     }
-    else if(path === '/forum/notifications/'){
-      // 通知已经并入消息中心，旧地址带着筛选条件跳过去。
-      const filter = ['all', 'replies', 'social', 'system'].includes(params.filter)? params.filter: 'all';
-      return redirect('/forum/messages/?tab=' + (filter === 'system'? 'system': 'activity') + (['replies', 'social'].includes(filter)? '&filter=' + filter: '') + (params.page? '&page=' + encodeURIComponent(params.page): ''));
-    }
     else if(path.match(/^\/forum\/replies\/\d+\/$/))
       return redirect(await locateReply(path.split('/')[3]));
     else if(path.match(/^\/forum\/users\/\d+\/$/)){
@@ -129,7 +113,7 @@ export async function handleForumPage({url, headers}){
       const tab = ['topics', 'replies', 'following', 'fans'].includes(params.tab)? params.tab: 'topics';
       let data;
       if(tab === 'topics')
-        data = await listTopics({author: id, page: params.page}, user?.id);
+        data = await listPosts({author: id, page: params.page}, user?.id);
       else if(tab === 'following' || tab === 'fans')
         data = await relations(id, tab, params.page);
       else
@@ -140,7 +124,7 @@ export async function handleForumPage({url, headers}){
     }
     else if(path.match(/^\/forum\/topics\/\d+\/$/)){
       topicId = idOf(path.split('/')[3]);
-      const data = await getTopic(topicId, user?.id, params.page, {target: params.reply});
+      const data = await getPost(topicId, user?.id, params.page, {target: params.reply});
       body = topicDetail({...data, canMessage: dm.messagesEnabled()}, user, url);
       title = data.topic.title;
     }
@@ -152,7 +136,9 @@ export async function handleForumPage({url, headers}){
         fail('not_found', 404);
       return htmlResponse(body);
     }
-    const html = forumDocument({body, title, user, route: path, topicId});
+    // 个人中心不属于任何一个主导航项：active 给 'account'（navLinks 里没有这个 key）⇒ 九项都不高亮。
+    // 不用 'profile'（force 页用的那个值）是因为 documentPage 会给它额外加载 auth.css，个人中心的样式在 forum.css / messages.css 里。
+    const html = forumDocument({body, title, user, route: path, topicId, active: path === '/profile/'? 'account': 'forum'});
     // 个人中心页面额外加载账号脚本（头像圆要按会话状态初始化）。
     return htmlResponse(path === '/profile/'? html.replace('</head>', '<script defer src="/account.js"></script></head>'): html);
   }
@@ -203,7 +189,8 @@ export async function handleForumApi({method, url, headers = {}, body}){
     const session = cookies.nc_sid? await readSession(cookies.nc_sid): null;
     const user = session?.user || null;
     // 图片是二进制，单独一条（要处理 HEAD 与 304），所以放在 JSON 路由之前。
-    const imageMatch = path.match(/^\/api\/forum\/images\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/);
+    // 编号是自增数字（字节对象的 key 在库里另存，不出现在 URL 上）。
+    const imageMatch = path.match(/^\/api\/forum\/images\/([1-9]\d{0,14})$/);
     if(imageMatch && ['GET', 'HEAD'].includes(method)){
       const image = await readForumImage(imageMatch[1], user?.id);
       const etag = `"${image.meta.etag}"`;
@@ -217,9 +204,9 @@ export async function handleForumApi({method, url, headers = {}, body}){
       if(path.startsWith('/api/forum/dm/') || path === '/api/forum/message-summary')
         return response(200, await dm.getDm(user, path, query));
       if(path === '/api/forum/topics')
-        return response(200, await listTopics(query, user?.id));
+        return response(200, await listPosts(query, user?.id));
       if(path.match(/^\/api\/forum\/topics\/\d+$/))
-        return response(200, await getTopic(path.split('/').at(-1), user?.id, query.page, {target: query.reply}));
+        return response(200, await getPost(path.split('/').at(-1), user?.id, query.page, {target: query.reply}));
       if(path === '/api/forum/me'){
         if(!user)
           fail('unauthenticated', 401);
@@ -264,19 +251,20 @@ export async function handleForumApi({method, url, headers = {}, body}){
       // 预览只渲染，不落库；images 关掉，避免草稿图在预览阶段就被当成"已发布"。
       return response(200, {html: renderMarkdown(String(data.body || '').slice(0, 15000), {images: data.images === true})});
     if(path === '/api/forum/topics')
-      return response(200, await createTopic(user, key, data));
+      return response(200, await createPost(user, key, data));
     let match = path.match(/^\/api\/forum\/(topics|replies)\/(\d+)(?:\/(vote|withdraw|bookmark|replies))?$/);
     if(match){
-      const kind = match[1] === 'topics'? 'topic': 'reply';
+      // URL 仍叫 topics/replies（前端与旧链接都不动），业务层的种类叫 post/reply（与表名一致）。
+      const kind = match[1] === 'topics'? 'post': 'reply';
       const id = match[2];
       const action = match[3];
       if(action === 'vote')
         return response(200, await vote(user, key, kind, id, data.value));
       if(action === 'withdraw')
-        return response(200, await withdrawContent(user, key, kind, id));
-      if(kind === 'topic' && action === 'bookmark')
+        return response(200, await deleteContent(user, key, kind, id));
+      if(kind === 'post' && action === 'bookmark')
         return response(200, await bookmark(user, key, id, data.enabled));
-      if(kind === 'topic' && action === 'replies')
+      if(kind === 'post' && action === 'replies')
         return response(200, await createReply(user, key, id, data));
     }
     match = path.match(/^\/api\/forum\/users\/(\d+)\/follow$/);
@@ -284,9 +272,9 @@ export async function handleForumApi({method, url, headers = {}, body}){
       return response(200, await follow(user, key, match[1], data.enabled));
     if(path === '/api/forum/reports')
       return response(200, await report(user, key, data));
-    match = path.match(/^\/api\/forum\/reports\/(\d+)\/withdraw$/);
+    match = path.match(/^\/api\/forum\/reports\/(post|reply)\/(\d+)\/withdraw$/);
     if(match)
-      return response(200, await withdrawReport(user, key, match[1]));
+      return response(200, await withdrawReport(user, key, match[1], match[2]));
     if(path === '/api/forum/notifications/read')
       return response(200, await markRead(user, key, data.ids, data.filter));
     return response(404, {error: 'not_found'});

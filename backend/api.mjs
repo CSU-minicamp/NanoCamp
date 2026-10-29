@@ -374,9 +374,9 @@ async function handleAuthApi({method, pathname, headers, body = null, ip = ''}){
 /**
  * `/api/*` 的唯一入口：按 URL 空间分派给具体实现。
  *
- * 顺序有意义 —— 头像占两条路径（自己的 `/api/profile/avatar` 和别人的 `/api/users/<id>/avatar`），
- * 论坛是 `/api/forum/` 前缀；剩下的一律交给认证接口，由它自己把未知路径回成 404。
- * 页面层（app.mjs）只要认「以 /api/ 开头」这一件事，不用知道 API 内部怎么分。
+ * 顺序有意义 —— 头像占三条路径（自己的 `/api/profile/avatar`、别人的 `/api/users/<id>/avatar`
+ * 与 `/api/users/<id>/avatar/full`），论坛是 `/api/forum/` 前缀；剩下的一律交给认证接口，
+ * 由它自己把未知路径回成 404。页面层（app.mjs）只要认「以 /api/ 开头」这一件事，不用知道 API 内部怎么分。
  * @param {object} request 请求描述。
  * @param {string} request.method HTTP 方法。
  * @param {string} request.url 原始 URL（论坛接口要读查询串）。
@@ -387,7 +387,7 @@ async function handleAuthApi({method, pathname, headers, body = null, ip = ''}){
  * @returns {Promise<{status: number, headers: object, body: Buffer}>} 响应描述。
  */
 export async function handleApiRequest({method, url, pathname, headers, body = null, ip = ''}){
-  if(pathname==='/api/profile/avatar'||/^\/api\/users\/[^/]+\/avatar$/.test(pathname))
+  if(pathname==='/api/profile/avatar'||/^\/api\/users\/[^/]+\/avatar(\/full)?$/.test(pathname))
     return handleAvatarApi({method, pathname, headers, body});
   if(pathname.startsWith('/api/forum/'))
     return handleForumApi({method, url, headers, body, ip});

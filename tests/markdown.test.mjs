@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {renderMarkdown,postImageSources} from '../src/markdown.mjs';
 
-const IMAGE='/api/forum/images/123e4567-e89b-12d3-a456-426614174000';
+const IMAGE='/api/forum/images/900123';
 // 与 src/markdown.mjs 的 allowedTags 保持同步：渲染结果里出现别的标签就算失守。
 const allowedTags=['p','br','strong','em','s','blockquote','ul','ol','li','h1','h2','h3','h4','h5','h6','hr','pre','code','a','img','table','thead','tbody','tr','th','td'];
 
@@ -36,7 +36,7 @@ test('站内相对路径、锚点与 mailto 保留，外部链接带 rel 且丢�
 });
 
 test('外站图片退回 alt 文本，任何情况下都不产生 img',()=>{
-  for(const source of ['![外站图](https://x.test/a.png)','![协议相对](//x.test/a.png)','![假站内路径](/api/forum/images/not-a-uuid.png)']){
+  for(const source of ['![外站图](https://x.test/a.png)','![协议相对](//x.test/a.png)','![假站内路径](/api/forum/images/not-a-number.png)','![零开头](/api/forum/images/0123)']){
     for(const images of [false,true]){
       const html=renderMarkdown(source,{images});
       assert.ok(!html.includes('<img'),source);
@@ -48,7 +48,7 @@ test('外站图片退回 alt 文本，任何情况下都不产生 img',()=>{
 test('站内图片只在 images:true 时渲染，且带惰性加载属性',()=>{
   assert.equal(renderMarkdown(`![站内图](${IMAGE})`),'<p>站内图</p>\n');
   const html=renderMarkdown(`![站内图](${IMAGE})`,{images:true});
-  assert.match(html,/<img src="\/api\/forum\/images\/123e4567-e89b-12d3-a456-426614174000" alt="站内图" loading="lazy" decoding="async" \/>/);
+  assert.match(html,/<img src="\/api\/forum\/images\/900123" alt="站内图" loading="lazy" decoding="async" \/>/);
 });
 
 test('围栏代码块的语言名只能是合法标识符',()=>{

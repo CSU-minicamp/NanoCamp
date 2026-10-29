@@ -20,13 +20,14 @@
 | `mail.mjs` | 投递适配器（resend / console） | 不写邮件文案 |
 | `config.mjs` | **唯一**的配置读取入口 | 不自己打日志 |
 | `base.mjs` | `public/` 静态资源、MIME、路径逃逸防护 | 不碰页面路由 |
+| `schema.mjs` | **全部 DDL**：一张表一段，按 git tag 分版本，末尾的 `migrateSchema()` 逐段执行并记账 | 不写查询、不碰业务 |
 | `forum/base.mjs` | 论坛公共层：错误类型、编号形状、长度/分页校验、成员校验、事务查询助手 | 不认识帖子与私信（分类与举报理由在 content/forum.mjs） |
-| `forum/index.mjs` | 论坛的写路径与数据模型：表结构、幂等写、帖子与回复、互动、审核 | 不碰账号体系 |
+| `forum/index.mjs` | 论坛的写路径与数据模型：幂等写、帖子与回复、互动、审核 | 不碰账号体系、不建表 |
 | `forum/read.mjs` | 论坛的读路径：列表、详情、我的内容、关系列表、通知 | 不写业务、不改表 |
 | `forum/images.mjs` | 论坛图片管线：上传解码与缩放、读取、存储适配器、过期草稿清理 | 不认识帖子正文 |
 | `forum/routes.mjs` | 论坛的 HTTP 边界：`/forum/*` 页面与 `/api/forum/*` 接口 | 一条 SQL 都不写 |
-| `forum/dm.mjs` | 私信的全部：表结构、会话与消息、举报处理、接口路由 | 不碰帖子的业务规则 |
-| `avatar/` | `index.mjs` 表结构 + 字节存储 + 图片处理；`routes.mjs` 只做 HTTP 边界 | 不碰资料字段 |
+| `forum/dm.mjs` | 私信：会话与消息、举报处理、接口路由 | 不碰帖子的业务规则、不建表 |
+| `avatar/` | `index.mjs` 存储适配器 + 图片处理；`routes.mjs` 只做 HTTP 边界 | 不碰资料字段、不建表 |
 
 > 邮件文案在 `content/mail.mjs`（文案归内容、发送归后端）。
 >
@@ -139,11 +140,17 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 
 ## 4. API 一览
 
-所有接口都是 `application/json; charset=utf-8`，响应一律 `Cache-Control: no-store`。
+接口默认 `application/json; charset=utf-8` + `Cache-Control: no-store`；
+**头像图片本身例外** —— 那两个地址返回二进制，用 `public, no-cache` + ETag 走 304。
 
 | 方法 | 路径 | 鉴权 | 作用 |
 |---|---|---|---|
 | `GET` | `/api/session` | 无 | 当前会话、CSRF 令牌、能力开关、缺失项 |
+| `GET` | `/api/users/<id>/avatar` | 无 | 头像**缩略图**（256×256 webp，列表/导航用）；没设过 302 到默认图 |
+| `GET` | `/api/users/<id>/avatar/full` | 无 | 头像**原图**（上传时的字节，已剥掉 EXIF/XMP，GIF 保留动画，看大图用）；与缩略图共用 ETag |
+| `GET` | `/api/profile/avatar` | 会话 | 自己的头像元信息（`url` / `fullUrl` / `isDefault` / `version` / `updatedAt`）；不返回宽高与格式，那些看图片响应头 |
+| `PUT` | `/api/profile/avatar` | CSRF + 会话 | 换头像（原图 ≤2 MB，png/jpeg/webp/gif；落库前无损剥掉 EXIF/XMP），另存 256 webp 缩略图 |
+| `DELETE` | `/api/profile/avatar` | CSRF + 会话 | 恢复默认头像，两个对象一起删 |
 | `POST` | `/api/auth/email-captcha` | CSRF | 发 6 位邮箱验证码，建立挑战 |
 | `POST` | `/api/auth/verify` | CSRF | 验证码登录；邮箱首次验证时自动建号 |
 | `POST` | `/api/auth/login` | CSRF | 邮箱 + 密码登录 |
@@ -226,16 +233,24 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 
 ## 5. 数据表
 
-四张，全 InnoDB / utf8mb4（`utf8mb4_0900_ai_ci`，邮箱靠它做大小写不敏感唯一索引）。
+**全部 DDL 都在 [`backend/schema.mjs`](schema.mjs)**：一张表一段，按 git tag 分版本（`v0.1.0b` 账号 →
+`v0.1.1b` 空段 → `v0.2.0b` 论坛/私信/头像）。**v0.1.2b 从未发布**，那批改动直接随 `v0.2.0b` 上线。
+改字段只改那一个文件，然后重建库。
 
-| 表 | 装什么 | 关键索引 |
+现在 23 张业务表 + 1 张版本表（`schema_migrations`）：
+
+| 域 | 表数 | 表 |
 |---|---|---|
-| `users` | id / email / password_hash / email_verified_at / nickname / bio / 时间 | `uniq_users_email` |
-| `sessions` | token_hash / user_id / 时间戳 / ua_hash | PK `token_hash` |
-| `login_email_captcha` | challenge / email / code_hmac / attempts / consumed_at / expires_at | `uniq_captcha_challenge` |
-| `rate_events` | kind（send / verify_fail / login_fail）/ subject / at | `(kind, subject, at)` |
+| 账号（v0.1.0b） | 4 | `users` `sessions` `login_email_captcha` `rate_events` |
+| 论坛（v0.2.0b） | 14 | `forum_posts` `forum_post_replies` `forum_post_votes` `forum_reply_votes` `forum_post_bookmarks` `forum_follows` `forum_images` `forum_image_blobs` `forum_post_reports` `forum_reply_reports` `forum_notifications` `forum_post_rate_limits` `forum_user_blocks` `forum_member_roles` |
+| 私信（v0.2.0b） | 4 | `forum_dm_conversations` `forum_dm_members` `forum_dm_messages` `forum_dm_reports` |
+| 头像（v0.2.0b） | 1 | `avatar_blobs`（引用在 `users.avatar_storage_*` 上） |
 
 约定：**时间只由 Node 算好再写入**，SQL 里不出现 `NOW()`；连接设 `timezone: 'Z'`。
+
+**线上只到 v0.1.1b**（`users` / `sessions` / `login_email_captcha` / `rate_events` 四张，`users` 上没有头像列），
+所以 v0.2.0b 是一次纯增量上线：20 张新表 + 给 `users` 补 3 列（`addAvatarColumns`，幂等 ALTER），
+**不动任何一行已有数据**。论坛那十几张表还没定型，改它们可以直接删表重建 —— 线上还没有这些表。
 
 `sessions.user_id` 是**外键**（`fk_sessions_user`，`ON DELETE CASCADE`）：会话必然属于一个用户，
 删号时会话跟着走，不会留下指向不存在用户的孤儿行。验证码表的外键则**不能加** ——
@@ -287,12 +302,13 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 ```bash
 npm run dev         # node --watch，本地开发
 npm start           # 生产启动
-npm test            # 214 条（其中一批要连真库，库不可用时会跳过）
+npm test            # 223 条（其中一批要连真库，库不可用时会跳过）
 npm run check       # 全站完整性：页面数、锚点、搜索索引、sitemap、元数据
 
-npm run db:migrate  # 建表（幂等；需要应用账号有 DDL 权限）
+npm run db:migrate  # 建表（幂等；按 schema.mjs 的版本段执行，跑过的段跳过）
 node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'  # 没 DDL 权限时
-npm run db:check    # 连接 / 版本 / 四张表 / 行数
+npm run db:reset -- --yes   # ⚠️ 删掉库里所有表再按 schema.mjs 建回来（本地改字段用这个）
+npm run db:check    # 连接 / 版本 / 24 张表是否齐全 / 行数
 npm run mail:test -- 你的邮箱                                   # 真发一封，验证域名与密钥
 ```
 
@@ -351,42 +367,51 @@ npm run db:check
 也可以直接 `npm run db:migrate`（前提是给应用账号授了 CREATE）—— 但**不建议**：
 DDL 权限留在应用上，一个 SQL 注入就能改表结构、删库。
 
-### 从旧结构升级
+### 本地改表：直接重建
 
-**还没上线时最简单**：直接删表重建（`migrate` 是 `CREATE TABLE IF NOT EXISTS`，不会改已存在的表）。
+本地库是测试数据，改字段不需要迁移，**改完重建**最快：
 
 ```bash
-sudo mysql 'Nanocamp-test' -e "SET FOREIGN_KEY_CHECKS=0; DROP TABLE sessions, login_email_captcha, users, rate_events; SET FOREIGN_KEY_CHECKS=1;"
-node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'
+# 1) 改 backend/schema.mjs 里对应的 CREATE TABLE
+# 2) 重建本地库（会清空数据）
+npm run db:reset -- --yes
+# 3) 需要的话重新播种测试数据
+node .workbuddy/tools/forum-seed.mjs
 ```
 
-已经有真实数据、不能删表时，才用下面这套 ALTER：
+`db:reset` 删的是**库里所有表**（不只 `schema.mjs` 里那 24 张），所以早先版本留下的表也会一起消失；
+改完用 `npm run db:check` 逐张核对新结构。
 
-```sql
-RENAME TABLE login_codes TO login_email_captcha;
+### 线上怎么升级（v0.2.0b 就是第一个例子）
 
-ALTER TABLE `Nanocamp-test`.users
-  ADD COLUMN nickname VARCHAR(24) NOT NULL DEFAULT '',
-  ADD COLUMN bio VARCHAR(160) NOT NULL DEFAULT '';
+线上停在 v0.1.1b：只有 4 张账号表。升到 v0.2.0b 时跑 `npm run db:migrate`，它只执行「还没记进
+`schema_migrations` 的段」，所以实际动作是：
 
--- 先清孤儿会话，否则下一步加外键会失败
-DELETE s FROM `Nanocamp-test`.sessions s
-  LEFT JOIN `Nanocamp-test`.users u ON u.id = s.user_id
-  WHERE u.id IS NULL;
+| 动作 | 说明 |
+|---|---|
+| 新建 19 张表 | 论坛 14 + 私信 4 + 头像 1（`avatar_blobs`），线上还没有这些表 |
+| 给 `users` 补 3 列 | `avatar_storage_driver` / `avatar_storage_key` / `avatar_etag` + 唯一索引，由 `addAvatarColumns()` 做，先查 information_schema 判重 |
+| 已有数据 | **一行都不动** |
 
-ALTER TABLE `Nanocamp-test`.sessions
-  ADD CONSTRAINT fk_sessions_user
-  FOREIGN KEY (user_id) REFERENCES `Nanocamp-test`.users (id) ON DELETE CASCADE;
+**论坛那 14 张表还没定型，改它们不需要考虑升级** —— 线上还没有，直接改 CREATE、本地重建验证即可。
+等它们稳定并上线之后，再按下面的规矩走。
+
+`schema.mjs` 的每一段就是一个版本，新增一段即可，**不要改已发布版本里的 CREATE**：
+
+```js
+{version: 'v0.2.1b', note: '加了什么', tables: [新表…], steps: [给老表加列的幂等函数]}
 ```
 
-表结构的唯一真相是 `backend/db.mjs` 的 `schemaStatements`，`--print` 打出来的就是它。
+版本表 `schema_migrations` 记着库停在哪个 tag，跑过的段会跳过。要改**已发布**的表（加列/改类型/加索引）时，
+把幂等的 `ALTER` 放进新段的 `steps`（先查 information_schema 判断存在与否），旧数据回填也写在同一段里。
 
----
+> 表结构的唯一真相是 `backend/schema.mjs`，`node scripts/migrate.mjs --print` 打出来的就是它。
 
 ## 8. 状态码
 
-> 各种「写死的限制」（编号形状、文本长度、体积、频率、分页规则）集中记在
-> [docs/limits.md](../docs/limits.md)，改限制时连同那一页一起更新。
+> 各种「写死的限制」只有几个落点：跨层共用的数字在 `common/limits.mjs`（昵称/简介/密码/头像体积），
+> 编号形状与分页在 `forum/base.mjs` 的 `isId()` / `pageOf()`，论坛各字段长度在 `forum/index.mjs` 的 `text()`
+> 调用处，头像格式与缩略图边长在 `avatar/index.mjs` 顶部常量。改任何一条，先确认它只有一个来源。
 
 | 码 | 什么时候 | 备注 |
 |---|---|---|

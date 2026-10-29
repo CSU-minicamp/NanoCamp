@@ -2,7 +2,8 @@
  const root=document.querySelector('[data-dm-center]'),reports=document.querySelector('[data-dm-reports]');if(!root&&!reports)return;
  const user=Number(root?.dataset.user||document.querySelector('[data-user-id]')?.dataset.userId),peer=Number(root?.dataset.peer),status=document.querySelector('[data-dm-status]');
  let conversation=Number(root?.dataset.conversation),disposed=false;
- const messages={unauthenticated:'登录状态已过期，请重新登录。',profile_incomplete:'请先完善昵称和密码。',posting_suspended:'当前账号暂时不能发送消息。',cannot_message:'暂时无法向该用户发送消息。',messaging_disabled:'私信暂时不可用。',invalid_content:'请输入 1–2000 字的消息。',rate_limited:'操作较频繁，请稍后重试。',csrf_invalid:'页面状态已变化，请刷新后重试。',request_conflict:'请求内容已变化，请重新发送。',not_found:'会话不存在或无权访问。',report_in_progress:'举报已开始处理，不能撤回。'};
+ const bodyMax=Number(root?.dataset.bodyMax)||0;
+ const messages={unauthenticated:'登录状态已过期，请重新登录。',profile_incomplete:'请先完善昵称和密码。',posting_suspended:'当前账号暂时不能发送消息。',cannot_message:'暂时无法向该用户发送消息。',messaging_disabled:'私信暂时不可用。',invalid_content:`请输入 1–${bodyMax} 字的消息。`,rate_limited:'操作较频繁，请稍后重试。',csrf_invalid:'页面状态已变化，请刷新后重试。',request_conflict:'请求内容已变化，请重新发送。',not_found:'会话不存在或无权访问。',report_in_progress:'举报已开始处理，不能撤回。'};
  async function api(path,data,key=crypto.randomUUID()){
   const headers={};if(data){const csrf=document.cookie.split('; ').find(x=>x.startsWith('nc_csrf='))?.slice(8);Object.assign(headers,{'content-type':'application/json','x-nc-csrf':csrf||'','idempotency-key':key});}
   const response=await fetch('/api/forum/'+path,{method:data?'POST':'GET',headers,body:data?JSON.stringify(data):undefined,credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)});
@@ -75,7 +76,7 @@
   try{body.value=localStorage.getItem(draftKey)||'';}catch(error){console.warn('[dm:draft:read]',error.name);}
   body.addEventListener('input',()=>{try{body.value?localStorage.setItem(draftKey,body.value):localStorage.removeItem(draftKey);}catch(error){console.warn('[dm:draft:write]',error.name);}});
   body.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229&&!body.disabled){event.preventDefault();form.requestSubmit();}});
-  form.addEventListener('submit',async event=>{event.preventDefault();if(form.dataset.sending||body.disabled||!body.value.trim())return;const text=body.value.trim();if(Array.from(text).length>2000){form.querySelector('[data-dm-send-status]').textContent=messages.invalid_content;return;}let key=crypto.randomUUID();try{const pending=JSON.parse(localStorage.getItem(pendingKey)||'null');if(pending?.body===text&&/^[\w-]{8,80}$/.test(pending.key))key=pending.key;}catch(error){console.warn('[dm:pending:read]',error.name);}await send(text,key);});
+  form.addEventListener('submit',async event=>{event.preventDefault();if(form.dataset.sending||body.disabled||!body.value.trim())return;const text=body.value.trim();if(Array.from(text).length>bodyMax){form.querySelector('[data-dm-send-status]').textContent=messages.invalid_content;return;}let key=crypto.randomUUID();try{const pending=JSON.parse(localStorage.getItem(pendingKey)||'null');if(pending?.body===text&&/^[\w-]{8,80}$/.test(pending.key))key=pending.key;}catch(error){console.warn('[dm:pending:read]',error.name);}await send(text,key);});
  }
  async function send(text,key,row){
   let committed=false;

@@ -11,7 +11,8 @@ import {promisify} from 'node:util';
 import {authConfig, mailPaused} from './config.mjs';
 import {dbReady, select, execute, transaction} from './db.mjs';
 import {createEmailCaptcha, sendLoginCode} from './mail.mjs';
-import {BIO_MAX, NICKNAME_MAX, PASSWORD_MAX, PASSWORD_MIN} from '../common/limits.mjs';
+import {BIO_MAX, EMAIL_MAX, EMAIL_MIN, NICKNAME_MAX, PASSWORD_MAX, PASSWORD_MIN} from '../common/limits.mjs';
+import {nicknameForbidden} from '../common/nickname.mjs';
 
 /** 挑战 cookie 与验证码有效期一致（分钟）之外的兜底：cookie 本身多留 5 分钟。 */
 const CHALLENGE_COOKIE_SLACK_MINUTES = 5;
@@ -43,25 +44,11 @@ export class AuthError extends Error{
   }
 }
 
-/**
- * 昵称里不允许出现的字符：路径分隔符、C0/C1 控制字符、不可见的空白/连接/方向/隔离字符。
- *
- * 昵称只当显示文本用（链接一律走 `/forum/users/<id>/`），所以这些字符不会立刻炸掉什么；
- * 但 `/` `\` 会被读成路径或「某组织/某人」；零宽空格、连接符、方向标记、BOM 这类看不见的字符
- * 能造出视觉上同名或空名的账号 —— 都不该放进来。
- *
- * **组合 emoji 因此不被支持**：👨‍👩‍👧 这种用 U+200D（ZWJ）拼起来的序列会被拒。
- * 这是有意的取舍 —— 宁可少支持一类 emoji，也不留「看起来同名、字符串不同」的缝隙。
- * 单码点 emoji（🌱、👩）与肤色修饰符不受影响。
- * 用**黑名单**而不是白名单：emoji、日文、全角符号这些正常昵称不该被误伤。
- */
-const FORBIDDEN_NICKNAME = /[/\\\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2028\u2029\u2060\u2066-\u2069\ufeff]/;
-
 /** 邮箱规范化：去首尾空白 + 全转小写。 */
 export const normalizeEmail = value => String(value ?? '').trim().toLowerCase();
 
 /** 粗略但够用的邮箱格式校验（真正的可达性只能靠发信验证）。 */
-export const isEmail = value => value.length >= 6 && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+export const isEmail = value => value.length >= EMAIL_MIN && value.length <= EMAIL_MAX && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const hmac = value => createHmac('sha256', authConfig().secret).update(value).digest('hex');
@@ -530,7 +517,7 @@ async function writeProfile({userId, password, nickname, bio, current = {}}, {in
     // 昵称是必填项：传了空值就是错，而不是悄悄存个空字符串。
     if(!value)
       throw new AuthError('invalid_profile', '昵称不能为空');
-    if(FORBIDDEN_NICKNAME.test(value))
+    if(nicknameForbidden(value))
       throw new AuthError('invalid_profile', '昵称不能包含 / \\ 或不可见字符');
     sets.push('nickname = ?');
     params.push(value);
