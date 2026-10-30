@@ -19,7 +19,7 @@ export const avatarGlyph = () => '<svg class="avatar-glyph" viewBox="0 0 24 24" 
 // 服务端渲染不出登录态，所以先按未登录输出，拿到会话后再改标记。
 // data-header-account / data-account-entry 两个钩子都留着：前者给 forum-nav.js 挂角标，后者给对账脚本定位。
 export function accountEntry(){
-  return `<a class="header-account" href="/login/" data-account-entry data-header-account aria-label="登录 NanoCamp"><span class="account-avatar"><span class="account-label" data-account-label aria-hidden="true">登录</span>${avatarGlyph()}<span data-unread-count hidden></span></span></a>`;
+  return `<div class="account-menu" data-account-menu><a class="header-account" href="/login/" data-account-entry data-header-account aria-label="登录 NanoCamp"><span class="account-avatar"><span class="account-label" data-account-label aria-hidden="true">登录</span>${avatarGlyph()}<span data-unread-count hidden></span></span></a><div class="account-card" data-account-card><a href="/profile/" data-account-settings><svg class="account-card-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.6" r="3.9"/><path d="M4.7 20.4c.9-3.9 3.8-6 7.3-6s6.4 2.1 7.3 6"/></svg><span class="account-card-label">账号设置</span><svg class="account-card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l5.5 6-5.5 6"/></svg></a><a href="/profile/" data-account-forum><svg class="account-card-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.4 5.6h15.2v10.1h-9.1L6.2 19v-3.3H4.4z"/><path d="M8.6 9.3h6.8M8.6 12.3h4.4"/></svg><span class="account-card-label">社区主页</span><svg class="account-card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l5.5 6-5.5 6"/></svg></a></div></div>`;
 }
 export function safeUrl(value, local = false) {
   if (typeof value !== 'string' || !value.trim()) return null;

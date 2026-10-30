@@ -383,3 +383,27 @@ html[data-account="member"] .header-account .account-label{display:none}
 @media(max-width:1050px) and (min-width:861px){body[data-page] .site-header .desktop-nav{display:none}body[data-page] .site-header .menu-toggle{display:flex}}
 @media(max-width:860px){body[data-page] .site-header .header-inner>.brand .brand-asset{width:95px}}
 @media(max-width:380px){body[data-page] .site-header .header-inner>.brand .brand-asset{width:80px}body[data-page] .site-header .button-community-icon{display:none}}
+
+/* 可复用确认弹窗（base.js 的 window.ncConfirm）。背景虚化靠 ::backdrop 的 backdrop-filter。 */
+.nc-popup{width:min(420px,calc(100vw - 32px));margin:auto;padding:26px 26px 22px;border:1px solid #dfe3ef;border-radius:10px;background:#fff;color:#2c3950;font-family:inherit;font-size:15px;line-height:1.7;box-shadow:0 24px 70px #22324d24}
+.nc-popup::backdrop{background:#29334a4d;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.nc-popup-title{margin:0 0 10px;font-size:19px;font-weight:600;line-height:1.5}
+.nc-popup-message{margin:0;font-size:14px;color:#66738b}
+.nc-popup-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.nc-popup-actions button{min-height:38px;padding:0 18px;border:1px solid #d3daea;border-radius:6px;background:#fff;color:#3c4a62;font:inherit;font-size:14px;cursor:pointer}
+.nc-popup-actions button:hover{border-color:#a9b8d4}
+.nc-popup-actions button:focus-visible{outline:2px solid #9bb5e8;outline-offset:2px}
+.nc-popup-actions .nc-popup-ok{background:#3f5f9e;border-color:#3f5f9e;color:#fff}
+.nc-popup-actions .nc-popup-ok:hover{background:#34518a;border-color:#34518a}
+@media(prefers-reduced-motion:no-preference){.nc-popup[open]{animation:nc-popup-in .16s ease-out}@keyframes nc-popup-in{from{opacity:0;transform:translateY(6px)}}}
+
+/* 右上角账号：头像点开是自己的公开主页（/user/<id>/），悬停出「账号设置 / 社区主页」菜单。 */
+.account-menu{position:relative;display:inline-flex;flex-shrink:0}
+.account-card{position:absolute;top:calc(100% + 10px);right:0;z-index:40;display:none;width:196px;padding:10px;border:1px solid #e4e9f2;border-radius:12px;background:#fff;box-shadow:0 18px 44px #22324d1f}
+.account-card::before{content:'';position:absolute;top:-10px;left:0;right:0;height:10px}
+.account-card a{display:flex;align-items:center;gap:14px;padding:13px 12px;border-radius:8px;color:#2c3950;font-size:14px;line-height:1.4;text-decoration:none;transition:background .15s}
+.account-card a:hover,.account-card a:focus-visible{background:#f2f5fb;color:#185fa5}
+.account-card-icon{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.account-card-label{flex:1;white-space:nowrap}
+.account-card-arrow{flex:none;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.45}
+html[data-account="member"] .account-menu:hover .account-card,html[data-account="member"] .account-menu:focus-within .account-card{display:block}

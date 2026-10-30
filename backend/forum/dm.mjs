@@ -16,15 +16,15 @@
 import {DM_BODY_MAX, DM_MESSAGE_PAGE, DM_MESSAGES_PER_MINUTE, PAGE_SIZE, REPORTS_PER_HOUR} from '../../common/forum.mjs';
 import {select, transaction} from '../db.mjs';
 import {reportReasons} from '../../content/forum.mjs';
-import {checkMember, CommunityError, ensurePage, fail, idOf, isStaff, memberType, pageOf, rows} from './base.mjs';
+import {checkMember, CommunityError, ensurePage, fail, idOf, isStaff, memberType, pageOf, rows, text} from './base.mjs';
 import {missingFields} from '../auth.mjs';
 import {loadConfig} from '../config.mjs';
 
 // ======================= 小工具 =======================
 
-/** 幂等键：客户端生成的 8–80 位串。私信只在发消息时真正用它（写进 client_message_id）。 */
+/** 幂等键：客户端生成的 8–64 位串。私信只在发消息时真正用它（写进 client_message_id）。 */
 const keyOf = key => {
-  if(!/^[\w-]{8,80}$/.test(String(key || '')))
+  if(!/^[\w-]{8,64}$/.test(String(key || '')))
     fail('idempotency_required');
   return key;
 };
@@ -371,14 +371,15 @@ export async function act(user, key, id, action, data = {}){
  * 重复举报靠 open_key 唯一索引兜：还在处理中的那条直接返回原编号，不再插一行。
  * @param {object} user 当前用户。
  * @param {string} key 幂等键。
- * @param {object} data 请求体（message_id / reason / details）。
+ * @param {object} data 请求体（message_id / reason / detail）。
  * @returns {Promise<{id: number}>} 举报编号。
  */
 export async function report(user, key, data){
   const message = idOf(data.message_id);
-  const reason = String(data.reason || '');
-  const details = String(data.details || '').trim();
-  if(!reportReasons.includes(reason) || Array.from(details).length > 1000)
+  // 请求体字段是 reason（前端表单）；落库改名 category —— 三张举报表同一口径。
+  const category = text(data.reason, 1, 32);
+  const detail = text(data.detail || '', category === '其他'? 5: 0, 1000);
+  if(!reportReasons.includes(category))
     fail('invalid_reason');
   return change(user, key, async c => {
     const [target] = await rows(c, 'SELECT * FROM forum_dm_messages WHERE id=?', [message]);
@@ -394,7 +395,7 @@ export async function report(user, key, data){
     if(n >= REPORTS_PER_HOUR)
       rate('rate_limited', 3600);
     const now = new Date();
-    const created = await rows(c, 'INSERT INTO forum_dm_reports(reporter_id,conversation_id,message_id,reason,detail,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [user.id, target.conversation_id, message, reason, details, now, now]);
+    const created = await rows(c, 'INSERT INTO forum_dm_reports(reporter_id,conversation_id,message_id,category,detail,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [user.id, target.conversation_id, message, category, detail, now, now]);
     return {id: created.insertId};
   }, true);
 }
@@ -420,7 +421,7 @@ export async function reports(user, query = {}){
   const [{total}] = await select('SELECT COUNT(*) AS total FROM forum_dm_reports WHERE reporter_id=?', [user.id]);
   const pages = query.report? Math.max(1, Math.ceil(Number(total) / PAGE_SIZE)): ensurePage(page, total, PAGE_SIZE);
   return {
-    items: await select(`SELECT id,reason,detail AS details,status,resolution,created_at,conversation_id,version FROM forum_dm_reports WHERE reporter_id=? ORDER BY id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, [user.id]),
+    items: await select(`SELECT id,category,detail,status,resolution,created_at,conversation_id,version FROM forum_dm_reports WHERE reporter_id=? ORDER BY id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, [user.id]),
     page,
     pages
   };
@@ -523,7 +524,7 @@ export async function reviewReports(actor, id){
   return transaction(async c => {
     await operator(c, actor);
     if(!id)
-      return rows(c, "SELECT id,reason,status,version,assignee,created_at FROM forum_dm_reports WHERE status IN ('open','reviewing') ORDER BY id LIMIT 100");
+      return rows(c, "SELECT id,category,status,version,assignee,created_at FROM forum_dm_reports WHERE status IN ('open','reviewing') ORDER BY id LIMIT 100");
     const [report] = await rows(c, 'SELECT * FROM forum_dm_reports WHERE id=?', [idOf(id)]);
     if(!report || Number(report.assignee) !== Number(actor) || report.status === 'open')
       fail('forbidden', 403);

@@ -53,7 +53,10 @@ export function memberView(user, {owner = false} = {}){
           <div><dt>成员编号</dt><dd>${esc(memberNo(user.id))}</dd></div>
           <div><dt>加入时间</dt><dd>${esc(joinedText)}</dd></div>
         </dl>
-        ${owner? '<a class="button button-primary member-edit" href="/profile/"><span class="button-label">编辑资料</span><span class="button-plus" aria-hidden="true">+</span></a>': `<p class="member-guest-note">这是${esc(name)}的公开主页，只展示公开资料。</p>`}
+        <div class="member-actions">
+          ${owner? '<a class="button button-primary member-edit" href="/profile/"><span class="button-label">编辑资料</span><span class="button-plus" aria-hidden="true">+</span></a>': `<p class="member-guest-note">这是${esc(name)}的公开主页，只展示公开资料。</p>`}
+          <a class="button button-secondary member-forum" href="/forum/user/${user.id}/"><span class="button-label">社区主页</span><span class="button-plus" aria-hidden="true">→</span></a>
+        </div>
       </div>
     </div>
   </div>

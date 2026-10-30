@@ -38,7 +38,7 @@ if(stale.length){
   console.log(`已删除 ${stale.length} 张表`);
 }
 
-const applied = await migrateSchema();
-console.log(`已完成：${applied.join('、')}（${tableNames.length} 张表）`);
+await migrateSchema();
+console.log(`已完成：${tableNames.length} 张表`);
 
 await closePool();

@@ -4,7 +4,7 @@
 //   node scripts/migrate.mjs                                  # 用 data/config.json 里的账号试一次
 //   node scripts/migrate.mjs --print | sudo mysql 'Nanocamp-test'   # 没有 DDL 权限时走这条
 import {dbReady, closePool} from '../backend/db.mjs';
-import {migrateSchema, schemaStatements, migrationsTable} from '../backend/schema.mjs';
+import {migrateSchema, schemaStatements, schemaSteps} from '../backend/schema.mjs';
 import {dbConfig} from '../backend/config.mjs';
 
 if(!dbReady()){
@@ -19,14 +19,19 @@ const config = dbConfig();
 // 中文列注释会被当成 latin1 存进去、永久变成乱码。
 if(process.argv.includes('--print')){
   console.log('SET NAMES utf8mb4;\n');
-  console.log([migrationsTable, ...schemaStatements].map(statement => `${statement};`).join('\n\n'));
+  console.log([
+    '-- 下面的语句全部幂等，可以反复执行。',
+    '-- 注意：users 的头像三列是 ALTER 补的（见 schema.mjs 的 addAvatarColumns），这里打不出来；',
+    '-- 执行完这份 SQL 后再跑一次 `npm run db:migrate`，它会补齐那三列和唯一索引。',
+    ...schemaStatements.map(statement => statement + ';')
+  ].join('\n\n'));
   process.exit(0);
 }
 
 console.log(`目标：${config.user}@${config.host}:${config.port}/${config.database}`);
 try{
-  const applied = await migrateSchema();
-  console.log(applied.length? `完成：执行了 ${applied.join('、')}（共 ${schemaStatements.length} 张表）`: '完成：已经是最新版本，没有需要执行的段');
+  await migrateSchema();
+  console.log(`完成：${schemaStatements.length} 张表就绪，另跑了 ${schemaSteps.length} 个 ALTER 增量（全部幂等，可反复执行）`);
 }
 catch(error){
   console.error(`建表失败：${error.message}`);

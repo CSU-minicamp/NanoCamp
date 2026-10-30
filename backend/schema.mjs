@@ -1,19 +1,19 @@
-// 全部 DDL 都在这个文件里：一张表一段，按版本（= git tag）分组。
+// 全部 DDL 都在这个文件里：一张表一段，按领域分组（账号 → 论坛 → 私信 → 头像）。
 //
 // 为什么集中：以前 DDL 散在 db.mjs / forum/index.mjs / forum/dm.mjs / avatar/index.mjs 四处，
 // 想改一个字段得先猜「这张表是谁建的」。现在只有这一处。
 //
-// 三条约定：
+// 两条约定：
 //   1. **只写当前形态**，不写 ALTER 升级脚本。线上只到 v0.1.1b（4 张账号表），其余表都还没上线，
 //      改它们的字段就直接改这里的 CREATE，本地 `npm run db:reset` 重建 —— 没有线上数据要兼容，就不做迁移。
-//      唯一的例外是 users 的头像三列：线上 users 已存在，只能由 v0.2.0b 段的 `steps` 用 ALTER 补。
-//   2. 每句都是 `CREATE TABLE IF NOT EXISTS`，重复执行不报错。
-//   3. 执行到哪个版本记在 `schema_migrations` 里（见文件末尾），跑过的版本不再重跑。
+//      唯一的例外是 users 的头像三列：线上 users 已存在，只能由 `schemaSteps` 用 ALTER 补。
+//   2. 每句都是 `CREATE TABLE IF NOT EXISTS`，重复执行不报错；ALTER 类增量自己查 information_schema 判重。
+//      **没有版本表**：建库就是把所有语句跑一遍，幂等保证结果一致，不存在「跑到第几段」这种状态。
 //
 // 一张表里的顺序：业务列 → 时间列 → 主键 → 唯一键 → 索引 → 外键。外键要指向的表必须排在它前面。
 import {transaction} from './db.mjs';
 
-// ======================= v0.1.0b · 账号 =======================
+// ======================= 账号 =======================
 
 const accounts = [
   // 用户。v0.1.1b 上线时就是这个形态；头像三列是 v0.2.0b 加的，见文件末尾的 addAvatarColumns。
@@ -71,10 +71,7 @@ const accounts = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='发信与猜错频率，登录成功会清空该邮箱的记录'`
 ];
 
-// ======================= v0.1.1b · 资料页 =======================
-// 只改了模板（昵称/简介可编辑），没有表结构变化 —— 这一版留空是记录「确实没有 DDL」。
-
-// ======================= v0.2.0b · 论坛 =======================
+// ======================= 论坛 =======================
 // 三条贯穿全段的约定：
 //   1. **内容不可编辑**：帖子与回复发布后只能删，所以没有 version / updated_at；
 //      删除是改 status（两个 deleted 值），没有 hidden —— 版务也只能走举报流程。
@@ -111,8 +108,8 @@ const forum = [
     content MEDIUMTEXT NOT NULL COMMENT 'markdown 原文；发布后不可编辑',
     status ENUM('published','deleted_by_author','deleted_by_report') NOT NULL DEFAULT 'published' COMMENT '只有 published 对外可见',
     next_sequence INT UNSIGNED NOT NULL DEFAULT 1 COMMENT '回复发号器',
-    reply_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '已发布回复数（冗余，列表展示用）',
-    client_request_key VARCHAR(80) NULL DEFAULT NULL COMMENT '前端幂等键；NULL 不参与唯一性',
+    reply_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '已发布回复数的物化缓存：建回复 +1，删除/恢复时 recalcPost 全量重算',
+    client_request_key VARCHAR(64) NULL DEFAULT NULL COMMENT '前端幂等键（UUID 36 字符）；NULL 不参与唯一性',
     created_at DATETIME NOT NULL,
     last_activity_at DATETIME NOT NULL COMMENT '列表排序用的冗余时间',
     PRIMARY KEY (id),
@@ -132,7 +129,7 @@ const forum = [
     sequence INT UNSIGNED NOT NULL COMMENT '帖内楼层号，来自 posts.next_sequence',
     content TEXT NOT NULL COMMENT '1-3000 字',
     status ENUM('published','deleted_by_author','deleted_by_report') NOT NULL DEFAULT 'published',
-    client_request_key VARCHAR(80) NULL DEFAULT NULL COMMENT '前端幂等键',
+    client_request_key VARCHAR(64) NULL DEFAULT NULL COMMENT '前端幂等键（UUID 36 字符）',
     created_at DATETIME NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uniq_replies_sequence (post_id, sequence),
@@ -197,10 +194,7 @@ const forum = [
     etag CHAR(64) NOT NULL COMMENT '内容 sha256，仅作去重参考',
     storage_driver VARCHAR(32) NOT NULL,
     storage_key VARCHAR(80) NOT NULL COMMENT '服务端 UUID，不是路径',
-    content_type VARCHAR(32) NOT NULL,
-    byte_size INT UNSIGNED NOT NULL,
-    width SMALLINT UNSIGNED NOT NULL,
-    height SMALLINT UNSIGNED NOT NULL,
+    content_type VARCHAR(32) NOT NULL COMMENT '响应头用它；只在 forum_images 存一份',
     created_at DATETIME NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uniq_images_object (storage_driver, storage_key),
@@ -228,10 +222,10 @@ const forum = [
     status ENUM('open','reviewing','upheld','dismissed','withdrawn') NOT NULL DEFAULT 'open',
     resolution TEXT NULL DEFAULT NULL COMMENT '处理结论；NULL 表示未结案',
     assignee BIGINT UNSIGNED NULL DEFAULT NULL COMMENT '处理人；NULL 表示未分派',
-    version INT NOT NULL DEFAULT 1 COMMENT '处理流转的乐观锁',
+    version INT NOT NULL DEFAULT 1 COMMENT '处理流转的乐观锁：防版务拿过期页面重复处理（不是防并发，行锁管并发）',
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
-    open_key VARCHAR(120) GENERATED ALWAYS AS (CASE WHEN status IN ('open','reviewing') THEN CONCAT(reporter_id,':',post_id) ELSE NULL END) STORED COMMENT '处理中的唯一标识',
+    open_key VARCHAR(120) GENERATED ALWAYS AS (CASE WHEN status IN ('open','reviewing') THEN CONCAT(reporter_id,':',post_id) ELSE NULL END) STORED COMMENT '只是 uniq_post_report_open 的载体：代码从不读它，删了并发重复举报会插两行',
     PRIMARY KEY (id),
     UNIQUE KEY uniq_post_report_open (open_key),
     KEY idx_post_reports_status (status, id),
@@ -241,21 +235,22 @@ const forum = [
     FOREIGN KEY (assignee) REFERENCES users(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子举报'`,
 
-  // 回复举报。结构同上；post_id 是冗余定位，方便「按帖聚合举报」。
+  // 回复举报。结构同上。post_id 是「写时快照」：回复不可编辑、不可换帖，所以不会漂移；
+  // 留着是为了「我的举报」列表能直接拼出原讨论链接（省一个 JOIN 到 forum_post_replies）。
   `CREATE TABLE IF NOT EXISTS forum_reply_reports (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     reply_id BIGINT UNSIGNED NOT NULL,
-    post_id BIGINT UNSIGNED NOT NULL COMMENT '冗余：该回复属于哪一帖',
+    post_id BIGINT UNSIGNED NOT NULL COMMENT '写时快照：该回复所属帖；列表页靠它省一个 JOIN',
     reporter_id BIGINT UNSIGNED NOT NULL,
     category VARCHAR(32) NOT NULL,
     detail TEXT NOT NULL,
     status ENUM('open','reviewing','upheld','dismissed','withdrawn') NOT NULL DEFAULT 'open',
     resolution TEXT NULL DEFAULT NULL,
     assignee BIGINT UNSIGNED NULL DEFAULT NULL,
-    version INT NOT NULL DEFAULT 1,
+    version INT NOT NULL DEFAULT 1 COMMENT '乐观锁：防过期页面重复处理',
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
-    open_key VARCHAR(120) GENERATED ALWAYS AS (CASE WHEN status IN ('open','reviewing') THEN CONCAT(reporter_id,':',reply_id) ELSE NULL END) STORED,
+    open_key VARCHAR(120) GENERATED ALWAYS AS (CASE WHEN status IN ('open','reviewing') THEN CONCAT(reporter_id,':',reply_id) ELSE NULL END) STORED COMMENT '只是 uniq_reply_report_open 的载体：代码从不读它',
     PRIMARY KEY (id),
     UNIQUE KEY uniq_reply_report_open (open_key),
     KEY idx_reply_reports_status (status, id),
@@ -310,7 +305,7 @@ const forum = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='拉黑关系'`
 ];
 
-// ======================= v0.2.0b · 私信 =======================
+// ======================= 私信 =======================
 
 const directMessages = [
   // 一对一（或未来群聊）会话。user_low / user_high 是生成列：
@@ -349,7 +344,7 @@ const directMessages = [
     conversation_id BIGINT UNSIGNED NOT NULL,
     sequence INT UNSIGNED NOT NULL COMMENT '会话内序号，来自 conversations.last_seq',
     sender_id BIGINT UNSIGNED NOT NULL,
-    client_message_id VARCHAR(80) NOT NULL COMMENT '前端幂等键',
+    client_message_id VARCHAR(64) NOT NULL COMMENT '前端幂等键（UUID 36 字符）',
     body TEXT NOT NULL COMMENT '1-2000 字',
     status ENUM('published','deleted_by_author','deleted_by_report') NOT NULL DEFAULT 'published',
     sent_at DATETIME NOT NULL,
@@ -360,21 +355,22 @@ const directMessages = [
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='私信消息'`,
 
-  // 私信举报。open_key 粒度是「一条消息」，规则与帖子举报相同。
+  // 私信举报。open_key 粒度是「一条消息」，规则与帖子举报相同；
+  // 理由列与另两张举报表统一叫 category（以前叫 reason，同一个语义两个名字最容易写错 SQL）。
   `CREATE TABLE IF NOT EXISTS forum_dm_reports (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     conversation_id BIGINT UNSIGNED NOT NULL,
     message_id BIGINT UNSIGNED NOT NULL,
     reporter_id BIGINT UNSIGNED NOT NULL,
-    reason VARCHAR(32) NOT NULL,
-    detail TEXT NOT NULL,
+    category VARCHAR(32) NOT NULL COMMENT '举报原因，白名单见 content/forum.mjs',
+    detail TEXT NOT NULL COMMENT '补充说明；选「其他」时 5-1000 字',
     status ENUM('open','reviewing','upheld','dismissed','withdrawn') NOT NULL DEFAULT 'open',
     resolution TEXT NULL DEFAULT NULL,
     assignee BIGINT UNSIGNED NULL DEFAULT NULL,
-    version INT NOT NULL DEFAULT 1,
+    version INT NOT NULL DEFAULT 1 COMMENT '乐观锁：防过期页面重复处理',
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
-    open_key VARCHAR(120) GENERATED ALWAYS AS (CASE WHEN status IN ('open','reviewing') THEN CONCAT(reporter_id,':',message_id) ELSE NULL END) STORED,
+    open_key VARCHAR(120) GENERATED ALWAYS AS (CASE WHEN status IN ('open','reviewing') THEN CONCAT(reporter_id,':',message_id) ELSE NULL END) STORED COMMENT '只是 uniq_dm_report_open 的载体：代码从不读它',
     PRIMARY KEY (id),
     UNIQUE KEY uniq_dm_report_open (open_key),
     KEY idx_dm_reports_status (status, id),
@@ -386,7 +382,7 @@ const directMessages = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='私信举报'`
 ];
 
-// ======================= v0.2.0b · 头像 =======================
+// ======================= 头像 =======================
 
 const avatars = [
   // 头像是「对象表 + users 上的引用」：字节在这里，谁在用哪段字节记在 users。
@@ -400,14 +396,14 @@ const avatars = [
   ) ENGINE=InnoDB`
 ];
 
-// ======================= 版本表 =======================
+// ======================= 汇总 =======================
 
 /**
- * v0.2.0b 的增量：给**已上线的 v0.1.1b 库**补头像的三列。
+ * 给**已上线的账号库**补头像的三列。
  *
  * 为什么不能只写在 users 的 CREATE 里：线上库的 users 已经存在，
  * `CREATE TABLE IF NOT EXISTS` 是空操作，那三列永远不会出现。
- * 新库走同一条路 —— 先建 v0.1.0b 的表，再 ALTER 补列，两条路的终点完全一致。
+ * 新库走同一条路 —— 先建 users，再 ALTER 补列，两条路的终点完全一致。
  * @param {object} c 事务连接。
  * @returns {Promise<void>} 无。
  */
@@ -429,70 +425,43 @@ async function addAvatarColumns(c){
 }
 
 /**
- * 按版本组织的全部建表语句。版本号 = git tag，顺序即执行顺序。
+ * 全部建表语句，顺序即执行顺序：账号 → 论坛 → 私信 → 头像。
  *
- * 每一段只包含「这个版本新增的表」；段内顺序保证外键指向的表先建。
- * 注意 users 排在所有论坛/私信表之前 —— 它们的外键都指向它。
- *
- * **v0.1.2b 从未发布**：论坛、私信、头像这一整批改动直接随 v0.2.0b 上线，
- * 所以 tag 列表里只有 v0.1.0b → v0.1.1b → v0.2.0b 三段，中间没有 v0.1.2b。
- *
- * `steps` 是 SQL 表达不了的增量（给已存在的表加列/加索引），只在整段还没跑过时执行一次，
- * 里面照样要自己判重（见 addAvatarColumns）。
+ * 顺序不能随便动：所有 forum_* 的外键都指向 users，被指的表必须排在前面。
+ * `db:migrate --print` 和 `db:check` 都从这里取，不维护第二份清单。
  */
-export const schemaVersions = [
-  {version: 'v0.1.0b', note: '账号：邮箱验证码登录、会话、限流', tables: accounts},
-  {version: 'v0.1.1b', note: '资料页可编辑（只改模板，无表结构变化）', tables: []},
-  {version: 'v0.2.0b', note: '论坛、私信、头像（线上从 v0.1.1b 升上来）', tables: [...forum, ...directMessages, ...avatars], steps: [addAvatarColumns]}
-];
-
-/** 所有建表语句（按执行顺序摊平）。`db:migrate --print` 和 `db:check` 都用它。 */
-export const schemaStatements = schemaVersions.flatMap(entry => entry.tables);
+export const schemaStatements = [...accounts, ...forum, ...directMessages, ...avatars];
 
 /** 全部表名（从语句里解析，不维护第二份清单）。 */
 export const tableNames = schemaStatements.map(statement => /CREATE TABLE IF NOT EXISTS (\w+)/.exec(statement)?.[1]).filter(Boolean);
 
-/** 版本记录表本身。它不是业务表，所以不放在上面的版本段里。 */
-export const migrationsTable = `CREATE TABLE IF NOT EXISTS schema_migrations (
-  version VARCHAR(32) PRIMARY KEY,
-  note VARCHAR(160) NOT NULL DEFAULT '',
-  applied_at DATETIME NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='已执行到哪个版本（git tag）'`;
+/** SQL 表达不了的增量（给已存在的表加列 / 加索引）。每次建表都会跑一遍，内部自己判重。 */
+export const schemaSteps = [addAvatarColumns];
 
 // ======================= 执行 =======================
 
 /**
- * 建表：逐版本执行没跑过的段，跑完记一行版本号。
+ * 建表：把所有 CREATE 跑一遍，再跑 ALTER 类增量。
  *
- * 为什么还要版本表：段里的语句本身幂等，重建库时谈不上「跳过」；但线上排查时能一眼看出
- * 「这个库停在哪个 tag」，也避免将来加数据迁移时重复执行。
+ * 没有版本表：每条语句都幂等，结果只由「schema.mjs 长什么样」决定，
+ * 不存在「这个库跑到第几段」这种需要记账的状态 —— 只有一个人改库时，那张表只会制造
+ * 「本地和线上谁对不上」的疑问。要改表就改 CREATE + 本地 db:reset，线上跑 db:migrate。
  * DDL 在 MySQL 里会隐式提交，所以拿一把具名咨询锁把并发部署串起来（两个实例同时启动只有一个在跑）。
- * @returns {Promise<string[]>} 本次实际执行的版本号。
+ * @returns {Promise<void>} 无。
  */
 export async function migrateSchema(){
-  const applied = [];
   await transaction(async c => {
     const [[lock]] = await c.query("SELECT GET_LOCK('nanocamp_schema',30) AS ok");
     if(!lock.ok)
       throw Error('Schema migration locked');
     try{
-      await c.query(migrationsTable);
-      const [rows] = await c.query('SELECT version FROM schema_migrations');
-      const done = new Set(rows.map(row => row.version));
-      for(const entry of schemaVersions){
-        if(done.has(entry.version))
-          continue;
-        for(const statement of entry.tables)
-          await c.query(statement);
-        for(const step of entry.steps || [])
-          await step(c);
-        await c.execute('INSERT INTO schema_migrations(version,note,applied_at) VALUES (?,?,?)', [entry.version, entry.note, new Date()]);
-        applied.push(entry.version);
-      }
+      for(const statement of schemaStatements)
+        await c.query(statement);
+      for(const step of schemaSteps)
+        await step(c);
     }
     finally{
       await c.query("SELECT RELEASE_LOCK('nanocamp_schema')");
     }
   });
-  return applied;
 }

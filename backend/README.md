@@ -233,24 +233,27 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 
 ## 5. 数据表
 
-**全部 DDL 都在 [`backend/schema.mjs`](schema.mjs)**：一张表一段，按 git tag 分版本（`v0.1.0b` 账号 →
-`v0.1.1b` 空段 → `v0.2.0b` 论坛/私信/头像）。**v0.1.2b 从未发布**，那批改动直接随 `v0.2.0b` 上线。
-改字段只改那一个文件，然后重建库。
+**全部 DDL 都在 [`backend/schema.mjs`](schema.mjs)**：一张表一段，按「账号 → 论坛 → 私信 → 头像」分组，
+分组顺序就是执行顺序（外键指向的表必须在前）。改字段只改那一个文件，然后重建库。
 
-现在 23 张业务表 + 1 张版本表（`schema_migrations`）：
+现在 23 张表，**没有迁移版本表**：
 
 | 域 | 表数 | 表 |
 |---|---|---|
-| 账号（v0.1.0b） | 4 | `users` `sessions` `login_email_captcha` `rate_events` |
-| 论坛（v0.2.0b） | 14 | `forum_posts` `forum_post_replies` `forum_post_votes` `forum_reply_votes` `forum_post_bookmarks` `forum_follows` `forum_images` `forum_image_blobs` `forum_post_reports` `forum_reply_reports` `forum_notifications` `forum_post_rate_limits` `forum_user_blocks` `forum_member_roles` |
-| 私信（v0.2.0b） | 4 | `forum_dm_conversations` `forum_dm_members` `forum_dm_messages` `forum_dm_reports` |
-| 头像（v0.2.0b） | 1 | `avatar_blobs`（引用在 `users.avatar_storage_*` 上） |
+| 账号 | 4 | `users` `sessions` `login_email_captcha` `rate_events` |
+| 论坛 | 14 | `forum_posts` `forum_post_replies` `forum_post_votes` `forum_reply_votes` `forum_post_bookmarks` `forum_follows` `forum_images` `forum_image_blobs` `forum_post_reports` `forum_reply_reports` `forum_notifications` `forum_post_rate_limits` `forum_user_blocks` `forum_member_roles` |
+| 私信 | 4 | `forum_dm_conversations` `forum_dm_members` `forum_dm_messages` `forum_dm_reports` |
+| 头像 | 1 | `avatar_blobs`（引用在 `users.avatar_storage_*` 上） |
 
 约定：**时间只由 Node 算好再写入**，SQL 里不出现 `NOW()`；连接设 `timezone: 'Z'`。
 
 **线上只到 v0.1.1b**（`users` / `sessions` / `login_email_captcha` / `rate_events` 四张，`users` 上没有头像列），
-所以 v0.2.0b 是一次纯增量上线：20 张新表 + 给 `users` 补 3 列（`addAvatarColumns`，幂等 ALTER），
+所以第一次上线是纯增量：19 张新表 + 给 `users` 补 3 列（`addAvatarColumns`，幂等 ALTER），
 **不动任何一行已有数据**。论坛那十几张表还没定型，改它们可以直接删表重建 —— 线上还没有这些表。
+
+**为什么没有版本表**：每条语句都幂等（`CREATE TABLE IF NOT EXISTS`，ALTER 前先查 `information_schema`），
+建库就是把全部语句跑一遍，结果只由 `schema.mjs` 长什么样决定。改库的只有一个人时，记「跑到第几段」
+不会带来任何保护，只会多出「本地和线上谁对不上」的疑问。
 
 `sessions.user_id` 是**外键**（`fk_sessions_user`，`ON DELETE CASCADE`）：会话必然属于一个用户，
 删号时会话跟着走，不会留下指向不存在用户的孤儿行。验证码表的外键则**不能加** ——
@@ -302,13 +305,13 @@ app.mjs            解析 URL（decodeURI，保留 %2F）→ 拒绝非法路径
 ```bash
 npm run dev         # node --watch，本地开发
 npm start           # 生产启动
-npm test            # 223 条（其中一批要连真库，库不可用时会跳过）
+npm test            # 238 条（其中一批要连真库，库不可用时会跳过）
 npm run check       # 全站完整性：页面数、锚点、搜索索引、sitemap、元数据
 
-npm run db:migrate  # 建表（幂等；按 schema.mjs 的版本段执行，跑过的段跳过）
+npm run db:migrate  # 建表（全部语句 + ALTER 增量，全幂等，跑几遍都一样）
 node scripts/migrate.mjs --print | sudo mysql --default-character-set=utf8mb4 'Nanocamp-test'  # 没 DDL 权限时
 npm run db:reset -- --yes   # ⚠️ 删掉库里所有表再按 schema.mjs 建回来（本地改字段用这个）
-npm run db:check    # 连接 / 版本 / 24 张表是否齐全 / 行数
+npm run db:check    # 连接 / 23 张表是否齐全 / 行数
 npm run mail:test -- 你的邮箱                                   # 真发一封，验证域名与密钥
 ```
 
@@ -379,13 +382,12 @@ npm run db:reset -- --yes
 node .workbuddy/tools/forum-seed.mjs
 ```
 
-`db:reset` 删的是**库里所有表**（不只 `schema.mjs` 里那 24 张），所以早先版本留下的表也会一起消失；
+`db:reset` 删的是**库里所有表**（不只 `schema.mjs` 里那 23 张），所以早先留下的表也会一起消失；
 改完用 `npm run db:check` 逐张核对新结构。
 
-### 线上怎么升级（v0.2.0b 就是第一个例子）
+### 线上怎么升级（第一次上线就是 19 张新表）
 
-线上停在 v0.1.1b：只有 4 张账号表。升到 v0.2.0b 时跑 `npm run db:migrate`，它只执行「还没记进
-`schema_migrations` 的段」，所以实际动作是：
+线上停在 v0.1.1b：只有 4 张账号表。跑 `npm run db:migrate` 就是把 `schemaStatements` 全部执行一遍，实际动作是：
 
 | 动作 | 说明 |
 |---|---|
@@ -394,18 +396,14 @@ node .workbuddy/tools/forum-seed.mjs
 | 已有数据 | **一行都不动** |
 
 **论坛那 14 张表还没定型，改它们不需要考虑升级** —— 线上还没有，直接改 CREATE、本地重建验证即可。
-等它们稳定并上线之后，再按下面的规矩走。
 
-`schema.mjs` 的每一段就是一个版本，新增一段即可，**不要改已发布版本里的 CREATE**：
-
-```js
-{version: 'v0.2.1b', note: '加了什么', tables: [新表…], steps: [给老表加列的幂等函数]}
-```
-
-版本表 `schema_migrations` 记着库停在哪个 tag，跑过的段会跳过。要改**已发布**的表（加列/改类型/加索引）时，
-把幂等的 `ALTER` 放进新段的 `steps`（先查 information_schema 判断存在与否），旧数据回填也写在同一段里。
+要改**已经上线**的表（目前只有那 4 张账号表）则不能只改 CREATE：`CREATE TABLE IF NOT EXISTS` 遇到已存在的表
+是空操作，新列永远不出现。得在 `schemaSteps` 里加一个幂等函数（先查 `information_schema` 再 `ALTER`），
+数据回填也写在同一个函数里 —— 它每次建库都会跑，所以必须能重复执行。
 
 > 表结构的唯一真相是 `backend/schema.mjs`，`node scripts/migrate.mjs --print` 打出来的就是它。
+> ⚠️ `--print` 打不出 `schemaSteps` 里的 ALTER（那是 JS），所以没有 DDL 权限的部署要「先执行打印出来的 SQL，
+> 再跑一次 `npm run db:migrate`」把头像三列补齐。
 
 ## 8. 状态码
 

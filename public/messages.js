@@ -1,6 +1,6 @@
 (() => {
  const root=document.querySelector('[data-dm-center]'),reports=document.querySelector('[data-dm-reports]');if(!root&&!reports)return;
- const user=Number(root?.dataset.user||document.querySelector('[data-user-id]')?.dataset.userId),peer=Number(root?.dataset.peer),status=document.querySelector('[data-dm-status]');
+ const user=Number(root?.dataset.user||document.querySelector('[data-user-id]')?.dataset.userId),status=document.querySelector('[data-dm-status]');let peer=Number(root?.dataset.peer);
  let conversation=Number(root?.dataset.conversation),disposed=false;
  const bodyMax=Number(root?.dataset.bodyMax)||0;
  const messages={unauthenticated:'登录状态已过期，请重新登录。',profile_incomplete:'请先完善昵称和密码。',posting_suspended:'当前账号暂时不能发送消息。',cannot_message:'暂时无法向该用户发送消息。',messaging_disabled:'私信暂时不可用。',invalid_content:`请输入 1–${bodyMax} 字的消息。`,rate_limited:'操作较频繁，请稍后重试。',csrf_invalid:'页面状态已变化，请刷新后重试。',request_conflict:'请求内容已变化，请重新发送。',not_found:'会话不存在或无权访问。',report_in_progress:'举报已开始处理，不能撤回。'};
@@ -15,7 +15,9 @@
  if(!root)return;
  const list=root.querySelector('[data-dm-conversations]'),history=root.querySelector('[data-dm-history]'),items=root.querySelector('[data-dm-messages]'),form=root.querySelector('[data-dm-compose]'),body=form?.elements.body;
  let firstSeq=Number(items?.firstElementChild?.dataset.messageSeq||0),lastSeq=Number(items?.lastElementChild?.dataset.messageSeq||0),readSeq=0,busy=false,listBusy=false,readBusy=false,failures=0,timer,cycle=0;
- const draftKey='nc-dm-draft:'+user+':'+peer,pendingKey='nc-dm-pending:'+user+':'+peer,scrollKey='nc-dm-list-scroll:'+user;
+ let draftKey='',pendingKey='';const scrollKey='nc-dm-list-scroll:'+user;
+// 草稿与待确认消息按「我 + 对方」分开存，切换会话时要跟着换一份。
+const resetKeys=()=>{draftKey='nc-dm-draft:'+user+':'+peer;pendingKey='nc-dm-pending:'+user+':'+peer;};resetKeys();
  const nearBottom=()=>history&&history.scrollHeight-history.scrollTop-history.clientHeight<65;
  const bottom=()=>{if(history)history.scrollTop=history.scrollHeight;const hint=root.querySelector('[data-dm-new]');if(hint)hint.hidden=true;};
  const date=value=>new Intl.DateTimeFormat('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Shanghai'}).format(new Date(value));
@@ -55,7 +57,7 @@
  }
  function schedule(){clearTimeout(timer);if(!disposed&&!document.hidden)timer=setTimeout(poll,failures?Math.min(15000,2000*2**Math.min(failures-1,3)):conversation?2000:5000);}
  function listRow(d){
-  const a=document.createElement('a');a.className='dm-conversation'+(Number(d.id)===conversation?' is-current':'');a.href='/forum/messages/conversations/'+d.id+'/';a.dataset.conversationId=d.id;
+  const a=document.createElement('a');a.className='dm-conversation'+(Number(d.id)===conversation?' is-current':'');a.href='/forum/messages/conversations/'+d.id+'/';a.dataset.conversationId=d.id;a.dataset.peerId=d.peer_id;a.dataset.peerName=d.nickname;
   const avatar=document.createElement('span');avatar.className='f-avatar';const img=document.createElement('img');img.className='account-avatar-image';img.src='/api/users/'+d.peer_id+'/avatar';img.alt='';avatar.append(img);
   const copy=document.createElement('span');copy.className='dm-conversation-copy';const name=document.createElement('strong');name.textContent=d.nickname;const preview=document.createElement('span');preview.textContent=d.preview;copy.append(name,preview);
   const meta=document.createElement('span');meta.className='dm-conversation-meta';const time=document.createElement('time');time.textContent=date(d.last_message_at);meta.append(time);if(Number(d.unread)){const badge=document.createElement('b');badge.textContent=d.unread>99?'99+':d.unread;meta.append(badge);}a.append(avatar,copy,meta);return a;
@@ -69,6 +71,77 @@
   }finally{listBusy=false;}
  }
  root.querySelector('[data-dm-more-list]')?.addEventListener('click',async event=>{event.target.disabled=true;try{await refreshList(event.target.dataset.cursor);}catch(error){show(error);}finally{event.target.disabled=false;}});
+
+/**
+ * 原地切换会话：换 header、换消息、换草稿，URL 用 replaceState 写回。
+ *
+ * 为什么不用 <a> 直接跳：每点一个人就多一条历史记录，返回时要按很多次。
+ * replaceState 之后地址栏仍是 /forum/messages/conversations/<id>/，刷新 / 分享都还能落到这一条。
+ * 页面还没有聊天面板时（直接进 /forum/messages/）返回 false，由调用方改用 location.replace。
+ * @param {number} id 会话编号。
+ * @param {HTMLElement} row 被点的那一行（拿对方编号与昵称）。
+ * @returns {Promise<boolean>} 是否已在原地完成切换。
+ */
+async function openConversation(id,row){
+  const header=root.querySelector('.dm-chat-header');
+  if(!header)
+    return false;
+  if(conversation===id)
+    return true;
+  const data=await api(`dm/conversations/${id}/messages`);
+  conversation=id;peer=Number(row.dataset.peerId)||peer;resetKeys();
+  root.dataset.conversation=id;root.dataset.peer=peer;
+  items.replaceChildren();firstSeq=0;lastSeq=0;readSeq=0;cycle=0;failures=0;
+  const peerLink=header.querySelector('.dm-peer');
+  if(peerLink){
+    peerLink.href='/forum/user/'+peer+'/';
+    const name=peerLink.querySelector('strong');
+    if(name)name.textContent=row.dataset.peerName||name.textContent;
+    // 列表页的 header 是空壳（没有 <img>），第一次切进来才把头像建出来。
+    let avatar=peerLink.querySelector('img');
+    if(!avatar){
+      avatar=document.createElement('img');
+      avatar.className='account-avatar-image';
+      avatar.alt='';
+      (peerLink.querySelector('.f-avatar')||peerLink).append(avatar);
+    }
+    avatar.src='/api/users/'+peer+'/avatar';
+  }
+  header.hidden=false;
+  header.querySelector('.dm-options')?.removeAttribute('hidden');
+  root.querySelector('.dm-workspace')?.classList.add('has-chat');
+  state(data);data.items.forEach(m=>addMessage(m));bottom();
+  const empty=root.querySelector('[data-dm-empty]');
+  empty.hidden=data.items.length>0;empty.textContent='暂无消息';
+  try{body.value=localStorage.getItem(draftKey)||'';}catch(error){console.warn('[dm:draft:read]',error.name);}
+  for(const node of list.querySelectorAll('.dm-conversation')){
+    const current=Number(node.dataset.conversationId)===id;
+    node.classList.toggle('is-current',current);
+    if(current)node.querySelector('.dm-conversation-meta b')?.remove();
+  }
+  // 地址栏一律留在列表页：跟谁在聊是页面内的状态，不是地址。
+  // 注意：这个文件里的 history 是聊天记录滚动容器，不是 window.history。
+  if(location.pathname!=='/forum/messages/')
+    window.history.replaceState(null,'','/forum/messages/');
+  await markRead();schedule();
+  return true;
+}
+list?.addEventListener('click',async event=>{
+  const link=event.target.closest('.dm-conversation');
+  // 中键 / 带修饰键是「新标签页打开」，交回浏览器。
+  if(!link||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)
+    return;
+  event.preventDefault();
+  try{
+    if(await openConversation(Number(link.dataset.conversationId),link))
+      return;
+  }catch(error){
+    show(error);
+    return;
+  }
+  // 只有「发私信」搜索态（没有聊天区）才真的跳过去。
+  location.assign(link.href);
+});
  root.querySelector('[data-dm-history-more]')?.addEventListener('click',async event=>{const button=event.target;button.disabled=true;try{const height=history.scrollHeight,scroll=history.scrollTop,data=await api(`dm/conversations/${conversation}/messages?before_seq=${firstSeq}`);data.items.slice().reverse().forEach(m=>addMessage(m,true));button.hidden=!data.has_more;history.scrollTop=scroll+history.scrollHeight-height;}catch(error){show(error);}finally{button.disabled=false;}});
  root.querySelector('[data-dm-new]')?.addEventListener('click',()=>{bottom();markRead();});
  history?.addEventListener('scroll',()=>{markRead();if(nearBottom())root.querySelector('[data-dm-new]').hidden=true;},{passive:true});
@@ -97,15 +170,15 @@
  }
  root.addEventListener('click',async event=>{
   const action=event.target.closest('[data-dm-action]');if(action&&!action.disabled){
-   if(action.dataset.dmAction==='block'&&!confirm('屏蔽后将停止双方的私信，已有消息仍保留。'))return;
+   if(action.dataset.dmAction==='block'&&!await ncConfirm({title:'屏蔽这位用户？',message:'屏蔽后双方都无法继续发私信，已有消息仍保留。',ok:'屏蔽'}))return;
    action.disabled=true;try{await api(`dm/conversations/${conversation}/${action.dataset.dmAction}`,{});notify();if(action.dataset.dmAction==='hide')location.assign('/forum/messages/');else{state(await api(`dm/conversations/${conversation}/messages`));await refreshList();action.closest('details')?.removeAttribute('open');}}catch(error){show(error);}finally{action.disabled=false;}
   }
   const report=event.target.closest('[data-dm-report]');if(report){const dialog=root.querySelector('[data-dm-report-dialog]');dialog.querySelector('form').dataset.message=report.dataset.dmReport;dialog.showModal();}
   if(event.target.closest('[data-dm-close]'))root.querySelector('[data-dm-report-dialog]').close();
  });
- root.querySelector('[data-dm-report-form]').addEventListener('submit',async event=>{event.preventDefault();const f=event.target,button=f.querySelector('[type=submit]');if(button.disabled)return;button.disabled=true;try{await api('dm/reports',{message_id:f.dataset.message,reason:f.elements.reason.value,details:f.elements.details.value});f.closest('dialog').close();if(status)status.textContent='举报已提交';}catch(error){f.querySelector('[data-dm-report-status]').textContent=error.message;}finally{button.disabled=false;}});
+ root.querySelector('[data-dm-report-form]').addEventListener('submit',async event=>{event.preventDefault();const f=event.target,button=f.querySelector('[type=submit]');if(button.disabled)return;button.disabled=true;try{await api('dm/reports',{message_id:f.dataset.message,reason:f.elements.reason.value,detail:f.elements.detail.value});f.closest('dialog').close();if(status)status.textContent='举报已提交';}catch(error){f.querySelector('[data-dm-report-status]').textContent=error.message;}finally{button.disabled=false;}});
  const person=root.querySelector('[data-dm-person]');let searchTimer,revision=0;
- person?.addEventListener('input',()=>{clearTimeout(searchTimer);const current=++revision;searchTimer=setTimeout(async()=>{try{const data=await api('dm/recipients?q='+encodeURIComponent(person.value)),people=root.querySelector('[data-dm-people]');if(current!==revision)return;people.replaceChildren();for(const p of data.items){const row=document.createElement('div');row.className='dm-person-row';const link=document.createElement('a');link.href='/forum/messages/new/?to='+p.id;link.textContent=p.nickname;const profile=document.createElement('a');profile.href='/forum/users/'+p.id+'/';profile.textContent='查看主页';const avatar=document.createElement('span');avatar.className='f-avatar';const img=document.createElement('img');img.className='account-avatar-image';img.src='/api/users/'+p.id+'/avatar';img.alt='';avatar.append(img);row.append(avatar,link,profile);people.append(row);}if(person.value.trim()&&!data.items.length)people.textContent='没有匹配的用户';}catch(error){show(error);}},200);});
+ person?.addEventListener('input',()=>{clearTimeout(searchTimer);const current=++revision;searchTimer=setTimeout(async()=>{try{const data=await api('dm/recipients?q='+encodeURIComponent(person.value)),people=root.querySelector('[data-dm-people]');if(current!==revision)return;people.replaceChildren();for(const p of data.items){const row=document.createElement('div');row.className='dm-person-row';const link=document.createElement('a');link.href='/forum/messages/new/?to='+p.id;link.textContent=p.nickname;const profile=document.createElement('a');profile.href='/forum/user/'+p.id+'/';profile.textContent='查看主页';const avatar=document.createElement('span');avatar.className='f-avatar';const img=document.createElement('img');img.className='account-avatar-image';img.src='/api/users/'+p.id+'/avatar';img.alt='';avatar.append(img);row.append(avatar,link,profile);people.append(row);}if(person.value.trim()&&!data.items.length)people.textContent='没有匹配的用户';}catch(error){show(error);}},200);});
  try{root.querySelector('.dm-inbox').scrollTop=Number(sessionStorage.getItem(scrollKey)||0);}catch(error){console.warn('[dm:scroll]',error.name);}
  window.addEventListener('pagehide',()=>{disposed=true;clearTimeout(timer);try{sessionStorage.setItem(scrollKey,String(root.querySelector('.dm-inbox').scrollTop));}catch(error){console.warn('[dm:scroll]',error.name);}});
  const resize=()=>{root.style.setProperty('--dm-viewport-height',(window.visualViewport?.height||innerHeight)+'px');};resize();window.visualViewport?.addEventListener('resize',resize);

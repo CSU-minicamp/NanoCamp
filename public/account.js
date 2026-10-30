@@ -68,7 +68,7 @@
       finally{busy=false;sync();}
     };
     save.addEventListener('click',()=>submit('PUT'));
-    reset.addEventListener('click',()=>{if(!busy&&confirm('恢复默认头像？'))submit('DELETE');});
+    reset.addEventListener('click',async()=>{if(!busy&&await ncConfirm({title:'恢复默认头像？',message:'当前头像会被删除，无法恢复。',ok:'恢复默认'}))submit('DELETE');});
     window.addEventListener('beforeunload',event=>{if(selected){event.preventDefault();event.returnValue='';}});
     window.addEventListener('pagehide',event=>{if(!event.persisted)dispose();});
     Object.assign(errors,avatarErrors);sync();

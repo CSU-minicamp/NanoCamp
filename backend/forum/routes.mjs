@@ -50,7 +50,7 @@ export async function handleForumPage({url, headers}){
     const user = session?.user || null;
     const params = Object.fromEntries(target.searchParams);
     // 「只看关注/收藏…」是登录后才有的视图，未登录看首页时不该被拦，所以这里单独判断。
-    const forumView = ['topics', 'replies', 'following', 'bookmarks'].includes(params.view)? params.view: '';
+    const forumView = ['topics', 'replies', 'following', 'fans', 'bookmarks'].includes(params.view)? params.view: '';
     const privatePage = path.startsWith('/forum/messages/') || path === '/forum/new/' || path === '/profile/' || params.feed === 'following' || path === '/forum/' && Boolean(forumView);
     if(privatePage && !user)
       return redirect('/login/?next=' + encodeURIComponent(path + target.search));
@@ -91,7 +91,7 @@ export async function handleForumPage({url, headers}){
     else if(path === '/profile/'){
       const tab = params.tab === 'security'? 'security': personalTabs.some(entry => entry[0] === params.tab)? params.tab: 'profile';
       // 参与类 tab 其实是论坛列表，统一交给 /forum/?view= 渲染，个人中心只留资料相关的那几个。
-      if(['topics', 'replies', 'following', 'bookmarks'].includes(tab)){
+      if(['topics', 'replies', 'following', 'fans', 'bookmarks'].includes(tab)){
         const next = new URL('/forum/', 'http://localhost');
         next.searchParams.set('view', tab);
         if(params.page)
@@ -107,7 +107,7 @@ export async function handleForumPage({url, headers}){
     }
     else if(path.match(/^\/forum\/replies\/\d+\/$/))
       return redirect(await locateReply(path.split('/')[3]));
-    else if(path.match(/^\/forum\/users\/\d+\/$/)){
+    else if(path.match(/^\/forum\/user\/\d+\/$/)){
       const id = idOf(path.split('/')[3]);
       const author = await publicUser(id, user?.id);
       const tab = ['topics', 'replies', 'following', 'fans'].includes(params.tab)? params.tab: 'topics';
@@ -217,7 +217,7 @@ export async function handleForumApi({method, url, headers = {}, body}){
           fail('unauthenticated', 401);
         return response(200, await notifications(user.id, query.filter, query.page));
       }
-      const author = path.match(/^\/api\/forum\/users\/(\d+)$/);
+      const author = path.match(/^\/api\/forum\/user\/(\d+)$/);
       if(author)
         return response(200, await publicUser(author[1], user?.id));
       return response(404, {error: 'not_found'});
@@ -267,7 +267,7 @@ export async function handleForumApi({method, url, headers = {}, body}){
       if(kind === 'post' && action === 'replies')
         return response(200, await createReply(user, key, id, data));
     }
-    match = path.match(/^\/api\/forum\/users\/(\d+)\/follow$/);
+    match = path.match(/^\/api\/forum\/user\/(\d+)\/follow$/);
     if(match)
       return response(200, await follow(user, key, match[1], data.enabled));
     if(path === '/api/forum/reports')

@@ -4,9 +4,8 @@
 // listPosts、getPost、myContent 与分页判断，而这些都不碰写入与表结构。
 // 依赖方向：本文件 → index.mjs（投票/收藏状态要靠 voteState 算），反过来不允许。
 //
-// 表结构 2026-10-29 重写后，数据库列名变了（poster_id / content / parent_reply / vote_type / category…），
-// 但**对外字段名不变**：SELECT 里统一用 `AS author_id` / `AS body` / `AS parent_id` / `AS kind` 别名，
-// 传给模板与前端 JSON 的形状与旧版一致。改列名时记得同步这里的别名，否则页面会静默空白。
+// 2026-10-29 表结构重写后，模板与 JSON 一律用**物理列名**（poster_id / content / parent_reply /
+// category / sender / detail），不保留 author_id / body / parent_id / kind / details 这套旧名字。
 import {PAGE_SIZE, REPLY_PAGE_SIZE} from '../../common/forum.mjs';
 import {ensurePage, fail, idOf, pageOf, rows} from './base.mjs';
 import {select, transaction} from '../db.mjs';
@@ -16,9 +15,9 @@ import {categoryOf, voteState, write} from './index.mjs';
 
 /**
  * 帖子列表的基础 SELECT：带上作者昵称，列表页与详情页共用同一组列。
- * `author_id` / `body` 是别名 —— 数据库里叫 poster_id / content，模板按旧名字读。
+ * `p.*` 直接给出 poster_id / content，模板按这两个名字读；这里不再有别名层。
  */
-const listSelect = 'SELECT p.*,p.poster_id AS author_id,p.content AS body,u.nickname FROM forum_posts p JOIN users u ON u.id=p.poster_id';
+const listSelect = 'SELECT p.*,u.nickname FROM forum_posts p JOIN users u ON u.id=p.poster_id';
 
 /** 只导出对外的字段映射，避免模板层出现「同一个字段两个名字」。 */
 const POST_VISIBLE = "p.status='published'";
@@ -160,8 +159,9 @@ export async function getPost(id, userId = 0, page = 1, {target = 0} = {}){
     // 同上：页码先过 ensurePage（?reply= 反推出来的页一定在范围内），越界就不必再取回复。
     const pages = ensurePage(page, total, REPLY_PAGE_SIZE);
     const ownLimit = Math.max(0, Math.min(REPLY_PAGE_SIZE, Number(ownTotal) - offset));
-    // 回复行同样用别名回到旧字段名：author_id / body / parent_id。
-    const replySelect = `SELECT r.*,r.poster_id AS author_id,r.parent_reply AS parent_id,r.content AS body,u.nickname,? AS own_priority,p.status AS parent_status,p.sequence AS parent_sequence,CASE WHEN p.status='published' THEN LEFT(p.content,160) ELSE '' END AS parent_excerpt,pu.nickname AS parent_name FROM forum_post_replies r JOIN users u ON u.id=r.poster_id LEFT JOIN forum_post_replies p ON p.id=r.parent_reply LEFT JOIN users pu ON pu.id=p.poster_id WHERE r.post_id=?`;
+    // 回复行同样不给别名：poster_id / content / parent_reply 原样交给模板。
+    // 带 parent_ 前缀的那几个（parent_status / parent_sequence / parent_excerpt / parent_name）是联表取父回复时的消歧，不是旧名。
+    const replySelect = `SELECT r.*,u.nickname,? AS own_priority,p.status AS parent_status,p.sequence AS parent_sequence,CASE WHEN p.status='published' THEN LEFT(p.content,160) ELSE '' END AS parent_excerpt,pu.nickname AS parent_name FROM forum_post_replies r JOIN users u ON u.id=r.poster_id LEFT JOIN forum_post_replies p ON p.id=r.parent_reply LEFT JOIN users pu ON pu.id=p.poster_id WHERE r.post_id=?`;
     const replies = ownLimit? await rows(c, `${replySelect} AND r.poster_id=? AND r.parent_reply IS NULL AND r.status='published' ORDER BY r.sequence DESC LIMIT ${ownLimit} OFFSET ${offset}`, [1, id, userId]): [];
     if(ownLimit < REPLY_PAGE_SIZE)
       replies.push(...await rows(c, `${replySelect} AND NOT(r.poster_id=? AND r.parent_reply IS NULL AND r.status='published') ORDER BY r.sequence LIMIT ${REPLY_PAGE_SIZE - ownLimit} OFFSET ${Math.max(0, offset - Number(ownTotal))}`, [0, id, userId]));
@@ -171,7 +171,7 @@ export async function getPost(id, userId = 0, page = 1, {target = 0} = {}){
     for(const reply of replies){
       // 删掉的回复只留「有人在这里说过话」的位置，正文与昵称都不返回。
       if(reply.status !== 'published'){
-        reply.body = '';
+        reply.content = '';
         reply.nickname = '';
       }
       reply.votes = voteMap.get(Number(reply.id)) || {up: 0, down: 0, mine: 0};
@@ -221,9 +221,9 @@ export async function myContent(userId, tab, page = 1){
   if(tab === 'reports'){
     [{total}] = await select('SELECT (SELECT COUNT(*) FROM forum_post_reports WHERE reporter_id=?)+(SELECT COUNT(*) FROM forum_reply_reports WHERE reporter_id=?) AS total', [userId, userId]);
     pages = ensurePage(page, total, PAGE_SIZE);
-    items = await select(`SELECT r.id,'post' AS kind,COALESCE(t.title,'内容已不可见') AS title,r.post_id AS topic_id,r.category AS reason,r.detail AS details,r.status,r.resolution,r.updated_at,r.created_at FROM forum_post_reports r LEFT JOIN forum_posts t ON t.id=r.post_id WHERE r.reporter_id=?
+    items = await select(`SELECT r.id,'post' AS kind,COALESCE(t.title,'内容已不可见') AS title,r.post_id,r.category,r.detail,r.status,r.resolution,r.updated_at,r.created_at FROM forum_post_reports r LEFT JOIN forum_posts t ON t.id=r.post_id WHERE r.reporter_id=?
       UNION ALL
-      SELECT r.id,'reply' AS kind,COALESCE(t.title,'内容已不可见') AS title,r.post_id AS topic_id,r.category AS reason,r.detail AS details,r.status,r.resolution,r.updated_at,r.created_at FROM forum_reply_reports r LEFT JOIN forum_posts t ON t.id=r.post_id WHERE r.reporter_id=?
+      SELECT r.id,'reply' AS kind,COALESCE(t.title,'内容已不可见') AS title,r.post_id,r.category,r.detail,r.status,r.resolution,r.updated_at,r.created_at FROM forum_reply_reports r LEFT JOIN forum_posts t ON t.id=r.post_id WHERE r.reporter_id=?
       ORDER BY id DESC LIMIT ${PAGE_SIZE} OFFSET ${offset}`, [userId, userId]);
   }
   else if(tab === 'following' || tab === 'fans'){
@@ -250,7 +250,7 @@ export async function myContent(userId, tab, page = 1){
     for(const item of items){
       if(item.status !== 'published'){
         item.title = '已删除的讨论';
-        item.body = '';
+        item.content = '';
       }
     }
     if(tab === 'replies'){
@@ -331,7 +331,7 @@ export async function notifications(userId, filter = 'all', page = 1){
   // 未读数只按前三条（本人 + 关注/点赞是否还有效）算，不跟着分栏变。
   const [{unread}] = await select(`SELECT COUNT(*) AS unread FROM forum_notifications n WHERE ${conditions.slice(0, 3).join(' AND ')} AND n.read_at IS NULL`, [userId]);
   const pages = ensurePage(page, total, PAGE_SIZE);
-  const items = await select(`SELECT n.*,n.sender AS actor_id,n.category AS kind,u.nickname AS actor_name FROM forum_notifications n LEFT JOIN users u ON u.id=n.sender WHERE ${clause} ORDER BY n.id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, [userId]);
+  const items = await select(`SELECT n.*,u.nickname FROM forum_notifications n LEFT JOIN users u ON u.id=n.sender WHERE ${clause} ORDER BY n.id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, [userId]);
   for(const item of items){
     item.href = '';
     item.title = '相关内容已不可见';
@@ -344,8 +344,8 @@ export async function notifications(userId, filter = 'all', page = 1){
       }
     }
     if(item.target_type === 'user'){
-      item.title = item.actor_name || '社区伙伴';
-      item.href = `/forum/users/${item.target_id}/`;
+      item.title = item.nickname || '社区伙伴';
+      item.href = `/forum/user/${item.target_id}/`;
     }
     if(item.target_type === 'post_report' || item.target_type === 'reply_report'){
       const table = item.target_type === 'post_report'? 'forum_post_reports': 'forum_reply_reports';
@@ -360,8 +360,8 @@ export async function notifications(userId, filter = 'all', page = 1){
         item.title = target.title;
         item.href = target.reply_status? `/forum/replies/${item.target_id}/`: `/forum/topics/${target.id}/`;
       }
-      if(['content_deleted', 'content_restored'].includes(item.kind))
-        item.title = item.kind === 'content_deleted'? '你的内容已被删除': '你的内容已恢复';
+      if(['content_deleted', 'content_restored'].includes(item.category))
+        item.title = item.category === 'content_deleted'? '你的内容已被删除': '你的内容已恢复';
     }
   }
   return {items, unread: Number(unread), total: Number(total), page, pages};

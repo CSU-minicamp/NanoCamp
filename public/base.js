@@ -318,10 +318,18 @@
         document.documentElement.setAttribute('data-account', session.user ? 'member' : 'guest');
         const avatar = account.querySelector('.account-avatar');
         if (avatar) syncAvatar(avatar, session.user ? session.user.avatarUrl || '/images/default-account-avatar.png' : '');
-        account.href = session.user ? '/profile/' : '/login/?next=%2Fprofile%2F';
+        // 头像点开是自己的公开主页（/user/<id>/）；「设置」「社区主页」在悬停卡片里。
+        account.href = session.user ? `/user/${session.user.id}/` : '/login/?next=%2Fprofile%2F';
         account.querySelector('[data-account-label]').textContent = session.user ? name : '登录';
-        account.setAttribute('aria-label', session.user ? `已登录：${name}，进入个人中心` : '登录');
-        account.title = session.user ? `已登录：${name} · 个人中心` : '登录';
+        account.setAttribute('aria-label', session.user ? `已登录：${name}，打开个人主页` : '登录');
+        account.title = session.user ? `已登录：${name} · 个人主页` : '登录';
+        const card = doc.querySelector('[data-account-card]');
+        if (card) {
+          const settings = card.querySelector('[data-account-settings]');
+          const forum = card.querySelector('[data-account-forum]');
+          if (settings) settings.href = '/profile/';
+          if (forum) forum.href = session.user ? `/forum/user/${session.user.id}/` : '/login/?next=%2Fprofile%2F';
+        }
         account.classList.toggle('is-signed-in', Boolean(session.user));
         window.dispatchEvent(new CustomEvent('nanocamp-session', {detail: {signedIn: Boolean(session.user)}}));
       } catch (error) {
@@ -336,4 +344,46 @@
     window.addEventListener('pageshow', refreshAccount);
     doc.addEventListener('visibilitychange', () => { if (!doc.hidden) refreshAccount(); });
   }
+})();
+
+// ======================= 可复用确认弹窗 =======================
+// 全站所有「确定要继续吗」都走 window.ncConfirm()：原生 confirm() 样式不可控、也没法虚化背景。
+// 这里用 <dialog> + ::backdrop 做一个统一的确认框（样式在 base.css 的 .nc-popup），
+// 默认把焦点放在「取消」上 —— 这些都是删除类操作，误按回车不该生效。
+(() => {
+  'use strict';
+  let host = null;
+
+  function build(){
+    if(host)
+      return host;
+    host = document.createElement('dialog');
+    host.className = 'nc-popup';
+    host.innerHTML = '<form method="dialog" class="nc-popup-form">'
+      + '<h2 class="nc-popup-title"></h2>'
+      + '<p class="nc-popup-message"></p>'
+      + '<div class="nc-popup-actions">'
+      + '<button type="submit" value="cancel" class="nc-popup-cancel"></button>'
+      + '<button type="submit" value="ok" class="nc-popup-ok"></button>'
+      + '</div></form>';
+    document.body.append(host);
+    return host;
+  }
+
+  // 关闭时靠 dialog.returnValue 判断：点「确定」是 ok，点「取消」/按 Esc 都不是。
+  window.ncConfirm = ({title = '确定继续？', message = '', ok = '确定', cancel = '取消'} = {}) => {
+    const dialog = build();
+    dialog.querySelector('.nc-popup-title').textContent = title;
+    const text = dialog.querySelector('.nc-popup-message');
+    text.textContent = message;
+    text.hidden = !message;
+    dialog.querySelector('.nc-popup-ok').textContent = ok;
+    dialog.querySelector('.nc-popup-cancel').textContent = cancel;
+    dialog.returnValue = '';
+    return new Promise(resolve => {
+      dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), {once: true});
+      dialog.showModal();
+      dialog.querySelector('.nc-popup-cancel').focus();
+    });
+  };
 })();

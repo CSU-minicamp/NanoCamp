@@ -104,7 +104,7 @@ export async function limit(c, user, action, max = RATE_LIMIT_DEFAULT, seconds =
  * @returns {Promise<unknown>} work 的返回值。
  */
 export async function write(user, key, action, work){
-  if(!/^[\w-]{8,80}$/.test(String(key ?? '')))
+  if(!/^[\w-]{8,64}$/.test(String(key ?? '')))
     fail('idempotency_required');
   return transaction(async c => {
     // 标记已读这类动作走宽松校验：被禁言的人也得能清红点；发言类动作禁言时就拦掉。
@@ -438,7 +438,7 @@ export async function bookmark(user, key, id, enabled){
  * 帖子与回复各一张表；还在处理中的重复举报由 `open_key` 唯一索引兜住，直接返回原编号。
  * @param {object} user 当前用户。
  * @param {string} key 幂等键。
- * @param {object} data 请求体（type / id / reason / details）。
+ * @param {object} data 请求体（type / id / reason / detail）。
  * @returns {Promise<{id: number}>} 举报编号。
  */
 export async function report(user, key, data){
@@ -446,7 +446,7 @@ export async function report(user, key, data){
   const {reports, column} = contentOf(kind);  // 认不出的种类回 404。
   const id = idOf(data.id);
   const reason = text(data.reason, 1, 32);
-  const details = text(data.details || '', reason === '其他'? 5: 0, 1000);
+  const detail = text(data.detail || '', reason === '其他'? 5: 0, 1000);
   if(!reportReasons.includes(reason))
     fail('invalid_reason');
   return write(user, key, 'report', async c => {
@@ -462,8 +462,8 @@ export async function report(user, key, data){
     const now = new Date();
     const targetPost = kind === 'post'? id: item.post_id;
     const created = kind === 'post'
-      ? await rows(c, 'INSERT INTO forum_post_reports(post_id,reporter_id,category,detail,created_at,updated_at) VALUES (?,?,?,?,?,?)', [id, user.id, reason, details, now, now])
-      : await rows(c, 'INSERT INTO forum_reply_reports(reply_id,post_id,reporter_id,category,detail,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [id, targetPost, user.id, reason, details, now, now]);
+      ? await rows(c, 'INSERT INTO forum_post_reports(post_id,reporter_id,category,detail,created_at,updated_at) VALUES (?,?,?,?,?,?)', [id, user.id, reason, detail, now, now])
+      : await rows(c, 'INSERT INTO forum_reply_reports(reply_id,post_id,reporter_id,category,detail,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [id, targetPost, user.id, reason, detail, now, now]);
     return {id: created.insertId};
   });
 }

@@ -77,22 +77,22 @@ test('私信直接收发与隐私隔离',{skip:!dbReady()},async t=>{
    await execute('DELETE FROM forum_member_roles WHERE member_id=?',[b]);await call(b,`/api/forum/dm/conversations/${conversation}/unblock`,{});
   });
   await t.test('私信举报、领取、有限证据、处理、系统反馈及恢复',async()=>{
-   const reported=await call(b,'/api/forum/dm/reports',{message_id:message,reason:'人身攻击或骚扰',details:'测试举报'});assert.equal(reported.status,200);report=reported.json.id;
+   const reported=await call(b,'/api/forum/dm/reports',{message_id:message,reason:'人身攻击或骚扰',detail:'测试举报'});assert.equal(reported.status,200);report=reported.json.id;
    assert.equal((await call(b,'/api/forum/dm/reports',{message_id:message,reason:'人身攻击或骚扰'})).json.id,report);
-   assert.equal((await call(a,'/api/forum/dm/reports',{message_id:message,reason:'其他'})).status,403);
-   assert.equal((await call(c,'/api/forum/dm/reports',{message_id:message,reason:'其他'})).status,404);
+   assert.equal((await call(a,'/api/forum/dm/reports',{message_id:message,reason:'其他',detail:'测试说明文字'})).status,403);
+   assert.equal((await call(c,'/api/forum/dm/reports',{message_id:message,reason:'其他',detail:'测试说明文字'})).status,404);
    await execute("INSERT INTO forum_member_roles(member_id,type,created_at) VALUES (?,'admin',?)",[c,new Date()]);
    await assert.rejects(reviewReports(a,report),e=>e.status===403);await assert.rejects(reviewReports(c,report),e=>e.status===403);
    await moderate(c,{reportId:report,version:1,action:'claim',reason:'领取测试举报'});const evidence=await reviewReports(c,report);assert.ok(evidence.evidence.length<=11);
    assert.equal((await call(b,`/api/forum/dm/reports/${report}/withdraw`,{})).status,409);
    await moderate(c,{reportId:report,version:2,action:'uphold',reason:'测试核实，删除消息'});
    assert.equal((await call(a,`/api/forum/dm/conversations/${conversation}/messages`)).json.items[0].body,'消息已删除');
-   const notes=(await call(b,'/api/forum/notifications?filter=system')).json;assert.ok(notes.items.some(n=>n.kind==='dm_report_result'));
+   const notes=(await call(b,'/api/forum/notifications?filter=system')).json;assert.ok(notes.items.some(n=>n.category==='dm_report_result'));
    assert.equal((await call(b,'/profile/?tab=reports&kind=dm')).status,200);
    await moderate(c,{reportId:report,version:3,action:'restore',reason:'复核通过，恢复消息'});
    assert.equal((await call(a,`/api/forum/dm/conversations/${conversation}/messages`)).json.items[0].body,'你好，讨论一下合作。');
-   assert.equal((await call(a,'/api/forum/notifications?filter=system')).json.items.find(n=>n.kind==='dm_content_deleted').title,'测试核实，删除消息');
-   for(let i=0;i<20;i++)await execute("INSERT INTO forum_dm_reports(reporter_id,conversation_id,message_id,reason,detail,status,created_at,updated_at) VALUES (?,?,?,?,?,'dismissed',?,?)",[b,conversation,message,'其他','历史举报 '+i,new Date(),new Date()]);
+   assert.equal((await call(a,'/api/forum/notifications?filter=system')).json.items.find(n=>n.category==='dm_content_deleted').title,'测试核实，删除消息');
+   for(let i=0;i<20;i++)await execute("INSERT INTO forum_dm_reports(reporter_id,conversation_id,message_id,category,detail,status,created_at,updated_at) VALUES (?,?,?,?,?,'dismissed',?,?)",[b,conversation,message,'其他','历史举报 '+i,new Date(),new Date()]);
    assert.equal((await call(b,'/api/forum/dm/reports?report='+report)).json.page,2);
    assert.equal((await call(c,'/api/forum/dm/reports?report='+report)).status,404);
    assert.ok((await call(b,'/profile/?tab=reports&kind=dm&report='+report)).text.includes('id="dm-report-'+report+'"'));

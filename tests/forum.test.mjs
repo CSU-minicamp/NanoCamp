@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID} from 'node:crypto';
@@ -6,6 +7,14 @@ import {select,execute,closePool,dbReady} from '../backend/db.mjs';
 import {hashPassword} from '../backend/auth.mjs';
 import {moderation} from '../backend/forum/index.mjs';
 import {renderMarkdown} from '../src/markdown.mjs';
+
+test('读路径不给旧名别名：模板与 JSON 直接用物理列名',()=>{
+  const source=readFileSync(new URL('../backend/forum/read.mjs',import.meta.url),'utf8');
+  // 别名少写一个不会报错，只会让页面静默空白 —— 所以这里钉住「不许再把 poster_id 翻译回 author_id」。
+  // 只放行「同一行两个角色撞名」的消歧别名（parent_status / parent_sequence / reply_status 这类）。
+  for(const alias of ['author_id','body','parent_id','actor_id','actor_name','details','reason','topic_id'])
+    assert.ok(!source.includes(`AS ${alias}`),`read.mjs 里不该再出现 AS ${alias}`);
+});
 
 test('论坛 Markdown 保留代码并阻止 HTML、图片、危险协议',()=>{
   const html=renderMarkdown('<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n![image](https://x.test/a.png)\n\n```js\nconst x = "<img onerror=alert(1)>";\n```');
@@ -71,14 +80,14 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       assert.ok(authorView.includes(`class="f-withdraw" data-withdraw="post:${topic}"`));
       assert.ok(!authorView.includes(`data-withdraw="reply:${reply}"`));
       assert.ok(!(await call(0,`/forum/topics/${topic}/`)).text.includes('class="f-withdraw"'));
-      assert.ok((await call(a,'/api/forum/notifications')).json.items.some(n=>n.kind==='reply'&&n.target_id===reply));
+      assert.ok((await call(a,'/api/forum/notifications')).json.items.some(n=>n.category==='reply'&&n.target_id===reply));
       assert.match((await call(0,`/forum/replies/${reply}/`)).headers.location,new RegExp('#reply-'+reply));
     });
     await t.test('赞踩互斥、取消、匿名拒绝、不能自赞',async()=>{
       assert.equal((await call(a,`/api/forum/topics/${topic}/vote`,{value:1})).status,403);
       let v=await call(b,`/api/forum/topics/${topic}/vote`,{value:1});assert.deepEqual(v.json,{up:1,down:0,mine:1});
       v=await call(b,`/api/forum/topics/${topic}/vote`,{value:-1});assert.deepEqual(v.json,{up:0,down:1,mine:-1});
-      assert.ok(!(await call(a,'/api/forum/notifications')).json.items.some(n=>n.kind==='like'));
+      assert.ok(!(await call(a,'/api/forum/notifications')).json.items.some(n=>n.category==='like'));
       v=await call(b,`/api/forum/topics/${topic}/vote`,{value:0});assert.deepEqual(v.json,{up:0,down:0,mine:0});
       await Promise.all([call(b,`/api/forum/topics/${topic}/vote`,{value:1}),call(b,`/api/forum/topics/${topic}/vote`,{value:1})]);
       assert.equal((await call(b,`/api/forum/topics/${topic}`)).json.votes.up,1);
@@ -86,11 +95,11 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       assert.equal((await call(a,`/api/forum/replies/${reply}/vote`,{value:-1})).json.down,1);
     });
     await t.test('关注动态与关系、收藏可回访，取消后过滤',async()=>{
-      assert.equal((await call(a,`/api/forum/users/${a}/follow`,{enabled:true})).status,403);
-      await call(b,`/api/forum/users/${a}/follow`,{enabled:true});assert.ok((await call(b,'/api/forum/topics?feed=following')).json.items.some(x=>x.id===topic));
+      assert.equal((await call(a,`/api/forum/user/${a}/follow`,{enabled:true})).status,403);
+      await call(b,`/api/forum/user/${a}/follow`,{enabled:true});assert.ok((await call(b,'/api/forum/topics?feed=following')).json.items.some(x=>x.id===topic));
       assert.ok((await call(b,'/api/forum/me?tab=following')).json.items.some(u=>u.id===a));
-      await call(b,`/api/forum/users/${a}/follow`,{enabled:false});assert.equal((await call(b,'/api/forum/topics?feed=following')).json.total,0);
-      await call(b,`/api/forum/users/${a}/follow`,{enabled:true});assert.equal((await select('SELECT COUNT(*) n FROM forum_notifications WHERE receiver=? AND category=?',[a,'follow']))[0].n,1);
+      await call(b,`/api/forum/user/${a}/follow`,{enabled:false});assert.equal((await call(b,'/api/forum/topics?feed=following')).json.total,0);
+      await call(b,`/api/forum/user/${a}/follow`,{enabled:true});assert.equal((await select('SELECT COUNT(*) n FROM forum_notifications WHERE receiver=? AND category=?',[a,'follow']))[0].n,1);
       await call(b,`/api/forum/topics/${topic}/bookmark`,{enabled:true});assert.ok((await call(b,'/api/forum/me?tab=bookmarks')).json.items.some(x=>x.id===topic));
       const row=(await call(b,'/api/forum/topics?q='+encodeURIComponent(salt))).json.items.find(x=>x.id===topic);
       assert.equal(row.like_count,1);assert.equal(row.vote_mine,1);assert.equal(row.bookmark_count,1);assert.equal(row.bookmarked,true);
@@ -109,12 +118,16 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       const result=(await call(a,`/api/forum/topics/${topic}`)).json;
       assert.equal(result.topic.title,`测试讨论 ${salt}`);assert.equal(result.topic.category,'questions');
       assert.equal(result.topic.version,undefined,'帖子没有版本号了');
-      assert.equal(result.replies[0].body,'这是一条明确的回复。');
+      assert.equal(result.replies[0].content,'这是一条明确的回复。');
+      // 对外形状 = 物理列名：模板读 content / poster_id / parent_reply，不是 body / author_id / parent_id。
+      const shape=result.replies[0];
+      assert.ok('content' in shape&&'poster_id' in shape&&'parent_reply' in shape);
+      assert.ok(!('body' in shape)&&!('author_id' in shape)&&!('parent_id' in shape),'旧名别名不许回来');
       const row=(await select('SELECT status FROM forum_posts WHERE id=?',[topic]))[0];
       assert.equal(row.status,'published','被拒绝的修改没有落库');
     });
     await t.test('举报去重、非管理拒绝、成立删除与管理员恢复',async()=>{
-      const request={type:'reply',id:reply,reason:'其他',details:'需要社区核实的具体测试问题'};
+      const request={type:'reply',id:reply,reason:'其他',detail:'需要社区核实的具体测试问题'};
       const rep=await call(c,'/api/forum/reports',request);assert.equal(rep.status,200);reportId=rep.json.id;
       assert.equal((await call(c,'/api/forum/reports',request)).json.id,reportId);
       assert.equal((await call(a,'/api/forum/me?tab=reports')).json.total,0);
@@ -124,17 +137,17 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       assert.equal((await call(c,`/api/forum/reports/reply/${reportId}/withdraw`,{})).status,409);
       await moderation(a,{kind:'reply',reportId,version:2,action:'uphold',reason:'已核实测试内容，删除该回复'});
       const detail=(await call(0,`/api/forum/topics/${topic}`)).json;
-      assert.equal(detail.replies[0].body,'');assert.equal(detail.replies[0].status,'deleted_by_report');
+      assert.equal(detail.replies[0].content,'');assert.equal(detail.replies[0].status,'deleted_by_report');
       assert.equal(detail.topic.reply_count,0);
       const reports=(await call(c,'/api/forum/me?tab=reports')).json;assert.equal(reports.items[0].status,'upheld');assert.match(reports.items[0].resolution,/已核实/);
-      assert.ok((await call(c,'/api/forum/notifications')).json.items.some(n=>n.kind==='report_result'));
+      assert.ok((await call(c,'/api/forum/notifications')).json.items.some(n=>n.category==='report_result'));
       await moderation(a,{kind:'reply',reportId,version:3,action:'restore',reason:'测试完成，恢复公开回复'});
       assert.equal((await call(0,`/api/forum/topics/${topic}`)).json.topic.reply_count,1);
-      const resultNotes=(await call(c,'/api/forum/notifications')).json.items.filter(n=>n.kind==='report_result');
+      const resultNotes=(await call(c,'/api/forum/notifications')).json.items.filter(n=>n.category==='report_result');
       assert.ok(resultNotes.some(n=>n.title==='已核实测试内容，删除该回复'));
       const authorNotes=(await call(b,'/api/forum/notifications')).json.items;
-      assert.equal(authorNotes.find(n=>n.kind==='content_deleted').title,'你的内容已被删除');
-      assert.equal(authorNotes.find(n=>n.kind==='content_restored').title,'你的内容已恢复');
+      assert.equal(authorNotes.find(n=>n.category==='content_deleted').title,'你的内容已被删除');
+      assert.equal(authorNotes.find(n=>n.category==='content_restored').title,'你的内容已恢复');
     });
     await t.test('通知已读只影响本人；删帖后整帖不可达',async()=>{
       const notes=(await call(a,'/api/forum/notifications')).json.items;assert.ok(notes.length);
@@ -173,8 +186,8 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       const redacted=(await call(0,`/api/forum/topics/${id}?page=2`)).json.replies[0];
       assert.equal(redacted.parent_excerpt,'');assert.equal(redacted.parent_status,'deleted_by_report');
       await execute("UPDATE forum_post_replies SET status='deleted_by_report' WHERE id=?",[last]);
-      assert.equal((await call(0,`/api/forum/topics/${id}?page=2`)).json.replies[0].body,'');
-      const author=await call(0,`/forum/users/${a}/`);assert.equal(author.status,200);assert.ok(!author.text.includes('forum-'+salt));
+      assert.equal((await call(0,`/api/forum/topics/${id}?page=2`)).json.replies[0].content,'');
+      const author=await call(0,`/forum/user/${a}/`);assert.equal(author.status,200);assert.ok(!author.text.includes('forum-'+salt));
     });
     await t.test('本人直接回复优先，定向回复不置顶，直达只读目标批次',async()=>{
       const now=new Date(),r=await execute('INSERT INTO forum_posts(poster_id,category,title,content,last_activity_at,created_at) VALUES (?,?,?,?,?,?)',[a,'questions','评论优先测试 '+salt,'验证自己的新评论无需加载历史所有楼层。',now,now]),id=r.insertId;
@@ -185,10 +198,10 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
       assert.equal(created.json.href,`/forum/topics/${id}/#reply-${fresh}`);
       const own=(await call(a,`/api/forum/topics/${id}`)).json.replies;
       assert.equal(own.length,30);assert.equal(own[0].id,priorOwn);assert.equal(own[0].own_priority,1);assert.equal(own[1].sequence,1);assert.ok(!own.some(x=>x.id===fresh));
-      const target=(await call(c,`/api/forum/topics/${id}?reply=${fresh}`)).json;assert.equal(target.page,3);assert.equal(target.replies.length,13);assert.ok(target.replies.some(x=>x.id===fresh));assert.equal(target.replies.at(-1).parent_id,parent);
+      const target=(await call(c,`/api/forum/topics/${id}?reply=${fresh}`)).json;assert.equal(target.page,3);assert.equal(target.replies.length,13);assert.ok(target.replies.some(x=>x.id===fresh));assert.equal(target.replies.at(-1).parent_reply,parent);
       const fragment=await call(a,`/forum/topics/${id}/?reply=${fresh}&fragment=1`);assert.ok(fragment.text.indexOf(`data-reply-id="${parent}"`)<fragment.text.indexOf(`data-reply-id="${fresh}"`));assert.ok(fragment.text.includes('f-reply-children'));
       const direct=await call(a,`/api/forum/topics/${id}/replies`,{body:'直接回复主帖，在本人视角优先。'});assert.equal(direct.status,200);
-      const promoted=(await call(a,`/api/forum/topics/${id}`)).json.replies;assert.equal(promoted[0].id,direct.json.id);assert.equal(promoted[0].parent_id,null);
+      const promoted=(await call(a,`/api/forum/topics/${id}`)).json.replies;assert.equal(promoted[0].id,direct.json.id);assert.equal(promoted[0].parent_reply,null);
       await call(a,`/api/forum/replies/${direct.json.id}/withdraw`,{});assert.equal((await call(a,`/api/forum/topics/${id}`)).json.replies[0].id,priorOwn);
     });
     await t.test('列表续载保留搜索条件且私有片段不能匿名读取',async()=>{
@@ -203,11 +216,11 @@ test('真实 MySQL 论坛闭环、所有权、幂等、投票与举报处理',{s
     });
     await t.test('举报撤回和驳回有终态；禁言不妨碍阅读和已读',async()=>{
       const id=(await call(a,'/api/forum/topics',{title:'举报终态测试 '+salt,body:'用于验证举报撤回与驳回的独立内容。',category:'questions'})).json.id;
-      const r=(await call(b,'/api/forum/reports',{type:'post',id,reason:'其他',details:'测试举报撤回过程'})).json.id;
+      const r=(await call(b,'/api/forum/reports',{type:'post',id,reason:'其他',detail:'测试举报撤回过程'})).json.id;
       assert.equal((await call(b,`/api/forum/reports/post/${r}/withdraw`,{})).status,200);
       // 不带 kind 的旧写法已经不认了：两张举报表编号会撞，靠遍历猜是错的做法。
       assert.equal((await call(b,`/api/forum/reports/${r}/withdraw`,{})).status,404);
-      const r2=(await call(c,'/api/forum/reports',{type:'post',id,reason:'其他',details:'测试举报驳回过程'})).json.id;
+      const r2=(await call(c,'/api/forum/reports',{type:'post',id,reason:'其他',detail:'测试举报驳回过程'})).json.id;
       assert.equal((await moderation(a,{kind:'post',reportId:r2,version:1,action:'dismiss',reason:'核对后未发现需要处理的问题'})).status,'dismissed');
       await execute('INSERT INTO forum_member_roles(member_id,type,expired_at,created_at) VALUES (?,\'ban\',?,?)',[c,new Date(Date.now()+3600000),new Date()]);
       assert.equal((await call(c,`/api/forum/topics/${id}/vote`,{value:1})).status,403);

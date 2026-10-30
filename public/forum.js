@@ -232,7 +232,7 @@
         group.querySelector('[data-up]').textContent=result.up;const down=group.querySelector('[data-down]');if(down)down.textContent=result.down;
         group.querySelectorAll('[data-vote]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.vote)===result.mine)));
       }else if(button.hasAttribute('data-follow')){
-        const result=await api(`/api/forum/users/${button.dataset.follow}/follow`,{enabled:button.dataset.enabled!=='true'});button.dataset.enabled=String(result.enabled);button.setAttribute('aria-pressed',String(result.enabled));button.textContent=result.enabled?'✓ 已关注':'+ 关注';button.classList.toggle('f-primary',!result.enabled);button.classList.toggle('f-secondary',result.enabled);
+        const result=await api(`/api/forum/user/${button.dataset.follow}/follow`,{enabled:button.dataset.enabled!=='true'});button.dataset.enabled=String(result.enabled);button.setAttribute('aria-pressed',String(result.enabled));button.textContent=result.enabled?'✓ 已关注':'+ 关注';button.classList.toggle('f-primary',!result.enabled);button.classList.toggle('f-secondary',result.enabled);
       }else if(button.hasAttribute('data-bookmark')){
         const result=await api(`/api/forum/topics/${button.dataset.bookmark}/bookmark`,{enabled:button.dataset.enabled!=='true'});button.dataset.enabled=String(result.enabled);button.setAttribute('aria-pressed',String(result.enabled));
         const label=button.querySelector('[data-bookmark-label]'),count=button.querySelector('[data-bookmark-count]');if(label)label.textContent=result.enabled?'已收藏':'收藏';if(count)count.textContent=result.count;button.setAttribute('aria-label',result.enabled?'取消收藏':'收藏帖子');
@@ -245,7 +245,7 @@
         if(bounds.top<110||bounds.bottom>innerHeight-24)textarea.scrollIntoView({block:'center',behavior:'instant'});
         textarea.focus({preventScroll:true});form.dispatchEvent(new Event('input'));
       }else if(button.hasAttribute('data-withdraw')){
-        if(!confirm('确定撤回这段内容？已有讨论将保留占位。'))return;
+        if(!await ncConfirm({title:'删除这段内容？',message:'已有讨论将保留占位，无法恢复。',ok:'删除'}))return;
         const [kind,id]=button.dataset.withdraw.split(':');await api(`/api/forum/${kind==='post'?'topics':'replies'}/${id}/withdraw`,{});location.reload();
       }else if(button.hasAttribute('data-report')){
         const dialog=document.querySelector('#forum-report-dialog'),form=dialog.querySelector('form');form.reset();form.querySelector('[data-form-status]').textContent='';form.dataset.target=button.dataset.report;
@@ -254,7 +254,7 @@
         await api('/api/forum/notifications/read',{ids:button.dataset.openNotice.split(',').map(Number)});window.dispatchEvent(new Event('forum-notifications-changed'));
         if(button.dataset.href)location.assign(button.dataset.href);else {button.closest('.f-notice').classList.remove('is-unread');toast('相关内容已不可见，消息已标为已读。');}
       }else if(button.hasAttribute('data-read-all')){await api('/api/forum/notifications/read',{ids:'all',filter:button.dataset.noticeFilter||'all'});document.querySelectorAll('.f-notice').forEach(e=>e.classList.remove('is-unread'));window.dispatchEvent(new Event('forum-notifications-changed'));toast('已全部标为已读');}
-      else if(button.hasAttribute('data-withdraw-report')){if(!confirm('确定撤回这条尚未处理的举报？'))return;await api(`/api/forum/reports/${String(button.dataset.withdrawReport).replace(':','/')}/withdraw`,{});location.reload();}
+      else if(button.hasAttribute('data-withdraw-report')){if(!await ncConfirm({title:'撤回这条举报？',message:'撤回后可以重新举报。',ok:'撤回举报'}))return;await api(`/api/forum/reports/${String(button.dataset.withdrawReport).replace(':','/')}/withdraw`,{});location.reload();}
     }catch(error){toast(error.message);}finally{button.disabled=false;}
   });
   document.addEventListener('click',event=>{const button=event.target.closest('[data-close-modal]');if(button)button.closest('dialog')?.close();});
@@ -262,7 +262,7 @@
     const form=event.target;if(!form.matches('[data-report-form]'))return;event.preventDefault();if(!form.reportValidity())return;
     const submit=form.querySelector('[type=submit]');if(submit.disabled)return;submit.disabled=true;
     try {
-      const [type,id]=form.dataset.target.split(':');const result=await api('/api/forum/reports',{type,id:Number(id),reason:form.elements.reason.value,details:form.elements.details.value});form.closest('dialog').close();toast(`举报 R${result.id} 已提交，可在个人中心“我的举报”查看进度。`);
+      const [type,id]=form.dataset.target.split(':');const result=await api('/api/forum/reports',{type,id:Number(id),reason:form.elements.reason.value,detail:form.elements.detail.value});form.closest('dialog').close();toast(`举报 R${result.id} 已提交，可在个人中心“我的举报”查看进度。`);
     }catch(error){errorIn(form,error);}finally{submit.disabled=false;}
   });
 })();

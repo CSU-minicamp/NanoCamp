@@ -46,8 +46,8 @@ test('帖子图片 MySQL 存储、发布绑定、可见性和迁移适配器',{s
     });
     await t.test('MySQL二进制、比例缩放、去元数据、幂等与草稿隔离',async()=>{
       const key=randomUUID(),r=await upload(a,png,{key});assert.equal(r.status,201);photo=r.json;assert.equal((await upload(a,png,{key})).json.id,photo.id);
-      assert.equal(photo.width,1920);assert.equal(photo.height,960);assert.equal((await call(0,photo.url)).status,404);assert.equal((await call(b,photo.url)).status,404);
-      const image=await call(a,photo.url);assert.equal(image.status,200);const meta=await sharp(image.body).metadata();assert.equal(meta.format,'webp');assert.ok(!meta.exif);
+      assert.equal((await call(0,photo.url)).status,404);assert.equal((await call(b,photo.url)).status,404);
+      const image=await call(a,photo.url);assert.equal(image.status,200);const meta=await sharp(image.body).metadata();assert.equal(meta.format,'webp');assert.equal(meta.width,1920,'长边缩到 1920');assert.equal(meta.height,960,'等比缩放');assert.ok(!meta.exif);
       const [blob]=await select('SELECT b.content FROM forum_images i JOIN forum_image_blobs b ON b.storage_key=i.storage_key WHERE i.id=?',[photo.id]);assert.deepEqual(blob.content,image.body);
       assert.equal((await call(a,photo.url,{method:'HEAD'})).body.length,0);assert.equal((await call(a,photo.url,{extra:{'if-none-match':image.headers.etag}})).status,304);
     });

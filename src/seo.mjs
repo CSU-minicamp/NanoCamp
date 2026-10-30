@@ -18,7 +18,7 @@ import {indexablePaths} from './pages.mjs';
 export const dynamicIndexable = [
   /^\/forum\/$/,
   /^\/forum\/topics\/[1-9]\d{0,14}\/$/,
-  /^\/forum\/users\/[1-9]\d{0,14}\/$/
+  /^\/forum\/user\/[1-9]\d{0,14}\/$/
 ];
 
 /**

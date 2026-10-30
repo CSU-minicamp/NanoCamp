@@ -8,7 +8,7 @@ import {dynamicIndexable, isIndexable, isNoindex} from '../src/seo.mjs';
 // 这些断言的意义是「新增页面忘了想清楚」时能立刻炸掉，而不是等搜索引擎抓进去。
 
 test('白名单只有三种动态形态：论坛列表、帖子详情、作者页', () => {
-  for(const route of ['/forum/', '/forum/topics/24/', '/forum/users/195/'])
+  for(const route of ['/forum/', '/forum/topics/24/', '/forum/user/195/'])
     assert.equal(isIndexable(route), true, route + ' 应当可收录');
   assert.equal(dynamicIndexable.length, 3);
 });
@@ -17,7 +17,7 @@ test('其余动态页一律默认 noindex', () => {
   const shouldNotIndex = [
     '/forum/messages/', '/forum/messages/conversations/12/', '/forum/messages/new/',
     '/forum/new/', '/forum/me/', '/forum/notifications/',
-    '/forum/topics/24/edit/', '/forum/topics/0195/', '/forum/users/0195/',
+    '/forum/topics/24/edit/', '/forum/topics/0195/', '/forum/user/0195/',
     '/forum/members/', '/forum/mentions/',   // 子串误伤的老写法会漏掉这类地址
     '/profile/', '/profile/force/', '/user/195/'
   ];

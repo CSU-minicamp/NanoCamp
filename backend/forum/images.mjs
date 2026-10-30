@@ -85,14 +85,15 @@ export async function uploadForumImage(user, key, input, type){
   const expected = {'image/jpeg': 'jpeg', 'image/png': 'png', 'image/webp': 'webp'}[String(type).split(';')[0].trim().toLowerCase()];
   if(!expected)
     fail('unsupported_image_type', 415);
-  let output;
+  let bytes;
   try{
     const image = sharp(input, {limitInputPixels: 16 * 1024 * 1024, failOn: 'warning'});
     const meta = await image.metadata();
     // 动图不收：只留一帧的「动图」比原图更容易误导。
     if(meta.format !== expected || (meta.pages || 1) > 1)
       fail('invalid_image', 422);
-    output = await image.rotate().resize({width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true}).webp({quality: 85}).toBuffer({resolveWithObject: true});
+    // 只在内存里缩到 1920 内，宽高不落库：管线固定的常量，需要时读字节自己算（与头像同一口径）。
+    bytes = await image.rotate().resize({width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true}).webp({quality: 85}).toBuffer();
   }
   catch(error){
     if(error.code === 'invalid_image')
@@ -102,7 +103,6 @@ export async function uploadForumImage(user, key, input, type){
   const storageKey = randomUUID();
   const driver = loadConfig().forumImageStorage?.driver || 'mysql';
   const store = forumImageStore(driver);
-  const bytes = output.data;
   const etag = createHash('sha256').update(bytes).digest('hex');
   let result;
   try{
@@ -110,12 +110,12 @@ export async function uploadForumImage(user, key, input, type){
     result = await write(user, key, 'image_upload', async c => {
       await limit(c, user, 'image_upload', IMAGE_UPLOAD_PER_HOUR);
       // 同一张图重复上传：复用还没挂到帖子上的那张草稿。
-      const [prior] = await c.execute('SELECT id,storage_key,content_type,byte_size,width,height FROM forum_images WHERE poster_id=? AND etag=? AND post_id IS NULL AND created_at>? ORDER BY id DESC LIMIT 1', [user.id, etag, draftCutoff()]);
+      const [prior] = await c.execute('SELECT id,storage_key,content_type FROM forum_images WHERE poster_id=? AND etag=? AND post_id IS NULL AND created_at>? ORDER BY id DESC LIMIT 1', [user.id, etag, draftCutoff()]);
       if(prior[0])
-        return {id: prior[0].id, storage_key: prior[0].storage_key, url: '/api/forum/images/' + prior[0].id, contentType: prior[0].content_type, size: Number(prior[0].byte_size), width: prior[0].width, height: prior[0].height};
+        return {id: prior[0].id, storage_key: prior[0].storage_key, url: '/api/forum/images/' + prior[0].id, contentType: prior[0].content_type};
       // c.execute 返回 [ResultSetHeader, fields]，insertId 在第一个元素上（不是 rows() 的裸 result）。
-      const [created] = await c.execute('INSERT INTO forum_images(poster_id,storage_driver,storage_key,content_type,byte_size,width,height,etag,created_at) VALUES (?,?,?,?,?,?,?,?,?)', [user.id, driver, storageKey, 'image/webp', bytes.length, output.info.width, output.info.height, etag, new Date()]);
-      return {id: created.insertId, storage_key: storageKey, url: '/api/forum/images/' + created.insertId, contentType: 'image/webp', size: bytes.length, width: output.info.width, height: output.info.height};
+      const [created] = await c.execute('INSERT INTO forum_images(poster_id,storage_driver,storage_key,content_type,etag,created_at) VALUES (?,?,?,?,?,?)', [user.id, driver, storageKey, 'image/webp', etag, new Date()]);
+      return {id: created.insertId, storage_key: storageKey, url: '/api/forum/images/' + created.insertId, contentType: 'image/webp'};
     });
   }
   catch(error){
