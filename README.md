@@ -238,11 +238,32 @@ curl -sS -o/dev/null -w '%{http_code}\n' http://127.0.0.1:38083/about/   # 期�
 
 **更新代码**：
 
+代码直接推到服务器（`scp` / 远程编辑怎么顺手怎么来），然后跑服务器侧的脚本：
+
 ```sh
-cd /srv/NanoCamp-test && sudo git pull && sudo systemctl restart nanocamp@Nanocamp-test
+cd /srv/NanoCamp-test
+bash scripts/deploy.sh              # 只打印计划（默认，什么都不改）
+bash scripts/deploy.sh run          # 看过计划、确认后执行
 ```
 
-没有构建产物要同步；但运行依赖必须在服务器上装好（`npm ci`）——`sharp` 是原生模块，缺了它整站起不来，不只是头像功能。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
+**默认不执行**：无参只输出将要跑的每条命令，加 `run` 才真的动。脚本**不碰 git**、不假设有 `.git`，
+从「文件已经在服务器上」开始，所以随时能跑、跑几遍都安全。进程用 **pm2** 管（进程名取 `data/config.json`
+的 `name`），不依赖 systemd。
+
+它包住两件手敲时最容易漏的事：`mysqldump` 备份、以及**建表**（新增表 + 给 `users` 补头像三列）。
+建表要 DDL 权限而应用账号按设计只有 DML，脚本会临时授 `CREATE/ALTER/INDEX/REFERENCES`、跑完立刻收回，
+`trap` 保证中途失败也收回。
+
+**用普通用户跑，别加 `sudo bash`** —— 那会让 `node_modules` 和 `data/` 变成 root 所有，之后每条 `npm` 都 EACCES。
+脚本自己在需要的地方调 `sudo`。
+
+其余参数（都跟在 `run` 后面）：`--db-only`（只建表 + `pm2 restart`，最快）、
+`--skip-deps`（确认 `package.json` 没变时）、`--no-db-backup`。
+
+⚠️ 用 SFTP / 远程编辑上传 `scripts/deploy.sh` 时别让它转成 CRLF，否则 bash 会报 `$'\r': command not found`。
+脚本开头会自检并提示 `sed -i "s/\r$//" scripts/deploy.sh`。
+
+没有构建产物要同步；但运行依赖必须在服务器上装好（脚本里的 `npm ci --omit=dev`）——`sharp` 是原生模块，缺了它整站起不来，不只是头像功能。`node --watch`（`npm run dev`）只用于本地开发，别拿它做守护。
 
 用 pm2 守护也可以，两条命令即可：
 

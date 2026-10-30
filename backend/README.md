@@ -387,7 +387,8 @@ node .workbuddy/tools/forum-seed.mjs
 
 ### 线上怎么升级（第一次上线就是 19 张新表）
 
-线上停在 v0.1.1b：只有 4 张账号表。跑 `npm run db:migrate` 就是把 `schemaStatements` 全部执行一遍，实际动作是：
+线上停在 v0.1.1b：只有 4 张账号表。跑 `npm run db:migrate` 就是把 `schemaStatements` 全部执行一遍
+（再跑 `schemaSteps` 里的 ALTER 增量），实际动作是：
 
 | 动作 | 说明 |
 |---|---|
@@ -401,9 +402,10 @@ node .workbuddy/tools/forum-seed.mjs
 是空操作，新列永远不出现。得在 `schemaSteps` 里加一个幂等函数（先查 `information_schema` 再 `ALTER`），
 数据回填也写在同一个函数里 —— 它每次建库都会跑，所以必须能重复执行。
 
-> 表结构的唯一真相是 `backend/schema.mjs`，`node scripts/migrate.mjs --print` 打出来的就是它。
-> ⚠️ `--print` 打不出 `schemaSteps` 里的 ALTER（那是 JS），所以没有 DDL 权限的部署要「先执行打印出来的 SQL，
-> 再跑一次 `npm run db:migrate`」把头像三列补齐。
+> 表结构的唯一真相是 `backend/schema.mjs`，`node scripts/migrate.mjs --print` 打出来的就是它：
+> 23 条 CREATE，末尾接 `schemaAlterStatements`（头像三列的幂等 ALTER，用 `information_schema` + `PREPARE`
+> 包了一层，存在就跳过）。所以 `--print | sudo mysql` **一次就能建到最新**，不需要再跑第二遍。
+> 列定义本身只有一份（`avatarColumns` / `avatarIndex`），`addAvatarColumns()` 与 SQL 版都从它生成。
 
 ## 8. 状态码
 

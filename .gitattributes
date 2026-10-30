@@ -1,0 +1,4 @@
+# 只有这一条：shell 脚本必须保持 LF。
+# 仓库里其余文件在 Windows 上按 core.autocrlf 走，但 .sh 一旦变成 CRLF，
+# Linux 上会报 `bad interpreter: /bin/bash^M`，而报错信息完全不提换行符，很难查。
+*.sh text eol=lf

@@ -399,6 +399,22 @@ const avatars = [
 // ======================= 汇总 =======================
 
 /**
+ * `users` 上「后来才有的三列」。
+ *
+ * 抽成模块级数据是因为有两个消费者：`addAvatarColumns()`（Node 里查 information_schema 再 ALTER）
+ * 和 `schemaAlterStatements`（打印成幂等 SQL，交给有 DDL 权限的会话执行）。
+ * 两边都从这一份数组生成，改列只改这里。
+ */
+export const avatarColumns = [
+  ['avatar_storage_driver', `VARCHAR(32) NULL DEFAULT NULL COMMENT '头像字节存在哪种驱动里（mysql / 对象存储…）'`],
+  ['avatar_storage_key', `VARCHAR(80) NULL DEFAULT NULL COMMENT '头像对象的键；服务端生成的 UUID，不是路径'`],
+  ['avatar_etag', `CHAR(64) NULL DEFAULT NULL COMMENT '头像内容 SHA-256，用于 304 回源校验'`]
+];
+
+/** 头像那两列上的唯一索引。 */
+export const avatarIndex = {name: 'uniq_users_avatar', columns: 'avatar_storage_driver, avatar_storage_key'};
+
+/**
  * 给**已上线的账号库**补头像的三列。
  *
  * 为什么不能只写在 users 的 CREATE 里：线上库的 users 已经存在，
@@ -410,19 +426,50 @@ const avatars = [
 async function addAvatarColumns(c){
   const [rows] = await c.query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?', ['users']);
   const have = new Set(rows.map(row => row.COLUMN_NAME));
-  const columns = [
-    ['avatar_storage_driver', `avatar_storage_driver VARCHAR(32) NULL DEFAULT NULL COMMENT '头像字节存在哪种驱动里（mysql / 对象存储…）'`],
-    ['avatar_storage_key', `avatar_storage_key VARCHAR(80) NULL DEFAULT NULL COMMENT '头像对象的键；服务端生成的 UUID，不是路径'`],
-    ['avatar_etag', `avatar_etag CHAR(64) NULL DEFAULT NULL COMMENT '头像内容 SHA-256，用于 304 回源校验'`]
-  ];
-  for(const [name, ddl] of columns){
+  for(const [name, ddl] of avatarColumns){
     if(!have.has(name))
-      await c.query(`ALTER TABLE users ADD COLUMN ${ddl}`);
+      await c.query(`ALTER TABLE users ADD COLUMN ${name} ${ddl}`);
   }
   const [indexes] = await c.query('SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?', ['users']);
-  if(!indexes.some(row => row.INDEX_NAME === 'uniq_users_avatar'))
-    await c.query('ALTER TABLE users ADD UNIQUE KEY uniq_users_avatar (avatar_storage_driver, avatar_storage_key)');
+  if(!indexes.some(row => row.INDEX_NAME === avatarIndex.name))
+    await c.query(`ALTER TABLE users ADD UNIQUE KEY ${avatarIndex.name} (${avatarIndex.columns})`);
 }
+
+/**
+ * 把「存在就跳过」包成一条能反复执行的 SQL。
+ *
+ * MySQL 没有 `ADD COLUMN IF NOT EXISTS`，所以查 information_schema 再 PREPARE 兜一圈；
+ * 已经存在时执行 `SET @noop = 1`（空操作，不报错也不输出）。
+ * @param {string} probe 返回计数的子查询。
+ * @param {string} ddl 要执行的 ALTER。
+ * @returns {string} 可直接执行的 SQL（多行）。
+ */
+function guardedAlter(probe, ddl){
+  const escaped = ddl.replace(/'/g, "''");
+  return [
+    `SET @ddl = (SELECT IF((${probe}) = 0, '${escaped}', 'SET @noop = 1'));`,
+    'PREPARE stmt FROM @ddl;',
+    'EXECUTE stmt;',
+    'DEALLOCATE PREPARE stmt;'
+  ].join('\n');
+}
+
+/**
+ * `schemaSteps` 的 SQL 版本：`migrate.mjs --print` 把它接在 CREATE 后面一起打出来，
+ * 这样没有 DDL 权限的机器也能靠一次 `sudo mysql < 文件` 把库建到最新（含头像三列 + 唯一索引），
+ * 不需要给应用账号授任何权限。
+ */
+export const schemaAlterStatements = [
+  ...avatarColumns.map(([name, ddl]) => guardedAlter(
+    `SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='${name}'`,
+    `ALTER TABLE users ADD COLUMN ${name} ${ddl}`
+  )),
+  // information_schema.STATISTICS 对复合索引是一列一行，所以必须 COUNT(DISTINCT INDEX_NAME)。
+  guardedAlter(
+    `SELECT COUNT(DISTINCT INDEX_NAME) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND INDEX_NAME='${avatarIndex.name}'`,
+    `ALTER TABLE users ADD UNIQUE KEY ${avatarIndex.name} (${avatarIndex.columns})`
+  )
+];
 
 /**
  * 全部建表语句，顺序即执行顺序：账号 → 论坛 → 私信 → 头像。
